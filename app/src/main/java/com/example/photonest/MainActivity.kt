@@ -13,9 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.motionEventSpy
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.compose.PhotoNestTheme
 import com.example.photonest.ui.screens.splash.SplashAndMain
 import com.example.photonest.ui.screens.splash.SplashScreen
-import com.example.photonest.ui.theme.PhotoNestTheme
 
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
