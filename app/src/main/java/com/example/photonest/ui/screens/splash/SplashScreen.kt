@@ -14,9 +14,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.compose.PhotoNestTheme
 import com.example.photonest.MainActivity
 import com.example.photonest.R
-import com.example.photonest.ui.theme.PhotoNestTheme
 import kotlinx.coroutines.delay
 
 @Composable
