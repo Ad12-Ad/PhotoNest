@@ -36,6 +36,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.compose.PhotoNestTheme
+import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.screens.splash.SplashAndMain
 import com.example.photonest.ui.screens.splash.SplashScreen
@@ -47,8 +48,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PhotoNestTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) {
-                    SplashAndMain()
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
+                    ) {
+                    BackTxtBtn {
+
+                    }
                 }
             }
         }
