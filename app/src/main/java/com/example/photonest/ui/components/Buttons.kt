@@ -5,16 +5,21 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,8 +27,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -82,6 +90,7 @@ fun BackButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
     IconButton(
         modifier = modifier,
         onClick = onClick,
+        enabled = true,
         colors = IconButtonDefaults.iconButtonColors(
             containerColor = Color.Unspecified
         ),
@@ -89,6 +98,8 @@ fun BackButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
             Image(
                 painter = painterResource(R.drawable.arrow_back),
                 contentDescription = null,
+                modifier = Modifier
+                    .size(18.dp),
                 colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
             )
         }
@@ -118,10 +129,42 @@ fun BackTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
     }
 }
 
+@Composable
+fun OnboardingCircleBtn(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    iconColors: IconButtonColors = IconButtonDefaults.iconButtonColors(
+        containerColor = kelly_green,
+        disabledContainerColor = disabled_kelly_green
+    ),
+) {
+    IconButton(
+        modifier = modifier,
+        onClick = onClick,
+        enabled = enabled,
+        colors = iconColors,
+        content = {
+            Image(
+                painter = painterResource(R.drawable.arrow_back),
+                contentDescription = null,
+                modifier = Modifier
+                    .graphicsLayer(rotationZ = 180f)
+                    .size(18.dp),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.surface)
+            )
+        }
+    )
+}
+
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-private fun cedkj() {
-    BackTxtBtn {
+private fun Prev() {
+    Column {
+        OnboardingCircleBtn(onClick = { /*TODO*/ },)
+        BackButton {
 
+        }
     }
 }
