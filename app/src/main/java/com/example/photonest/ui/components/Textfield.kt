@@ -30,9 +30,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.compose.grey
+import com.example.photonest.ui.theme.fontFamily
+import com.example.photonest.ui.theme.fontName
 
 
 @Composable
