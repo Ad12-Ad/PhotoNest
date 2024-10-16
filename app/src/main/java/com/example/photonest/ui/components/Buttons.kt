@@ -88,11 +88,11 @@ fun ButtonOnboarding(
 @Composable
 fun BackButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
     IconButton(
-        modifier = modifier,
+        modifier = modifier.then(Modifier.size(50.dp)),
         onClick = onClick,
         enabled = true,
         colors = IconButtonDefaults.iconButtonColors(
-            containerColor = Color.Unspecified
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
         content = {
             Image(

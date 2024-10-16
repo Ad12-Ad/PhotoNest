@@ -44,6 +44,7 @@ import com.example.photonest.ui.components.BackButton
 import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
+import com.example.photonest.ui.components.SignSocialButtons
 import com.example.photonest.ui.screens.splash.SplashAndMain
 import com.example.photonest.ui.screens.splash.SplashScreen
 
@@ -54,9 +55,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PhotoNestTheme {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-                    ) {
-                    BackTxtBtn {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    SignSocialButtons()
+                    BackButton {
 
                     }
                 }
