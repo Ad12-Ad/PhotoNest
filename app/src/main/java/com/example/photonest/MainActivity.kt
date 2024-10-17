@@ -40,11 +40,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.compose.PhotoNestTheme
+import com.example.photonest.ui.components.AnnotatedText
 import com.example.photonest.ui.components.BackButton
 import com.example.photonest.ui.components.BackTxtBtn
+import com.example.photonest.ui.components.Heading1
+import com.example.photonest.ui.components.Heading2
+import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
 import com.example.photonest.ui.components.SignSocialButtons
+import com.example.photonest.ui.components.annotatedText
 import com.example.photonest.ui.screens.splash.SplashAndMain
 import com.example.photonest.ui.screens.splash.SplashScreen
 
@@ -57,8 +62,8 @@ class MainActivity : ComponentActivity() {
             PhotoNestTheme {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
+                        .fillMaxSize(),
+//                        .background(MaterialTheme.colorScheme.background),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -66,6 +71,11 @@ class MainActivity : ComponentActivity() {
                     BackButton {
 
                     }
+                    Heading1(text = "Create an account")
+                    Heading2(text = "Create an account")
+                    NormalText(text = "Create an account")
+                    Text(text = annotatedText(text1 = "Create an", text2 = "account"))
+                    AnnotatedText(text1 = "Create an", text2 = "account")
                 }
             }
         }
