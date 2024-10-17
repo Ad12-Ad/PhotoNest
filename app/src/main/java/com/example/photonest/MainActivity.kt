@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,6 +49,7 @@ import com.example.photonest.ui.components.Heading2
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
+import com.example.photonest.ui.components.ShowHidePasswordTextField
 import com.example.photonest.ui.components.SignSocialButtons
 import com.example.photonest.ui.components.annotatedText
 import com.example.photonest.ui.screens.splash.SplashAndMain
@@ -76,6 +78,8 @@ class MainActivity : ComponentActivity() {
                     NormalText(text = "Create an account")
                     Text(text = annotatedText(text1 = "Create an", text2 = "account"))
                     AnnotatedText(text1 = "Create an", text2 = "account")
+                    ShowHidePasswordTextField(label = "Password", modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth())
+                    ShowHidePasswordTextField(label = "Confirm Password", modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth())
                 }
             }
         }
