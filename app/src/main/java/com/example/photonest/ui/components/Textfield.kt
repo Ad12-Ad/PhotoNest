@@ -58,7 +58,6 @@ import com.example.compose.grey
 import com.example.compose.light_grey
 import com.example.compose.nickel
 import com.example.photonest.ui.theme.fontFamily
-import com.example.photonest.ui.theme.fontName
 
 
 @Composable
@@ -75,77 +74,93 @@ fun OnBoardingTextField(
     postfix: @Composable () -> Unit = {},
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState()
-    BasicTextField(
-        state = textFieldState,
-        interactionSource = interactionSource,
+    Column (
         modifier = modifier
-            .heightIn(58.dp)
-            .fillMaxWidth()
-            .padding(horizontal = 1.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .focusRequester(focusRequester)
-            .border(
-                border = BorderStroke(
-                    2.dp,
-                    color = if (isFocused.value) {
-                        MaterialTheme.colorScheme.outlineVariant
-                    } else {
-                        MaterialTheme.colorScheme.outline
-                    }
-                ),
-                shape = RoundedCornerShape(10.dp)
+    ){
+        Text(
+            text = label,
+            style = TextStyle(
+                fontSize = 14.sp,
+                fontFamily = fontFamily,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Medium,
+                color = nickel
             ),
-        decorator = { innerTextField ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(start = 5.dp, bottom = 5.dp)
+        )
+        BasicTextField(
+            state = textFieldState,
+            interactionSource = interactionSource,
+            modifier = modifier
+                .heightIn(58.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 1.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .focusRequester(focusRequester)
+                .border(
+                    border = BorderStroke(
+                        2.dp,
+                        color = if (isFocused.value) {
+                            MaterialTheme.colorScheme.outlineVariant
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        }
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ),
+            decorator = { innerTextField ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        prefix()
-                        if (textFieldState.text.isBlank() && !isFocused.value) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            prefix()
+                            if (textFieldState.text.isBlank() && !isFocused.value) {
+                                Text(
+                                    text = label, color = grey,
+                                    style = TextStyle(
+                                        fontFamily = MaterialTheme.typography.bodySmall.fontFamily,
+                                        fontSize = 16.sp,
+                                        lineHeight = 25.sp
+                                    )
+                                )
+                            }
+
+                            innerTextField()
                         }
-                        Text(
-                            text = label, color = grey,
-                            style = TextStyle(
-                                fontFamily = MaterialTheme.typography.bodySmall.fontFamily,
-                                fontSize = 16.sp,
-                                lineHeight = 25.sp
+                        if (textFieldState.text.isNotEmpty()) {
+                            Icon(
+                                modifier = Modifier.clickable {
+                                    textFieldState.edit {
+                                        this.replace(0, textFieldState.text.length, "")
+                                    }
+                                },
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = null
                             )
-                        )
-                        innerTextField()
+                        }
+                        postfix()
                     }
-                    if (textFieldState.text.isNotEmpty()) {
-                        Icon(
-                            modifier = Modifier.clickable {
-                                textFieldState.edit {
-                                    this.replace(0, textFieldState.text.length, "")
-                                }
-                            },
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = null
-                        )
-                    }
-                    postfix()
                 }
-            }
-        },
-        keyboardOptions = keyboardOptions,
-        onKeyboardAction = onKeyboardAction,
-        lineLimits = lineLimits,
-        textStyle = TextStyle(
-            fontFamily = MaterialTheme.typography.bodySmall.fontFamily,
-            fontSize = 16.sp,
-            lineHeight = 25.sp
+            },
+            keyboardOptions = keyboardOptions,
+            onKeyboardAction = onKeyboardAction,
+            lineLimits = lineLimits,
+            textStyle = TextStyle(
+                fontFamily = MaterialTheme.typography.bodySmall.fontFamily,
+                fontSize = 16.sp,
+                lineHeight = 25.sp
+            )
         )
-    )
+    }
 }
 
 @Composable
@@ -167,7 +182,7 @@ fun ShowHidePasswordTextField(
                 fontWeight = FontWeight.Medium,
                 color = nickel
             ),
-            modifier = Modifier.padding(start = 5.dp)
+            modifier = Modifier.padding(start = 5.dp, bottom = 5.dp)
         )
 
         OutlinedTextField(

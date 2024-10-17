@@ -37,7 +37,7 @@ fun Heading1(
         style = TextStyle(
             fontSize = 40.sp,
             fontFamily = fontFamily,
-            lineHeight = 54.sp,
+            lineHeight = 48.sp,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
             color = fontColor
