@@ -53,6 +53,8 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.core.ktx)
+    implementation (libs.androidx.lifecycle.lifecycle.viewmodel.compose2)
+    implementation (libs.androidx.lifecycle.runtime.ktx.v286)
     implementation (libs.androidx.constraintlayout.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
