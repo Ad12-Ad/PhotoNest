@@ -5,55 +5,29 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.KeyboardActionHandler
-import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.input.pointer.motionEventSpy
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.compose.PhotoNestTheme
-import com.example.photonest.ui.components.AnnotatedText
-import com.example.photonest.ui.components.BackButton
-import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.Heading1
 import com.example.photonest.ui.components.Heading2
 import com.example.photonest.ui.components.NormalText
-import com.example.photonest.ui.components.OnBoardingTextField
-import com.example.photonest.ui.components.OnboardingCircleBtn
-import com.example.photonest.ui.components.ShowHidePasswordTextField
-import com.example.photonest.ui.components.SignSocialButtons
-import com.example.photonest.ui.components.annotatedText
-import com.example.photonest.ui.screens.splash.SplashAndMain
-import com.example.photonest.ui.screens.splash.SplashScreen
+import com.example.photonest.ui.theme.PhotoNestTheme
+import com.example.photonest.ui.screens.signup.SignUpScreen
+import com.example.photonest.ui.screens.signup.SignUpViewModel
 
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnrememberedMutableInteractionSource")
@@ -62,26 +36,45 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PhotoNestTheme {
-                Column(
+                Surface(
                     modifier = Modifier
-                        .fillMaxSize(),
-//                        .background(MaterialTheme.colorScheme.background),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .background(MaterialTheme.colorScheme.background)
+                        .fillMaxSize()
+                        .safeContentPadding(),
                 ) {
-                    SignSocialButtons()
-                    BackButton {
-
-                    }
-                    Heading1(text = "Create an account")
-                    Heading2(text = "Create an account")
-                    NormalText(text = "Create an account")
-                    Text(text = annotatedText(text1 = "Create an", text2 = "account"))
-                    AnnotatedText(text1 = "Create an", text2 = "account")
-                    ShowHidePasswordTextField(label = "Password", modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth())
-                    ShowHidePasswordTextField(label = "Confirm Password", modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth())
+                    SignUpScreen(
+                        viewModel = SignUpViewModel(),
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(horizontal = 16.dp),
+                        onSignInSuccess = {}
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun Test(modifier: Modifier = Modifier) {
+    Column(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Heading1(text = "Create an Account")
+        Heading2(text = "Create an Account")
+        NormalText(text = "Create an Account")
+    }
+}
+
+@Preview(
+    showBackground = true,
+    showSystemUi = true,
+)
+@Composable
+private fun TestPrev() {
+    PhotoNestTheme {
+        Test(modifier = Modifier.fillMaxSize())
     }
 }

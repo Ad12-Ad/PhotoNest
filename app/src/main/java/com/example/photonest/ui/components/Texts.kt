@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,85 +20,76 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.compose.grey
-import com.example.compose.kelly_green
-import com.example.compose.nickel
-import com.example.photonest.ui.theme.fontFamily
+import com.example.photonest.ui.theme.bodyFontFamily
 
 @Composable
 fun Heading1(
+    modifier: Modifier = Modifier,
     text: String,
     fontWeight: FontWeight = FontWeight.SemiBold,
-    fontColor: Color = kelly_green,
-    textDecoration: TextDecoration = TextDecoration.None,
-    modifier: Modifier = Modifier
+    fontColor: Color = MaterialTheme.colorScheme.primary,
+    textDecoration: TextDecoration = TextDecoration.None
 ) {
     Text(
-        text = text,
-        style = TextStyle(
+        text = text, style = TextStyle(
             fontSize = 40.sp,
-            fontFamily = fontFamily,
-            lineHeight = 54.sp,
+            fontFamily = bodyFontFamily,
+            lineHeight = 48.sp,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
             color = fontColor
-        ),
-        modifier = modifier
+        ), modifier = modifier
     )
 }
 
 @Composable
 fun Heading2(
+    modifier: Modifier = Modifier,
     text: String,
     fontWeight: FontWeight = FontWeight.SemiBold,
-    fontColor: Color = kelly_green,
-    textDecoration: TextDecoration = TextDecoration.None,
-    modifier: Modifier = Modifier
+    fontColor: Color = MaterialTheme.colorScheme.primary,
+    textDecoration: TextDecoration = TextDecoration.None
 ) {
     Text(
-        text = text,
-        style = TextStyle(
+        text = text, style = TextStyle(
             fontSize = 32.sp,
-            fontFamily = fontFamily,
+            fontFamily = bodyFontFamily,
             lineHeight = 54.sp,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
             color = fontColor
-        ),
-        modifier = modifier
+        ), modifier = modifier
     )
 }
 
 @Composable
 fun NormalText(
+    modifier: Modifier = Modifier,
     text: String,
     fontWeight: FontWeight = FontWeight.Medium,
-    fontColor: Color = grey,
-    textDecoration: TextDecoration = TextDecoration.None,
-    modifier: Modifier = Modifier
+    fontColor: Color = MaterialTheme.colorScheme.onBackground,
+    textDecoration: TextDecoration = TextDecoration.None
 ) {
     Text(
-        text = text,
-        style = TextStyle(
+        text = text, style = TextStyle(
             fontSize = 16.sp,
-            fontFamily = fontFamily,
+            fontFamily = bodyFontFamily,
             lineHeight = 25.sp,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
             color = fontColor
-        ),
-        modifier = modifier
+        ), modifier = modifier
     )
 }
 
 @Composable
 fun AnnotatedText(
+    modifier: Modifier = Modifier,
     text1: String,
-    txt1Color: Color = nickel,
+    txt1Color: Color = MaterialTheme.colorScheme.onBackground,
     text2: String,
     onClickTxt2: () -> Unit = {},
-    txt2Color: Color = kelly_green,
-    modifier: Modifier = Modifier
+    txt2Color: Color = MaterialTheme.colorScheme.primary,
 ) {
     Row(
         modifier = modifier,
@@ -105,9 +97,8 @@ fun AnnotatedText(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = text1,
-            style = TextStyle(
-                fontFamily = fontFamily,
+            text = text1, style = TextStyle(
+                fontFamily = bodyFontFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
                 color = txt1Color
@@ -117,13 +108,11 @@ fun AnnotatedText(
             onClick = { onClickTxt2() },
             contentPadding = PaddingValues(2.dp),
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .defaultMinSize(minHeight = 24.dp)
+            modifier = Modifier.defaultMinSize(minHeight = 24.dp)
         ) {
             Text(
-                text = text2,
-                style = TextStyle(
-                    fontFamily = fontFamily,
+                text = text2, style = TextStyle(
+                    fontFamily = bodyFontFamily,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                     color = txt2Color
@@ -136,14 +125,14 @@ fun AnnotatedText(
 @Composable
 fun annotatedText(
     text1: String,
-    text1Color: Color = nickel,
+    text1Color: Color = MaterialTheme.colorScheme.onBackground,
     text2: String,
-    text2Color: Color = kelly_green
+    text2Color: Color = MaterialTheme.colorScheme.primary
 ): AnnotatedString {
     return buildAnnotatedString {
         pushStyle(
             SpanStyle(
-                fontFamily = fontFamily,
+                fontFamily = bodyFontFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
                 color = text1Color
@@ -154,7 +143,7 @@ fun annotatedText(
         append(" ")
         pushStyle(
             SpanStyle(
-                fontFamily = fontFamily,
+                fontFamily = bodyFontFamily,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
                 color = text2Color

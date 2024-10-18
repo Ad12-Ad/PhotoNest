@@ -14,7 +14,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.compose.PhotoNestTheme
+import com.example.photonest.ui.theme.PhotoNestTheme
 import com.example.photonest.MainActivity
 import com.example.photonest.R
 import kotlinx.coroutines.delay
@@ -27,7 +27,7 @@ fun SplashScreen(
     var startAnimation by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0.5f,
-        animationSpec = tween(durationMillis = 1000)
+        animationSpec = tween(durationMillis = 1000), label = ""
     )
 
     LaunchedEffect(Unit) {
