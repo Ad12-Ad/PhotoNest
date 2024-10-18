@@ -82,6 +82,8 @@ fun OnBoardingTextField(
 fun ShowHidePasswordTextField(
     label: String,
     modifier: Modifier = Modifier,
+    value: String,
+    onValueChange: (String) -> Unit,
     password: MutableState<String> = remember { mutableStateOf("") },
 ) {
     var showPassword by remember { mutableStateOf(false) }
@@ -103,8 +105,8 @@ fun ShowHidePasswordTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 54.dp),
-            value = password.value,
-            onValueChange = { newText -> password.value = newText },
+            value = value,
+            onValueChange = onValueChange,
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Outlined.Lock,

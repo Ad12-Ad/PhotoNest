@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +27,7 @@ import com.example.photonest.ui.components.Heading2
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.theme.PhotoNestTheme
 import com.example.photonest.ui.screens.signup.SignUpScreen
+import com.example.photonest.ui.screens.signup.SignUpViewModel
 
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnrememberedMutableInteractionSource")
@@ -40,9 +43,11 @@ class MainActivity : ComponentActivity() {
                         .safeContentPadding(),
                 ) {
                     SignUpScreen(
+                        viewModel = SignUpViewModel(),
                         modifier = Modifier
                             .background(MaterialTheme.colorScheme.background)
                             .padding(horizontal = 16.dp),
+                        onSignInSuccess = {}
                     )
                 }
             }
