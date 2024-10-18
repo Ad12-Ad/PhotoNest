@@ -5,14 +5,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
@@ -27,23 +24,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.compose.disabled_kelly_green
-import com.example.compose.kelly_green
-import com.example.compose.white
 import com.example.photonest.R
+import com.example.photonest.ui.theme.bodyFontFamily
 
 @Composable
 fun ButtonOnboarding(
@@ -51,12 +41,12 @@ fun ButtonOnboarding(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    textColor: Color = white,
+    textColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     buttonColors: ButtonColors = ButtonDefaults.buttonColors(
-        containerColor = kelly_green,
-        disabledContainerColor = disabled_kelly_green
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.4f)
     ),
-    elevation: ButtonElevation = ButtonDefaults.buttonElevation(2.dp),
+    elevation: ButtonElevation = ButtonDefaults.buttonElevation(5.dp),
     prefixIcon: @Composable () -> Unit? = { null }
 ) {
     Button(
@@ -78,15 +68,38 @@ fun ButtonOnboarding(
                 text = buttonText,
                 color = textColor,
                 fontWeight = FontWeight.SemiBold,
-                fontFamily = MaterialTheme.typography.bodySmall.fontFamily,
-                fontSize = 14.sp
+                fontFamily = bodyFontFamily,
+                fontSize = 16.sp
             )
         }
     }
 }
 
 @Composable
-fun BackButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun BackTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .defaultMinSize(minHeight = 32.dp, minWidth = 70.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Back",
+            style = TextStyle(
+                fontSize = 14.sp,
+                fontFamily = bodyFontFamily,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 25.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        )
+    }
+}
+
+@Composable
+fun BackCircleButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
     IconButton(
         modifier = modifier.then(Modifier.size(50.dp)),
         onClick = onClick,
@@ -100,33 +113,10 @@ fun BackButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
                 contentDescription = null,
                 modifier = Modifier
                     .size(18.dp),
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
             )
         }
     )
-}
-
-@Composable
-fun BackTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .defaultMinSize(minHeight = 32.dp, minWidth = 70.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, kelly_green, RoundedCornerShape(16.dp))
-            .clickable { onClick },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Back",
-            style = TextStyle(
-                fontSize = 14.sp,
-                fontFamily = MaterialTheme.typography.bodySmall.fontFamily,
-                fontWeight = FontWeight.Medium,
-                lineHeight = 25.sp,
-                color = kelly_green
-            )
-        )
-    }
 }
 
 @Composable
@@ -135,8 +125,8 @@ fun OnboardingCircleBtn(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     iconColors: IconButtonColors = IconButtonDefaults.iconButtonColors(
-        containerColor = kelly_green,
-        disabledContainerColor = disabled_kelly_green
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.4f)
     ),
 ) {
     IconButton(
@@ -151,20 +141,8 @@ fun OnboardingCircleBtn(
                 modifier = Modifier
                     .graphicsLayer(rotationZ = 180f)
                     .size(18.dp),
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.surface)
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
             )
         }
     )
-}
-
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-private fun Prev() {
-    Column {
-        OnboardingCircleBtn(onClick = { /*TODO*/ },)
-        BackButton {
-
-        }
-    }
 }
