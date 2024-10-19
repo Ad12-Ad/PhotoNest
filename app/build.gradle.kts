@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.core.ktx)
     implementation(libs.firebase.auth)
+    implementation(libs.androidx.navigation.compose)
     implementation(platform(libs.firebase.bom))
     implementation (libs.androidx.lifecycle.lifecycle.viewmodel.compose2)
     implementation (libs.androidx.lifecycle.runtime.ktx.v286)

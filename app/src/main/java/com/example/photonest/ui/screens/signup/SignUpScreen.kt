@@ -44,6 +44,7 @@ fun SignUpScreen(
     modifier: Modifier = Modifier,
     viewModel: SignUpViewModel = viewModel(),
     onSignUpSuccess: () -> Unit,
+    onBackClick: () -> Boolean,
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -54,6 +55,7 @@ fun SignUpScreen(
         onPasswordChange = viewModel::updatePassword,
         onConfirmPasswordChange = viewModel::updateConfirmPassword,
         onSignUpClick = {viewModel.signUp()},
+        onBackClick = onBackClick,
         onSignUpSuccess = onSignUpSuccess,
         modifier = modifier
     )
@@ -73,6 +75,7 @@ fun SignUpContent(
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
     onSignUpClick: () -> Unit,
+    onBackClick: () -> Boolean,
     onSignUpSuccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -88,7 +91,7 @@ fun SignUpContent(
                 modifier = Modifier.fillMaxWidth()
             ){
                 Heading1(text = "Create an \naccount", fontColor = MaterialTheme.colorScheme.primary)
-                BackTxtBtn(modifier = Modifier.padding(top = 12.dp)) {}
+                BackTxtBtn(onClick = { onBackClick() }, modifier = Modifier.padding(top = 12.dp))
             }
         }
         item {
