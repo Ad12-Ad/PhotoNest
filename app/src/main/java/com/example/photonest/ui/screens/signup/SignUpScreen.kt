@@ -1,9 +1,11 @@
 package com.example.photonest.ui.screens.signup
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -12,14 +14,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.photonest.R
 import com.example.photonest.ui.components.AnnotatedText
@@ -31,13 +37,13 @@ import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
 import com.example.photonest.ui.components.ShowHidePasswordTextField
 import com.example.photonest.ui.components.SignSocialButtons
-import com.example.photonest.ui.theme.PhotoNestTheme
+import com.example.photonest.ui.theme.bodyFontFamily
 
 @Composable
 fun SignUpScreen(
     modifier: Modifier = Modifier,
     viewModel: SignUpViewModel = viewModel(),
-    onSignInSuccess: () -> Unit,
+    onSignUpSuccess: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -47,10 +53,16 @@ fun SignUpScreen(
         onUsernameChange = viewModel::updateUsername,
         onPasswordChange = viewModel::updatePassword,
         onConfirmPasswordChange = viewModel::updateConfirmPassword,
-        onSignUpClick = {},
-        onSignUpSuccess = onSignInSuccess,
+        onSignUpClick = {viewModel.signUp()},
+        onSignUpSuccess = onSignUpSuccess,
         modifier = modifier
     )
+
+    if (uiState.isSignUpSuccessful) {
+        LaunchedEffect(Unit) {
+            onSignUpSuccess()
+        }
+    }
 }
 
 @Composable
@@ -83,7 +95,20 @@ fun SignUpContent(
             OnBoardingTextField(
                 value = uiState.email,
                 onValueChange = onEmailChange,
-                label = "Username or Email",
+                label = "Email",
+                isError = uiState.emailError != null,
+                errorMessage = {
+                    Text(
+                        text = uiState.emailError?: "",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontFamily = bodyFontFamily,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    )
+                },
                 prefix = {
                     Icon(
                         painter = painterResource(id = R.drawable.user_logo),
@@ -98,6 +123,19 @@ fun SignUpContent(
                 value = uiState.username,
                 onValueChange = onUsernameChange,
                 label = "Name",
+                isError = uiState.usernameError != null,
+                errorMessage = {
+                    Text(
+                        text = uiState.usernameError?: "",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontFamily = bodyFontFamily,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    )
+                },
             )
         }
 
@@ -105,13 +143,39 @@ fun SignUpContent(
             ShowHidePasswordTextField(
                 label = "Password",
                 value = uiState.password,
-                onValueChange = onPasswordChange
+                isError = uiState.passwordError != null,
+                errorMessage = {
+                    Text(
+                        text = uiState.passwordError?: "",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontFamily = bodyFontFamily,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    )
+                },
+                onValueChange = onPasswordChange,
             )
         }
         item {
             ShowHidePasswordTextField(
                 label = "Confirm Password",
                 value = uiState.confirmPassword,
+                isError = uiState.confirmPasswordError != null,
+                errorMessage = {
+                    Text(
+                        text = uiState.confirmPasswordError?: "",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontFamily = bodyFontFamily,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    )
+                },
                 onValueChange = onConfirmPasswordChange
             )
         }
@@ -128,7 +192,10 @@ fun SignUpContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ){
                 Heading2(text = "Register", fontColor = MaterialTheme.colorScheme.onBackground)
-                OnboardingCircleBtn(onClick = {  })
+                OnboardingCircleBtn(
+                    onClick = { onSignUpClick() },
+                    enabled = uiState.isInputValid && !uiState.isLoading
+                )
             }
         }
         item {
@@ -144,7 +211,12 @@ fun SignUpContent(
         }
     }
     if (uiState.isLoading) {
-        CircularProgressIndicator()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
     }
 }
 

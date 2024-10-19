@@ -7,11 +7,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -28,10 +30,14 @@ import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.theme.PhotoNestTheme
 import com.example.photonest.ui.screens.signup.SignUpScreen
 import com.example.photonest.ui.screens.signup.SignUpViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.auth
 
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnrememberedMutableInteractionSource")
     override fun onCreate(savedInstanceState: Bundle?) {
+        FirebaseApp.initializeApp(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -47,7 +53,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier
                             .background(MaterialTheme.colorScheme.background)
                             .padding(horizontal = 16.dp),
-                        onSignInSuccess = {}
+                        onSignUpSuccess = {}
                     )
                 }
             }

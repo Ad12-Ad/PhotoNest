@@ -26,6 +26,8 @@ fun OnBoardingTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     value: String,
     onValueChange: (String) -> Unit,
+    isError: Boolean = false,
+    errorMessage:  @Composable (() -> Unit)? = null,
     prefix: @Composable (() -> Unit)? = null,
     postfix: @Composable (() -> Unit)? = null,
 ) {
@@ -50,6 +52,8 @@ fun OnBoardingTextField(
                 .fillMaxWidth()
                 .heightIn(min = 54.dp),
             keyboardOptions = keyboardOptions,
+            isError = isError,
+            supportingText = if (isError) {errorMessage} else null,
             textStyle = TextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 16.sp,
@@ -84,7 +88,8 @@ fun ShowHidePasswordTextField(
     modifier: Modifier = Modifier,
     value: String,
     onValueChange: (String) -> Unit,
-    password: MutableState<String> = remember { mutableStateOf("") },
+    isError: Boolean = false,
+    errorMessage:  @Composable (() -> Unit)? = null,
 ) {
     var showPassword by remember { mutableStateOf(false) }
 
@@ -113,6 +118,8 @@ fun ShowHidePasswordTextField(
                     contentDescription = "Password"
                 )
             },
+            isError = isError,
+            supportingText = if (isError) errorMessage else null,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
