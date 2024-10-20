@@ -1,5 +1,6 @@
 package com.example.photonest.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,10 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.photonest.R
@@ -41,12 +46,14 @@ fun ButtonOnboarding(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    shape: Shape = RoundedCornerShape(12.dp),
+    textSize: TextUnit = 16.sp,
     textColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     buttonColors: ButtonColors = ButtonDefaults.buttonColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.4f)
     ),
-    elevation: ButtonElevation = ButtonDefaults.buttonElevation(5.dp),
+    elevation: ButtonElevation = ButtonDefaults.buttonElevation(4.dp),
     prefixIcon: @Composable () -> Unit? = { null }
 ) {
     Button(
@@ -54,7 +61,7 @@ fun ButtonOnboarding(
         enabled = enabled,
         onClick = onClick,
         colors = buttonColors,
-        shape = RoundedCornerShape(12.dp),
+        shape = shape,
         elevation = elevation
     ) {
         Row(
@@ -69,7 +76,7 @@ fun ButtonOnboarding(
                 color = textColor,
                 fontWeight = FontWeight.SemiBold,
                 fontFamily = bodyFontFamily,
-                fontSize = 16.sp
+                fontSize = textSize
             )
         }
     }

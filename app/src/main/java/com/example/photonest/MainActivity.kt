@@ -40,27 +40,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-@Composable
-fun Test(modifier: Modifier = Modifier) {
-    Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Heading1(text = "Create an Account")
-        Heading2(text = "Create an Account")
-        NormalText(text = "Create an Account")
-    }
-}
-
-@Preview(
-    showBackground = true,
-    showSystemUi = true,
-)
-@Composable
-private fun TestPrev() {
-    PhotoNestTheme {
-        Test(modifier = Modifier.fillMaxSize())
-    }
-}
