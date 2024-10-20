@@ -17,7 +17,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.photonest.ui.theme.bodyFontFamily
@@ -26,6 +29,7 @@ import com.example.photonest.ui.theme.bodyFontFamily
 fun Heading1(
     modifier: Modifier = Modifier,
     text: String,
+    textAlign: TextAlign = TextAlign.Left,
     fontWeight: FontWeight = FontWeight.SemiBold,
     fontColor: Color = MaterialTheme.colorScheme.primary,
     textDecoration: TextDecoration = TextDecoration.None
@@ -37,7 +41,8 @@ fun Heading1(
             lineHeight = 48.sp,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
-            color = fontColor
+            color = fontColor,
+            textAlign = textAlign
         ), modifier = modifier
     )
 }
@@ -45,19 +50,23 @@ fun Heading1(
 @Composable
 fun Heading2(
     modifier: Modifier = Modifier,
+    fontSize: TextUnit = 32.sp,
     text: String,
+    textAlign: TextAlign = TextAlign.Left,
     fontWeight: FontWeight = FontWeight.SemiBold,
+    lineHeight: TextUnit = 54.sp,
     fontColor: Color = MaterialTheme.colorScheme.primary,
     textDecoration: TextDecoration = TextDecoration.None
 ) {
     Text(
         text = text, style = TextStyle(
-            fontSize = 32.sp,
+            fontSize = fontSize,
             fontFamily = bodyFontFamily,
-            lineHeight = 54.sp,
+            lineHeight = lineHeight,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
-            color = fontColor
+            color = fontColor,
+            textAlign = textAlign
         ), modifier = modifier
     )
 }
@@ -66,6 +75,7 @@ fun Heading2(
 fun NormalText(
     modifier: Modifier = Modifier,
     text: String,
+    textAlign: TextAlign = TextAlign.Left,
     fontWeight: FontWeight = FontWeight.Medium,
     fontColor: Color = MaterialTheme.colorScheme.onBackground,
     textDecoration: TextDecoration = TextDecoration.None
@@ -77,7 +87,8 @@ fun NormalText(
             lineHeight = 25.sp,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
-            color = fontColor
+            color = fontColor,
+            textAlign = textAlign
         ), modifier = modifier
     )
 }
