@@ -35,6 +35,7 @@ import com.example.photonest.ui.components.AnnotatedText
 import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.Heading1
 import com.example.photonest.ui.components.Heading2
+import com.example.photonest.ui.components.MyAlertDialog
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
@@ -55,23 +56,31 @@ fun SignInScreen(
     val uiState by viewModel.uiState.collectAsState()
 
 
-    if (uiState.isSignInSuccessful) {
-        LaunchedEffect(Unit) {
+    LaunchedEffect(uiState.isSignInSuccessful) {
+        if (uiState.isSignInSuccessful) {
             onSignInSuccess()
             viewModel.resetError()
         }
-    }else{
-        SignInContent(
-            uiState = uiState,
-            onEmailChange = viewModel::updateEmail,
-            onPasswordChange = viewModel::updatePassword,
-            onSignInTxtClick = {onSignUpTxtClick()},
-            onSignInClick = {viewModel.signIn()},
-            onBackClick = onBackClick,
-            onSignInSuccess = onSignInSuccess,
-            modifier = modifier
-        )
     }
+
+    SignInContent(
+        uiState = uiState,
+        onEmailChange = viewModel::updateEmail,
+        onPasswordChange = viewModel::updatePassword,
+        onSignInTxtClick = onSignUpTxtClick,
+        onSignInClick = viewModel::signIn,
+        onBackClick = onBackClick,
+        modifier = modifier
+    )
+
+    MyAlertDialog(
+        shouldShowDialog = uiState.showErrorDialog,
+        onDismissRequest = viewModel::dismissErrorDialog,
+        title = "Sign In Failed",
+        text = uiState.error ?: "An unknown error occurred",
+        confirmButtonText = "OK",
+        onConfirmClick = viewModel::dismissErrorDialog
+    )
 }
 
 @Composable

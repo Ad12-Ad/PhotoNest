@@ -32,6 +32,7 @@ import com.example.photonest.ui.components.AnnotatedText
 import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.Heading1
 import com.example.photonest.ui.components.Heading2
+import com.example.photonest.ui.components.MyAlertDialog
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
@@ -52,21 +53,29 @@ fun SignUpScreen(
     if (uiState.isSignUpSuccessful) {
         LaunchedEffect(Unit) {
             onSignUpSuccess()
+            viewModel.resetError()
         }
-    }else{
-        SignUpContent(
-            uiState = uiState,
-            onEmailChange = viewModel::updateEmail,
-            onUsernameChange = viewModel::updateUsername,
-            onPasswordChange = viewModel::updatePassword,
-            onConfirmPasswordChange = viewModel::updateConfirmPassword,
-            onSignUpClick = {viewModel.signUp()},
-            onSignInTxtClick = {onSignInTxtClick()},
-            onBackClick = onBackClick,
-            onSignUpSuccess = onSignUpSuccess,
-            modifier = modifier
-        )
     }
+    SignUpContent(
+        uiState = uiState,
+        onEmailChange = viewModel::updateEmail,
+        onUsernameChange = viewModel::updateUsername,
+        onPasswordChange = viewModel::updatePassword,
+        onConfirmPasswordChange = viewModel::updateConfirmPassword,
+        onSignUpClick = {viewModel.signUp()},
+        onSignInTxtClick = {onSignInTxtClick()},
+        onBackClick = onBackClick,
+        onSignUpSuccess = onSignUpSuccess,
+        modifier = modifier
+    )
+    MyAlertDialog(
+        shouldShowDialog = uiState.showErrorDialog,
+        onDismissRequest = viewModel::dismissErrorDialog,
+        title = "Sign Up Failed",
+        text = uiState.error ?: "An unknown error occurred",
+        confirmButtonText = "OK",
+        onConfirmClick = viewModel::dismissErrorDialog
+    )
 }
 
 @Composable

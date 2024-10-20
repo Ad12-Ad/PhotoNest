@@ -41,11 +41,16 @@ class SignInViewModel : ViewModel() {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = e.message ?: "An error occurred during sign in"
+                        error = e.message ?: "An error occurred during sign in",
+                        showErrorDialog = true
                     )
                 }
             }
         }
+    }
+
+    fun dismissErrorDialog() {
+        _uiState.update { it.copy(showErrorDialog = false) }
     }
 
     fun resetError() {
@@ -77,5 +82,6 @@ data class SignInUiState(
     val isSignInSuccessful: Boolean = false,
     val error: String? = null,
     val emailError: String? = null,
-    val passwordError: String? = null
+    val passwordError: String? = null,
+    val showErrorDialog: Boolean = false
 )
