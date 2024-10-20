@@ -67,13 +67,19 @@ class SignUpViewModel() : ViewModel() {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = e.message?: "An error occurred during sign up"
+                        error = e.message?: "An error occurred during sign up",
+                        showErrorDialog = true
                     )
                 }
             }
 
         }
     }
+
+    fun dismissErrorDialog() {
+        _uiState.update { it.copy(showErrorDialog = false) }
+    }
+
     fun resetError() {
         _uiState.update { it.copy(error = null) }
     }
@@ -114,5 +120,6 @@ data class SignUpUiState(
     val usernameError: String? = null,
     val emailError: String? = null,
     val passwordError: String? = null,
-    val confirmPasswordError: String? = null
+    val confirmPasswordError: String? = null,
+    val showErrorDialog: Boolean = false
 )

@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.photonest.ui.screens.OtpScreen
+import com.example.photonest.ui.screens.signin.SignInScreen
 import com.example.photonest.ui.screens.signup.SignUpScreen
 import com.example.photonest.ui.screens.splash.SplashScreen
 
@@ -41,6 +42,19 @@ fun AppNavigation(
             SignUpScreen(
                 onSignUpSuccess = { navController.navigate(AppDestinations.OTP_ROUTE) },
                 onBackClick = { navController.popBackStack() },
+                onSignInTxtClick = {navController.navigate(AppDestinations.SIGN_IN_ROUTE) },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 16.dp)
+                    .fillMaxSize()
+                    .safeContentPadding()
+            )
+        }
+        composable(AppDestinations.SIGN_IN_ROUTE) {
+            SignInScreen(
+                onSignInSuccess = { navController.navigate(AppDestinations.OTP_ROUTE) },
+                onBackClick = { navController.popBackStack() },
+                onSignUpTxtClick = {navController.navigate(AppDestinations.SIGN_UP_ROUTE)},
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 16.dp)

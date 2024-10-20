@@ -32,6 +32,7 @@ import com.example.photonest.ui.components.AnnotatedText
 import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.Heading1
 import com.example.photonest.ui.components.Heading2
+import com.example.photonest.ui.components.MyAlertDialog
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
@@ -44,10 +45,17 @@ fun SignUpScreen(
     modifier: Modifier = Modifier,
     viewModel: SignUpViewModel = viewModel(),
     onSignUpSuccess: () -> Unit,
+    onSignInTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    if (uiState.isSignUpSuccessful) {
+        LaunchedEffect(Unit) {
+            onSignUpSuccess()
+            viewModel.resetError()
+        }
+    }
     SignUpContent(
         uiState = uiState,
         onEmailChange = viewModel::updateEmail,
@@ -55,16 +63,19 @@ fun SignUpScreen(
         onPasswordChange = viewModel::updatePassword,
         onConfirmPasswordChange = viewModel::updateConfirmPassword,
         onSignUpClick = {viewModel.signUp()},
+        onSignInTxtClick = {onSignInTxtClick()},
         onBackClick = onBackClick,
         onSignUpSuccess = onSignUpSuccess,
         modifier = modifier
     )
-
-    if (uiState.isSignUpSuccessful) {
-        LaunchedEffect(Unit) {
-            onSignUpSuccess()
-        }
-    }
+    MyAlertDialog(
+        shouldShowDialog = uiState.showErrorDialog,
+        onDismissRequest = viewModel::dismissErrorDialog,
+        title = "Sign Up Failed",
+        text = uiState.error ?: "An unknown error occurred",
+        confirmButtonText = "OK",
+        onConfirmClick = viewModel::dismissErrorDialog
+    )
 }
 
 @Composable
@@ -75,6 +86,7 @@ fun SignUpContent(
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
     onSignUpClick: () -> Unit,
+    onSignInTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
     onSignUpSuccess: () -> Unit,
     modifier: Modifier = Modifier
@@ -184,7 +196,7 @@ fun SignUpContent(
         }
         item {
             AnnotatedText(
-                text1 = "If already have an account.", text2 = "Sign In",
+                text1 = "If already have an account.", text2 = "Sign In", onClickTxt2 = {onSignInTxtClick()},
                 modifier = Modifier.height(24.dp)
             )
         }
