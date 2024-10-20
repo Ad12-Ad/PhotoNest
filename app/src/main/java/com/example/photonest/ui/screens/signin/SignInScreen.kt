@@ -1,5 +1,7 @@
 package com.example.photonest.ui.screens.signin
 
+import SignInUiState
+import SignInViewModel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,12 +14,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.photonest.R
 import com.example.photonest.ui.components.AnnotatedText
 import com.example.photonest.ui.components.BackTxtBtn
@@ -28,28 +38,45 @@ import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
 import com.example.photonest.ui.components.ShowHidePasswordTextField
 import com.example.photonest.ui.components.SignSocialButtons
+import com.example.photonest.ui.screens.signup.SignUpViewModel
 import com.example.photonest.ui.theme.PhotoNestTheme
+import com.example.photonest.ui.theme.bodyFontFamily
 
 @Composable
 fun SignInScreen(
-    onSignInSuccess: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: SignInViewModel = viewModel(),
+    onSignInSuccess: () -> Unit,
+    onSignUpTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
     SignInContent(
-        onEmailChange = {},
-        onPasswordChange = {},
+        uiState = uiState,
+        onEmailChange = viewModel::updateEmail,
+        onPasswordChange = viewModel::updatePassword,
+        onSignInTxtClick = {onSignUpTxtClick()},
+        onSignInClick = {viewModel.signIn()},
         onBackClick = onBackClick,
+        onSignInSuccess = onSignInSuccess,
         modifier = modifier
     )
+    if (uiState.isSignInSuccessful) {
+        LaunchedEffect(Unit) {
+            onSignInSuccess()
+        }
+    }
 }
 
 @Composable
 fun SignInContent(
     modifier: Modifier = Modifier,
+    uiState: SignInUiState,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSignInClick: () -> Unit = {},
+    onSignInTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
     onSignInSuccess: () -> Unit = {},
 ) {
@@ -73,11 +100,22 @@ fun SignInContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ){
                 OnBoardingTextField(
-                    value = "",
+                    value = uiState.email,
                     onValueChange = onEmailChange,
                     label = "Email",
-                    isError = false,
-                    errorMessage = {},
+                    isError = uiState.emailError != null,
+                    errorMessage = {
+                        Text(
+                            text = uiState.emailError?: "",
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                fontFamily = bodyFontFamily,
+                                lineHeight = 22.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        )
+                    },
                     prefix = {
                         Icon(
                             painter = painterResource(id = R.drawable.user_logo),
@@ -88,10 +126,21 @@ fun SignInContent(
                 )
                 ShowHidePasswordTextField(
                     label = "Password",
-                    value = "",
+                    value = uiState.password,
                     onValueChange = onPasswordChange,
-                    isError = false,
-                    errorMessage = { },
+                    isError = uiState.passwordError != null,
+                    errorMessage = {
+                        Text(
+                            text = uiState.passwordError?: "",
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                fontFamily = bodyFontFamily,
+                                lineHeight = 22.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        )
+                    },
                 )
                 Row (
                     modifier = Modifier.fillMaxWidth(),
@@ -99,7 +148,7 @@ fun SignInContent(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ){
                     AnnotatedText(
-                        text1 = "Don't have an account.", text2 = "Sign Up",
+                        text1 = "Don't have an account.", text2 = "Sign Up", onClickTxt2 = {onSignInTxtClick()},
                         modifier = Modifier.height(24.dp)
                     )
                     AnnotatedText(
@@ -119,7 +168,7 @@ fun SignInContent(
                 Heading2(text = "Continue", fontColor = MaterialTheme.colorScheme.onBackground)
                 OnboardingCircleBtn(
                     onClick = { onSignInClick() },
-                    enabled = true
+                    enabled = uiState.isInputValid && !uiState.isLoading
                 )
             }
         }
@@ -138,17 +187,17 @@ fun SignInContent(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-private fun SignInPrev() {
-    PhotoNestTheme {
-        SignInContent(
-            onEmailChange = {},
-            onPasswordChange = {},
-            onBackClick = {false},
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        )
-    }
-}
+//@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//private fun SignInPrev() {
+//    PhotoNestTheme {
+//        SignInContent(
+//            onEmailChange = {},
+//            onPasswordChange = {},
+//            onBackClick = {false},
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(16.dp)
+//        )
+//    }
+//}
