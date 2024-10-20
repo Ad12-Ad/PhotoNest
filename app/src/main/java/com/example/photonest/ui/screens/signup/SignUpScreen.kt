@@ -49,23 +49,23 @@ fun SignUpScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    SignUpContent(
-        uiState = uiState,
-        onEmailChange = viewModel::updateEmail,
-        onUsernameChange = viewModel::updateUsername,
-        onPasswordChange = viewModel::updatePassword,
-        onConfirmPasswordChange = viewModel::updateConfirmPassword,
-        onSignUpClick = {viewModel.signUp()},
-        onSignInTxtClick = {onSignInTxtClick()},
-        onBackClick = onBackClick,
-        onSignUpSuccess = onSignUpSuccess,
-        modifier = modifier
-    )
-
     if (uiState.isSignUpSuccessful) {
         LaunchedEffect(Unit) {
             onSignUpSuccess()
         }
+    }else{
+        SignUpContent(
+            uiState = uiState,
+            onEmailChange = viewModel::updateEmail,
+            onUsernameChange = viewModel::updateUsername,
+            onPasswordChange = viewModel::updatePassword,
+            onConfirmPasswordChange = viewModel::updateConfirmPassword,
+            onSignUpClick = {viewModel.signUp()},
+            onSignInTxtClick = {onSignInTxtClick()},
+            onBackClick = onBackClick,
+            onSignUpSuccess = onSignUpSuccess,
+            modifier = modifier
+        )
     }
 }
 

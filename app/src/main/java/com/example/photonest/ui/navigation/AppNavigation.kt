@@ -54,6 +54,7 @@ fun AppNavigation(
             SignInScreen(
                 onSignInSuccess = { navController.navigate(AppDestinations.OTP_ROUTE) },
                 onBackClick = { navController.popBackStack() },
+                onSignUpTxtClick = {navController.navigate(AppDestinations.SIGN_UP_ROUTE)},
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 16.dp)

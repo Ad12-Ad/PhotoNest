@@ -3,6 +3,7 @@ package com.example.photonest.ui.screens.signin
 import SignInUiState
 import SignInViewModel
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,20 +54,23 @@ fun SignInScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    SignInContent(
-        uiState = uiState,
-        onEmailChange = viewModel::updateEmail,
-        onPasswordChange = viewModel::updatePassword,
-        onSignInTxtClick = {onSignUpTxtClick()},
-        onSignInClick = {viewModel.signIn()},
-        onBackClick = onBackClick,
-        onSignInSuccess = onSignInSuccess,
-        modifier = modifier
-    )
+
     if (uiState.isSignInSuccessful) {
         LaunchedEffect(Unit) {
             onSignInSuccess()
+            viewModel.resetError()
         }
+    }else{
+        SignInContent(
+            uiState = uiState,
+            onEmailChange = viewModel::updateEmail,
+            onPasswordChange = viewModel::updatePassword,
+            onSignInTxtClick = {onSignUpTxtClick()},
+            onSignInClick = {viewModel.signIn()},
+            onBackClick = onBackClick,
+            onSignInSuccess = onSignInSuccess,
+            modifier = modifier
+        )
     }
 }
 
@@ -183,6 +188,14 @@ fun SignInContent(
                 Spacer(modifier = Modifier.height(10.dp))
                 SignSocialButtons()
             }
+        }
+    }
+    if (uiState.isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
         }
     }
 }
