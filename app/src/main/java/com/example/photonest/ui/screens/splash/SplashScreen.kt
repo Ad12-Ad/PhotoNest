@@ -1,80 +1,186 @@
 package com.example.photonest.ui.screens.splash
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.photonest.ui.theme.PhotoNestTheme
-import com.example.photonest.MainActivity
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.photonest.R
+import com.example.photonest.ui.components.ButtonOnboarding
+import com.example.photonest.ui.components.Heading1
+import com.example.photonest.ui.components.NormalText
 import kotlinx.coroutines.delay
+
+private const val ANIMATION_DURATION = 1000
+private const val ANIMATION_DELAY = 2000
 
 @Composable
 fun SplashScreen(
-    onTimeout: () -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToHome: () -> Unit,
+    onNavigateToSignIn: () -> Unit,
+    onNavigateToSignUp: () -> Unit,
+    viewModel: SplashViewModel = viewModel()
 ) {
-    var startAnimation by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0.5f,
-        animationSpec = tween(durationMillis = 1000), label = ""
-    )
+    val loginState by viewModel.loginState.collectAsState()
+    var animationState by remember { mutableStateOf(AnimationState.LogoZoom) }
 
-    LaunchedEffect(Unit) {
-        startAnimation = true
-        delay(3000L)
-        onTimeout()
+    LaunchedEffect(loginState, animationState) {
+        delay(ANIMATION_DELAY.toLong())
+        when (animationState) {
+            AnimationState.LogoZoom -> animationState = AnimationState.LogoFadeOut
+            AnimationState.LogoFadeOut -> {
+                if (loginState is LoginState.LoggedIn) {
+                    onNavigateToHome()
+                } else {
+                    animationState = AnimationState.BackgroundTransition
+                }
+            }
+            AnimationState.BackgroundTransition -> animationState = AnimationState.ContentFadeIn
+            AnimationState.ContentFadeIn -> {
+                // Wait for user interaction
+            }
+        }
     }
 
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.bg_photo),
-            contentDescription = "Background Photo",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.surface)) {
+
+        val backgroundHeightAnimation by animateFloatAsState(
+            targetValue = if (animationState == AnimationState.BackgroundTransition || animationState == AnimationState.ContentFadeIn) 0.5f else 1f,
+            animationSpec = tween(ANIMATION_DURATION)
         )
 
-        Image(
-            painter = painterResource(id = R.drawable.app_logo),
-            contentDescription = "App Logo",
+        Card (
+            shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp),
             modifier = Modifier
-                .size(200.dp)
-                .scale(scale)
+                .fillMaxWidth()
+                .fillMaxHeight(backgroundHeightAnimation),
+            elevation = CardDefaults.cardElevation(12.dp)
+        ){
+            Image(
+                painter = painterResource(id = R.drawable.bg_photo),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        val logoScale by animateFloatAsState(
+            targetValue = if (animationState == AnimationState.LogoZoom) 1f else 1.5f,
+            animationSpec = tween(ANIMATION_DURATION)
         )
+        val logoAlpha by animateFloatAsState(
+            targetValue = if (animationState == AnimationState.LogoFadeOut) 1f else 0f,
+            animationSpec = tween(ANIMATION_DURATION)
+        )
+
+        if (animationState == AnimationState.LogoZoom || animationState == AnimationState.LogoFadeOut) {
+            Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "PhotoNest Logo",
+                modifier = Modifier
+                    .size(150.dp)
+                    .scale(logoScale)
+                    .alpha(logoAlpha)
+                    .align(Alignment.Center)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = animationState == AnimationState.ContentFadeIn && loginState is LoginState.NotLoggedIn,
+            enter = fadeIn(animationSpec = tween(ANIMATION_DURATION))
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Column (
+                    modifier = Modifier
+                        .fillMaxHeight(0.5f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ){
+                    Heading1(
+                        text = "Dedicated to all\nPhotographers",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 44.sp,
+                        lineHeight = 68.sp,
+                        fontColor = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    NormalText(
+                        text = "The Right Place\nTo Publish Your Best\nPhotographies...",
+                        fontSize = 24.sp,
+                        lineHeight = 40.sp,
+                        fontWeight = FontWeight.Thin,
+                        fontColor = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.75f),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    ButtonOnboarding(
+                        buttonText = "Create Account",
+                        postfixIcon = {
+                            Icon(imageVector = Icons.Filled.ArrowForwardIos, contentDescription = "Forward arrow")
+                        },
+                        textSize = 20.sp,
+                        modifier = Modifier
+                            .height(60.dp)
+                            .fillMaxWidth(),
+                        onClick = onNavigateToSignUp
+                    )
+                    Spacer(modifier = Modifier.height(45.dp))
+                    ButtonOnboarding(
+                        buttonText = "Log In",
+                        textSize = 20.sp,
+                        modifier = Modifier
+                            .height(60.dp)
+                            .fillMaxWidth(),
+                        onClick = onNavigateToSignIn,
+                        buttonColors = ButtonDefaults.buttonColors(
+                            MaterialTheme.colorScheme.surfaceContainer
+                        ),
+                        textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 
-@Composable
-fun SplashAndMain() {
-    var showSplashScreen by remember { mutableStateOf(true) }
-
-    if (showSplashScreen) {
-        SplashScreen(onTimeout = { showSplashScreen = false })
-    } else {
-        MainActivity()
-    }
-}
-
-@Preview(
-    showBackground = true,
-    showSystemUi = true
-)
-@Composable
-fun SplashScreenPreview() {
-    PhotoNestTheme {
-        SplashAndMain()
-    }
+enum class AnimationState {
+    LogoZoom,
+    LogoFadeOut,
+    BackgroundTransition,
+    ContentFadeIn
 }

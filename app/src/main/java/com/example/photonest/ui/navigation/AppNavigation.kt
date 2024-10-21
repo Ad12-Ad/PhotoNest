@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.photonest.ui.screens.OtpScreen
+import com.example.photonest.ui.screens.home.HomeScreen
 import com.example.photonest.ui.screens.signin.SignInScreen
 import com.example.photonest.ui.screens.signup.SignUpScreen
 import com.example.photonest.ui.screens.splash.SplashScreen
@@ -22,6 +23,7 @@ object AppDestinations {
     const val SIGN_UP_ROUTE = "sign_up"
     const val SIGN_IN_ROUTE = "sign_in"
     const val OTP_ROUTE = "otp"
+    const val HOME_ROUTE = "home"
 }
 
 @Composable
@@ -35,12 +37,22 @@ fun AppNavigation(
     ) {
         composable(AppDestinations.SPLASH_ROUTE) {
             SplashScreen(
-                onTimeout = {navController.navigate(AppDestinations.SIGN_UP_ROUTE) }
+                onNavigateToHome = {
+                    navController.navigate(AppDestinations.HOME_ROUTE) {
+                        popUpTo(AppDestinations.SPLASH_ROUTE) { inclusive = true }
+                    }
+                },
+                onNavigateToSignIn = {
+                    navController.navigate(AppDestinations.SIGN_IN_ROUTE)
+                },
+                onNavigateToSignUp = {
+                    navController.navigate(AppDestinations.SIGN_UP_ROUTE)
+                }
             )
         }
         composable(AppDestinations.SIGN_UP_ROUTE) {
             SignUpScreen(
-                onSignUpSuccess = { navController.navigate(AppDestinations.OTP_ROUTE) },
+                onSignUpSuccess = { navController.navigate(AppDestinations.HOME_ROUTE) },
                 onBackClick = { navController.popBackStack() },
                 onSignInTxtClick = {navController.navigate(AppDestinations.SIGN_IN_ROUTE) },
                 modifier = Modifier
@@ -52,9 +64,18 @@ fun AppNavigation(
         }
         composable(AppDestinations.SIGN_IN_ROUTE) {
             SignInScreen(
-                onSignInSuccess = { navController.navigate(AppDestinations.OTP_ROUTE) },
+                onSignInSuccess = { navController.navigate(AppDestinations.HOME_ROUTE) },
                 onBackClick = { navController.popBackStack() },
                 onSignUpTxtClick = {navController.navigate(AppDestinations.SIGN_UP_ROUTE)},
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 16.dp)
+                    .fillMaxSize()
+                    .safeContentPadding()
+            )
+        }
+        composable(AppDestinations.HOME_ROUTE){
+            HomeScreen(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 16.dp)
