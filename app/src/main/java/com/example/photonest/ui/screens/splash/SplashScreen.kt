@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -41,20 +42,26 @@ fun SplashScreen(
     viewModel: SplashViewModel = viewModel()
 ) {
     val loginState by viewModel.loginState.collectAsState()
-    var animationState by remember { mutableStateOf(AnimationState.LogoZoom) }
+    var animationState by rememberSaveable { mutableStateOf(AnimationState.LogoZoom) }
 
     LaunchedEffect(loginState, animationState) {
-        delay(ANIMATION_DELAY.toLong())
+//        delay(ANIMATION_DELAY.toLong())
         when (animationState) {
-            AnimationState.LogoZoom -> animationState = AnimationState.LogoFadeOut
+            AnimationState.LogoZoom -> {
+                animationState = AnimationState.LogoFadeOut
+            }
             AnimationState.LogoFadeOut -> {
+                delay(ANIMATION_DELAY.toLong())
                 if (loginState is LoginState.LoggedIn) {
                     onNavigateToHome()
                 } else {
                     animationState = AnimationState.BackgroundTransition
                 }
             }
-            AnimationState.BackgroundTransition -> animationState = AnimationState.ContentFadeIn
+            AnimationState.BackgroundTransition ->{
+                delay(ANIMATION_DELAY.toLong())
+                animationState = AnimationState.ContentFadeIn
+            }
             AnimationState.ContentFadeIn -> {
                 // Wait for user interaction
             }
