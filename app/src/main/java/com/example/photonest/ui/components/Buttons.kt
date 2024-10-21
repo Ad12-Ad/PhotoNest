@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,39 +50,52 @@ fun ButtonOnboarding(
     enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(12.dp),
     textSize: TextUnit = 16.sp,
-    textColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    textWeight: FontWeight = FontWeight.Normal,
+    textColor: Color = MaterialTheme.colorScheme.onPrimary,
     buttonColors: ButtonColors = ButtonDefaults.buttonColors(
-        containerColor = MaterialTheme.colorScheme.primaryContainer,
-        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.4f)
+        containerColor = MaterialTheme.colorScheme.primary,
+        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(0.4f)
     ),
     elevation: ButtonElevation = ButtonDefaults.buttonElevation(4.dp),
-    prefixIcon: @Composable () -> Unit? = { null }
+    prefixIcon: @Composable (() -> Unit)? = null,
+    postfixIcon: @Composable (() -> Unit)? = null
 ) {
     Button(
-        modifier = modifier,
-        enabled = enabled,
         onClick = onClick,
+        enabled = enabled,
         colors = buttonColors,
         shape = shape,
-        elevation = elevation
+        elevation = elevation,
+        modifier = modifier
+            .padding(horizontal = 16.dp)
     ) {
         Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            prefixIcon()?.let {
-                Spacer(Modifier.width(10.dp))
+            if (prefixIcon != null) {
+                prefixIcon()
+                Spacer(Modifier.width(16.dp))
             }
+
             Text(
                 text = buttonText,
-                color = textColor,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = bodyFontFamily,
-                fontSize = textSize
+                style = TextStyle(
+                    fontSize = textSize,
+                    fontWeight = textWeight,
+                    color = textColor
+                )
             )
+
+            if (postfixIcon != null) {
+                Spacer(Modifier.width(16.dp))
+                postfixIcon()
+            }
         }
     }
 }
+
 
 @Composable
 fun BackTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {

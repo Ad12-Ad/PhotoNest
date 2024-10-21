@@ -29,6 +29,8 @@ import com.example.photonest.ui.theme.bodyFontFamily
 fun Heading1(
     modifier: Modifier = Modifier,
     text: String,
+    fontSize: TextUnit = 40.sp,
+    lineHeight: TextUnit = 48.sp,
     textAlign: TextAlign = TextAlign.Left,
     fontWeight: FontWeight = FontWeight.SemiBold,
     fontColor: Color = MaterialTheme.colorScheme.primary,
@@ -36,9 +38,9 @@ fun Heading1(
 ) {
     Text(
         text = text, style = TextStyle(
-            fontSize = 40.sp,
+            fontSize = fontSize,
             fontFamily = bodyFontFamily,
-            lineHeight = 48.sp,
+            lineHeight = lineHeight,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
             color = fontColor,
@@ -75,6 +77,8 @@ fun Heading2(
 fun NormalText(
     modifier: Modifier = Modifier,
     text: String,
+    fontSize: TextUnit = 16.sp,
+    lineHeight: TextUnit = 25.sp,
     textAlign: TextAlign = TextAlign.Left,
     fontWeight: FontWeight = FontWeight.Medium,
     fontColor: Color = MaterialTheme.colorScheme.onBackground,
@@ -82,9 +86,9 @@ fun NormalText(
 ) {
     Text(
         text = text, style = TextStyle(
-            fontSize = 16.sp,
+            fontSize = fontSize,
             fontFamily = bodyFontFamily,
-            lineHeight = 25.sp,
+            lineHeight = lineHeight,
             fontWeight = fontWeight,
             textDecoration = textDecoration,
             color = fontColor,
