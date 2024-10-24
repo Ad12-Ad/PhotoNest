@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.photonest.ui.screens.OtpScreen
 import com.example.photonest.ui.screens.home.HomeScreen
 import com.example.photonest.ui.screens.MainScaffold
+import com.example.photonest.ui.screens.addpost.AddPostBottomSheet
 import com.example.photonest.ui.screens.signin.SignInScreen
 import com.example.photonest.ui.screens.signup.SignUpScreen
 import com.example.photonest.ui.screens.splash.SplashScreen
@@ -33,6 +34,8 @@ fun AppNavigation(
 ) {
     //for the theme switching functionality
     var isDarkTheme by remember { mutableStateOf(false) }
+
+    var showAddPostSheet by remember { mutableStateOf(false) }
 
 
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
@@ -55,13 +58,20 @@ fun AppNavigation(
         MainScaffold(
             isDarkTheme = isDarkTheme,
             onThemeToggle = { isDarkTheme = !isDarkTheme },
-            navController = navController
+            navController = navController,
+            onAddPostClick = { showAddPostSheet = true}
         ) { paddingValues ->
             NavigationGraph(
                 navController = navController,
                 startDestination = startDestination,
                 paddingValues = paddingValues
             )
+
+            if (showAddPostSheet) {
+                AddPostBottomSheet(
+                    onDismiss = { showAddPostSheet = false }
+                )
+            }
         }
     } else {
         NavigationGraph(
