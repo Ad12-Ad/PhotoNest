@@ -38,6 +38,14 @@ fun AddPostBottomSheet(
     val state by viewModel.state.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    MyAlertDialog(
+        shouldShowDialog = state.showErrorDialog,
+        onDismissRequest = {viewModel.handleEvent(AddPostEvent.DismissErrorDialog)},
+        title = "Sign In Failed",
+        text = state.error ?: "An unknown error occurred",
+        confirmButtonText = "OK",
+        onConfirmClick = { viewModel.handleEvent(AddPostEvent.DismissErrorDialog) }
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -108,5 +116,11 @@ private fun AddPostContent(
             ),
             onClick = { onEvent(AddPostEvent.PostClicked) }
         )
+        if (state.isLoading){
+            CircularProgressIndicator(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        }
     }
 }
