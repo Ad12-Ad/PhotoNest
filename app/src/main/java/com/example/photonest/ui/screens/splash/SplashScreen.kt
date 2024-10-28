@@ -162,6 +162,7 @@ fun SplashScreen(
                         },
                         textSize = 20.sp,
                         modifier = Modifier
+                            .padding(horizontal = 16.dp)
                             .height(60.dp)
                             .fillMaxWidth(),
                         onClick = onNavigateToSignUp
@@ -171,6 +172,7 @@ fun SplashScreen(
                         buttonText = "Log In",
                         textSize = 20.sp,
                         modifier = Modifier
+                            .padding(horizontal = 16.dp)
                             .height(60.dp)
                             .fillMaxWidth(),
                         onClick = onNavigateToSignIn,
