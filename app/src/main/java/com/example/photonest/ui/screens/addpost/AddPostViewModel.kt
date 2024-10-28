@@ -17,6 +17,7 @@ class AddPostViewModel : ViewModel() {
         const val MAX_CATEGORIES = 3
     }
 
+    // TODO: Fetching the categories from firestore
     private val categories = listOf(
         "Nature", "Travel", "Food", "Fashion", "Technology",
         "Art", "Music", "Sports", "Lifestyle", "Education"
@@ -68,7 +69,7 @@ class AddPostViewModel : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             try {
-                // Implement post creation logic here
+//                TODO: Implement the firebase logic
                 _state.value = _state.value.copy(isLoading = false)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
