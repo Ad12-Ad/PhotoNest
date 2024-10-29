@@ -157,7 +157,7 @@ private fun NavigationGraph(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize()
-                    .safeContentPadding()
+                    .padding(horizontal = 16.dp)
             )
         }
     }
