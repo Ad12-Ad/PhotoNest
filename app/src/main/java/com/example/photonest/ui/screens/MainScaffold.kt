@@ -1,8 +1,10 @@
 package com.example.photonest.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,22 +15,30 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.photonest.R
 import com.example.photonest.ui.components.Heading2
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.navigation.AppDestinations
@@ -58,23 +68,31 @@ fun MainScaffold(
             topBar = {
                 if (showBottomBar) {
                     TopAppBar(
+                        modifier = Modifier.padding(start = 8.dp, end = 16.dp),
                         title = {
-                            Heading2(
-                                text = "PhotoNest",
-                                fontColor = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.padding(start = 8.dp)
+                            Image(
+                                painter = painterResource(id = R.drawable.logo_text),
+                                contentDescription = "Logo Text",
+                                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground),
+                                modifier = Modifier
+                                    .size(152.dp)
                             )
                         },
                         actions = {
-                            //Button to switch the theme
-                            IconButton(onClick = onThemeToggle) {
+                            FilledIconButton(
+                                onClick = onThemeToggle,
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(0.5f),
+                                )
+                            ) {
                                 Icon(
                                     imageVector = if (isDarkTheme) {
                                         Icons.Default.LightMode
                                     } else {
                                         Icons.Default.DarkMode
                                     },
-                                    contentDescription = "Toggle theme"
+                                    contentDescription = "Toggle theme",
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                         }
