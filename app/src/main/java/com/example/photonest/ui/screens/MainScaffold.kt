@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -24,6 +25,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,8 +67,11 @@ fun MainScaffold(
             AppDestinations.PROFILE_ROUTE
         )
     }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     PhotoNestTheme(darkTheme = isDarkTheme) {
         Scaffold(
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
                 if (showBottomBar) {
                     TopAppBar(
@@ -95,29 +102,44 @@ fun MainScaffold(
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
-                        }
+                        },
+                        scrollBehavior = scrollBehavior
                     )
                 }
             },
             bottomBar = {
                 if (showBottomBar) {
-                    Box (
+                    BottomAppBar(
                         modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ){
-                        BottomAppBar(
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            val items = listOf(
-                                BottomNavItem.Home,
-                                BottomNavItem.Explore,
-                                BottomNavItem.Bookmarks,
-                                BottomNavItem.Profile
-                            )
-                            items.forEach { item ->
-                                val selected = currentRoute == item.route
+                    ) {
+                        val items = listOf(
+                            BottomNavItem.Home,
+                            BottomNavItem.Explore,
+                            BottomNavItem.AddPost,
+                            BottomNavItem.Bookmarks,
+                            BottomNavItem.Profile
+                        )
+                        items.forEach { item ->
+                            val selected = currentRoute == item.route
 
+                            if (item == BottomNavItem.AddPost){
+                                FloatingActionButton(
+                                    modifier = Modifier.padding(10.dp),
+                                    onClick = { onAddPostClick() },
+                                    shape = CircleShape,
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = item.iconSelected),
+                                        contentDescription = "Add Post",
+                                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer),
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                            }else{
                                 NavigationBarItem(
+                                    modifier = Modifier.height(60.dp),
                                     selected = selected,
                                     onClick = {
                                         navController.navigate(item.route) {
@@ -130,43 +152,26 @@ fun MainScaffold(
                                     },
                                     icon = {
                                         Icon(
-                                            imageVector = if (selected) item.iconSelected else item.iconNotSelected,
+                                            painter = painterResource(id = if (selected) item.iconSelected else item.iconNotSelected),
                                             contentDescription = item.title,
-                                            modifier = Modifier.size(24.dp)
+                                            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     },
                                     label = {
                                         NormalText(
                                             text = item.title,
-                                            fontSize = 14.sp,
+                                            fontSize = 12.sp,
                                             fontColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
                                         )
                                     }
                                 )
                             }
+
                         }
-
-                    }
-
-                }
-            },
-            floatingActionButton = {
-                if (showBottomBar) {
-                    FloatingActionButton(
-                        onClick = { onAddPostClick() },
-                        shape = RoundedCornerShape(12.dp),
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Post",
-                            modifier = Modifier.size(30.dp)
-                        )
                     }
                 }
-            },
-            floatingActionButtonPosition = FabPosition.End
+            }
         ) { paddingValues ->
             content(paddingValues)
         }}

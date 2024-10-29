@@ -53,7 +53,7 @@ fun CategorySection(
             onValueChange = onSearchQueryChange,
             prefix = {
                 Icon(
-                    painter = painterResource(id = R.drawable.icon_search),
+                    painter = painterResource(id = R.drawable.icon_search_outlined),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )

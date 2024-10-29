@@ -1,28 +1,16 @@
 package com.example.photonest.ui.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Bookmark
-import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.photonest.R
 
 sealed class BottomNavItem(
     val route: String,
-    val iconSelected: ImageVector,
-    val iconNotSelected: ImageVector,
+    val iconSelected: Int,
+    val iconNotSelected: Int,
     val title: String
 ) {
-    object Home : BottomNavItem(AppDestinations.HOME_ROUTE, Icons.Filled.Home,Icons.Outlined.Home, "Home")
-    object Explore : BottomNavItem(AppDestinations.EXPLORE_ROUTE, Icons.Filled.Search,Icons.Outlined.Search, "Explore")
-    object AddPost : BottomNavItem(AppDestinations.ADD_POST_ROUTE, Icons.Filled.Add,Icons.Outlined.Add, "Add Post")
-    object Bookmarks : BottomNavItem(AppDestinations.BOOKMARKS_ROUTE, Icons.Filled.Bookmark,Icons.Outlined.BookmarkBorder, "Bookmarks")
-    object Profile : BottomNavItem(AppDestinations.PROFILE_ROUTE, Icons.Filled.Person,Icons.Outlined.Person, "Profile")
+    object Home : BottomNavItem(AppDestinations.HOME_ROUTE, R.drawable.icon_home_filled,R.drawable.icon_home_filled, "Home")
+    object Explore : BottomNavItem(AppDestinations.EXPLORE_ROUTE, R.drawable.icon_search_filled,R.drawable.icon_search_outlined, "Explore")
+    object AddPost : BottomNavItem(AppDestinations.ADD_POST_ROUTE, R.drawable.icon_add,R.drawable.icon_add, "Add Post")
+    object Bookmarks : BottomNavItem(AppDestinations.BOOKMARKS_ROUTE, R.drawable.bookmark_icon_filled,R.drawable.bookmark_icon_outlined, "Bookmarks")
+    object Profile : BottomNavItem(AppDestinations.PROFILE_ROUTE, R.drawable.icon_profile_filled,R.drawable.icon_profile_outlined, "Profile")
 }

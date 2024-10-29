@@ -126,7 +126,7 @@ fun SignUpContent(
                 },
                 prefix = {
                     Icon(
-                        painter = painterResource(id = R.drawable.user_logo),
+                        painter = painterResource(id = R.drawable.icon_profile_outlined),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
