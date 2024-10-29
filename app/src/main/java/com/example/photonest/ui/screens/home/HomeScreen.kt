@@ -10,7 +10,7 @@ import com.example.photonest.ui.screens.home.components.PostFeed
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeScreenViewModel = viewModel()
 ) {
     val posts by viewModel.posts.collectAsState()
     PostFeed(
