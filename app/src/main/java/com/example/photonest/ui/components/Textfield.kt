@@ -21,8 +21,9 @@ import com.example.photonest.ui.theme.bodyFontFamily
 
 @Composable
 fun OnBoardingTextField(
-    label: String,
     modifier: Modifier = Modifier,
+    showLabel: Boolean = true,
+    label: String = "",
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     value: String,
     onValueChange: (String) -> Unit,
@@ -33,17 +34,19 @@ fun OnBoardingTextField(
 ) {
 
     Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = TextStyle(
-                fontSize = 14.sp,
-                fontFamily = bodyFontFamily,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground
-            ),
-            modifier = Modifier.padding(start = 5.dp, bottom = 5.dp)
-        )
+        if (showLabel){
+            Text(
+                text = label,
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    fontFamily = bodyFontFamily,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onBackground
+                ),
+                modifier = Modifier.padding(start = 5.dp, bottom = 5.dp)
+            )
+        }
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,

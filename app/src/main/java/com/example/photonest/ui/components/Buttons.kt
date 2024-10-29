@@ -67,7 +67,6 @@ fun ButtonOnboarding(
         shape = shape,
         elevation = elevation,
         modifier = modifier
-            .padding(horizontal = 16.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp),

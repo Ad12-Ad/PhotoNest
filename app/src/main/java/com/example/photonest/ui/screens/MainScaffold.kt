@@ -41,6 +41,7 @@ fun MainScaffold(
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
     navController: NavHostController,
+    onAddPostClick: () -> Unit,
     content: @Composable (PaddingValues) -> Unit
 ) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
@@ -134,7 +135,7 @@ fun MainScaffold(
             floatingActionButton = {
                 if (showBottomBar) {
                     FloatingActionButton(
-                        onClick = { navController.navigate(AppDestinations.ADD_POST_ROUTE) },
+                        onClick = { onAddPostClick() },
                         shape = RoundedCornerShape(12.dp),
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
