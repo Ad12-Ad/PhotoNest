@@ -124,7 +124,7 @@ fun MainScaffold(
 
                             if (item == BottomNavItem.AddPost){
                                 FloatingActionButton(
-                                    modifier = Modifier.padding(10.dp),
+                                    modifier = Modifier.padding(bottom = 10.dp, start = 10.dp, end = 10.dp),
                                     onClick = { onAddPostClick() },
                                     shape = CircleShape,
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
