@@ -1,4 +1,4 @@
-![Frame 47](https://github.com/user-attachments/assets/1e2b2038-4274-4d60-9bcc-04d98556c002)# PhotoNest
+# PhotoNest
 
 **PhotoNest** is a native Android application designed for photography enthusiasts to share and discover stunning images. Built with **Kotlin** and **Jetpack Compose**, the app aims to provide a seamless user experience while adhering to clean architecture principles and the latest Android best practices.
 
@@ -21,7 +21,7 @@
 - **Development Tools:** Built with Android Studio, using Kotlin and Jetpack Compose for UI development.
 - **Backend Integration:** Plans to integrate backend functionalities to enhance app features.
 
-## Screenshots
+## App Look
 ![Frame 52](https://github.com/user-attachments/assets/4d1f2bb1-d42c-481b-bada-3a92c3e3dc60)
 
 ![Frame 53](https://github.com/user-attachments/assets/bd90875a-f73b-440a-b8d1-2df9741eb6de)
