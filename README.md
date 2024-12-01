@@ -28,6 +28,9 @@
 
 ![Frame 47](https://github.com/user-attachments/assets/ff44a365-e780-4c80-932d-8fc637229631)
 
+<img width="2049" alt="Frame 75" src="https://github.com/user-attachments/assets/ab5aabba-88c9-470c-9d12-0410d592495d">
+
+
 ## Getting Started
 
 To get started with the project, follow these steps:
