@@ -1,27 +1,29 @@
 # PhotoNest
 
-**PhotoNest** is a native Android application designed for photography enthusiasts to share and discover stunning images. Built with **Kotlin** and **Jetpack Compose**, the app aims to provide a seamless user experience while adhering to clean architecture principles and the latest Android best practices.
+## Overview
+**PhotoNest** is a feature-rich Android application designed for photography enthusiasts to explore, share, and engage with stunning visuals. Developed with **Kotlin** and **Jetpack Compose**, the app prioritizes a seamless user experience, modern UI design, and robust architectural principles.
 
 ## Features
 
-### Key Features
-- **Animated Splash Screen:** Provides an engaging launch experience for users.
-- **User Authentication:** Enables secure SignIn and SignUp flows using **Firebase Authentication**.
-- **Dynamic Theming:** Supports both light and dark themes to enhance user experience.
-- **Structured Navigation:** Implements a clear navigation architecture for intuitive app flow.
+### Core Features
+- **Engaging Splash Screen:** A beautifully animated splash screen that enhances user engagement upon launch.
+- **Secure Authentication:** Implements **Firebase Authentication** for seamless SignIn and SignUp flows.
+- **Adaptive Theming:** Supports both **light and dark themes**, providing a customizable user experience.
+- **Intuitive Navigation:** A well-structured navigation system ensures a smooth and user-friendly journey within the app.
 
 ### User Experience Enhancements
-- **ViewModel Integration:** Utilizes ViewModel for efficient state management across screens.
-- **Custom Error Handling:** Incorporates AlertDialog boxes for user-friendly error feedback.
-- **Field-Specific Validation:** Offers real-time validation messages for input fields to improve usability.
+- **Optimized State Management:** Utilizes **ViewModel** to maintain UI state effectively.
+- **Enhanced Error Handling:** Implements **custom AlertDialogs** for clear and user-friendly error messages.
+- **Real-time Input Validation:** Provides **field-specific validation** to improve form usability and reduce errors.
 
 ## Technical Details
 
-- **Architecture:** Follows clean architecture principles to ensure maintainability and scalability.
-- **Development Tools:** Built with Android Studio, using Kotlin and Jetpack Compose for UI development.
-- **Backend Integration:** Plans to integrate backend functionalities to enhance app features.
+- **Architecture:** Adheres to **clean architecture principles** for maintainability, scalability, and modularity.
+- **Development Tools:** Developed using **Android Studio**, **Kotlin**, and **Jetpack Compose** for an efficient and modern UI framework.
+- **Backend Integration:** Future iterations will include backend functionalities to enhance app capabilities.
 
-## App Look
+## App Interface
+
 ![Frame 52](https://github.com/user-attachments/assets/4d1f2bb1-d42c-481b-bada-3a92c3e3dc60)
 
 ![Frame 53](https://github.com/user-attachments/assets/bd90875a-f73b-440a-b8d1-2df9741eb6de)
@@ -30,19 +32,25 @@
 
 <img width="2049" alt="Frame 75" src="https://github.com/user-attachments/assets/ab5aabba-88c9-470c-9d12-0410d592495d">
 
-
 ## Getting Started
 
-To get started with the project, follow these steps:
-
 ### Prerequisites
-- **Android Studio**
+Before setting up **PhotoNest**, ensure you have the following installed:
+- **Android Studio** (latest version)
 - **Kotlin**
 - **Jetpack Compose**
-- **Firebase** setup
+- **Firebase** (for authentication setup)
 
-### Installation
+### Installation Guide
+Follow these steps to set up the project:
+
 1. Clone the repository from GitHub:
 
    ```bash
    git clone https://lnkd.in/gZ8aEvMQ
+
+3. Open the project in Android Studio.
+4. Sync Gradle dependencies.
+5. Set up Firebase Authentication in the project.
+6. Run the application on an emulator or a physical device.
+
