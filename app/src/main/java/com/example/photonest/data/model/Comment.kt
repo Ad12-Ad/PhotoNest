@@ -10,5 +10,9 @@ data class Comment(
     val timestamp: Long = System.currentTimeMillis(),
     val likeCount: Int = 0,
     val isLiked: Boolean = false,
-    val replies: List<Comment> = emptyList()
+    val parentCommentId: String? = null,
+    val replies: List<Comment> = emptyList(),
+    val mentions: List<String> = emptyList(),
+    val isEdited: Boolean = false,
+    val editedAt: Long? = null
 )

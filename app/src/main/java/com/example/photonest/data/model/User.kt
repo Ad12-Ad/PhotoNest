@@ -9,6 +9,7 @@ data class User(
     val bio: String = "",
     val website: String = "",
     val location: String = "",
+    val joinedDate: Long = System.currentTimeMillis(),
     val postsCount: Int = 0,
     val followersCount: Int = 0,
     val followingCount: Int = 0,
@@ -17,5 +18,7 @@ data class User(
     val bookmarks: List<String> = emptyList(),
     val following: List<String> = emptyList(),
     val followers: List<String> = emptyList(),
-    val joinedDate: Long = System.currentTimeMillis()
+    val fcmToken: String = "",
+    val lastSeen: Long = System.currentTimeMillis(),
+    val isOnline: Boolean = false
 )
