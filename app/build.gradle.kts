@@ -85,6 +85,7 @@ dependencies {
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
+    implementation(libs.androidx.adapters)
     ksp (libs.hilt.compiler)
     implementation (libs.androidx.hilt.navigation.compose)
 
