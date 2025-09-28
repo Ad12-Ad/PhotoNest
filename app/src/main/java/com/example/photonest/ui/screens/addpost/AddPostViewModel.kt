@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.ui.screens.addpost.model.AddPostEvent
 import com.example.photonest.ui.screens.addpost.model.AddPostState
+import com.google.android.gms.common.util.CollectionUtils.listOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.Collections.emptySet
 
 class AddPostViewModel : ViewModel() {
     private val _state = MutableStateFlow(AddPostState())

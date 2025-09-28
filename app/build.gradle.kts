@@ -1,12 +1,14 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.google.gms.google.services)
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
 }
 
 android {
     namespace = "com.example.photonest"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.photonest"
@@ -41,7 +43,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
+        kotlinCompilerExtensionVersion = "1.6.10"
     }
     packaging {
         resources {
@@ -51,30 +53,78 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.foundation)
-    implementation(libs.androidx.ui.text.google.fonts)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.firebase.auth)
-    implementation(libs.androidx.navigation.compose)
-    implementation(platform(libs.firebase.bom))
-    implementation (libs.androidx.lifecycle.lifecycle.viewmodel.compose2)
-    implementation (libs.androidx.lifecycle.runtime.ktx.v286)
-    implementation (libs.androidx.constraintlayout.compose)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
+    // Jetpack Compose
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.foundation)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation (libs.androidx.material.icons.extended)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.constraintlayout.compose)
+    implementation(libs.androidx.navigation.compose)
+
+    // AndroidX Core & Lifecycle
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx.v286)
+    implementation(libs.androidx.lifecycle.lifecycle.viewmodel.compose2)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+
+    // ViewModel
+    implementation(libs.androidx.lifecycle.viewmodel.compose.v270)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Navigation
+    implementation(libs.androidx.navigation.compose.v276)
+
+    // Hilt Dependency Injection
+    implementation(libs.hilt.android)
+    ksp (libs.hilt.compiler)
+    implementation (libs.androidx.hilt.navigation.compose)
+
+    // Room Database
+    implementation (libs.androidx.room.runtime)
+    implementation (libs.androidx.room.ktx)
+    ksp (libs.androidx.room.compiler)
+
+    // Retrofit & Networking
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.logging.interceptor)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
+
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
+    // Camera & Image
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
+    // Permissions
+    implementation(libs.accompanist.permissions)
+
+    // Paging
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
+
+    // Image Loading
+    implementation(libs.coil.compose)
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
-    implementation(libs.coil.compose)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
