@@ -14,9 +14,9 @@ class Converters {
     @TypeConverter
     fun toStringList(value: String): List<String> {
         return try {
-            Gson().fromJson<ArrayList<String>>(value, object : TypeToken<ArrayList<String>>() {}.type) ?: arrayListOf()
+            Gson().fromJson(value, object : TypeToken<List<String>>() {}.type) ?: emptyList()
         } catch (e: Exception) {
-            arrayListOf()
+            emptyList()
         }
     }
 }

@@ -90,7 +90,7 @@ fun PostItem(
                 .layoutId("userImage")
         ) {
             Image(
-                painter = painterResource(post.userImage),
+                painter = painterResource(post.userImage.toInt()),
                 contentDescription = "Profile picture",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().clickable(onClick = onUserClick)
@@ -107,7 +107,7 @@ fun PostItem(
                 .clickable(onClick = onUserClick)
         )
         NormalText(
-            text = post.timestamp,
+            text = post.timestamp.toString(),
             fontSize = 12.sp,
             fontColor = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.layoutId("timeStamp")
@@ -128,7 +128,7 @@ fun PostItem(
         }
 
         PostContentCard(
-            image = post.imageUrl,
+            image = post.imageUrl.toInt(),
             categories = post.category,
             likeCount = post.likeCount,
             isLiked = post.isLiked,

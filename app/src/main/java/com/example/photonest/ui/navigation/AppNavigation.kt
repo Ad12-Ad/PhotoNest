@@ -29,6 +29,7 @@ import com.example.photonest.ui.screens.signin.SignInScreen
 import com.example.photonest.ui.screens.signup.SignUpScreen
 import com.example.photonest.ui.screens.splash.SplashScreen
 
+@SuppressLint("ViewModelConstructorInComposable")
 @Composable
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
