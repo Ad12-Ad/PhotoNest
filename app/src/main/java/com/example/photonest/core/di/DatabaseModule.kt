@@ -23,21 +23,27 @@ object DatabaseModule {
             context.applicationContext,
             PhotoNestDatabase::class.java,
             Constants.DATABASE_NAME
-        ).build()
+        )
+            .fallbackToDestructiveMigration() // For development only
+            .build()
     }
 
     @Provides
-    fun provideUserDao(database: PhotoNestDatabase): UserDao = database.userDao()
+    fun provideUserDao(database: PhotoNestDatabase) = database.userDao()
 
     @Provides
-    fun providePostDao(database: PhotoNestDatabase): PostDao = database.postDao()
+    fun providePostDao(database: PhotoNestDatabase) = database.postDao()
 
     @Provides
-    fun provideCommentDao(database: PhotoNestDatabase): CommentDao = database.commentDao()
+    fun provideCategoryDao(database: PhotoNestDatabase) = database.categoryDao()
 
     @Provides
-    fun provideCategoryDao(database: PhotoNestDatabase): CategoryDao = database.categoryDao()
+    fun provideCommentDao(database: PhotoNestDatabase) = database.commentDao()
 
     @Provides
-    fun provideFollowDao(database: PhotoNestDatabase): FollowDao = database.followDao()
+    fun provideFollowDao(database: PhotoNestDatabase) = database.followDao()
+
+    @Provides
+    fun provideNotificationDao(database: PhotoNestDatabase) = database.notificationDao()
+
 }

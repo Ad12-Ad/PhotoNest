@@ -41,7 +41,7 @@ fun SplashScreen(
     onNavigateToSignUp: () -> Unit,
     viewModel: SplashViewModel = viewModel()
 ) {
-    val loginState by viewModel.loginState.collectAsState()
+    val loginState by viewModel.uiState.collectAsState()
     var animationState by rememberSaveable { mutableStateOf(AnimationState.LogoZoom) }
 
     LaunchedEffect(loginState, animationState) {
@@ -52,7 +52,7 @@ fun SplashScreen(
             }
             AnimationState.LogoFadeOut -> {
                 delay(ANIMATION_DELAY.toLong())
-                if (loginState is LoginState.LoggedIn) {
+                if (loginState.isUserLoggedIn) {
                     onNavigateToHome()
                 } else {
                     animationState = AnimationState.BackgroundTransition
@@ -114,7 +114,7 @@ fun SplashScreen(
         }
 
         AnimatedVisibility(
-            visible = animationState == AnimationState.ContentFadeIn && loginState is LoginState.NotLoggedIn,
+            visible = animationState == AnimationState.ContentFadeIn && !loginState.isUserLoggedIn,
             enter = fadeIn(animationSpec = tween(ANIMATION_DURATION))
         ) {
             Column(

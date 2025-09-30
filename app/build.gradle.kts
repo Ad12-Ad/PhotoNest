@@ -75,9 +75,9 @@ dependencies {
 
     // Firebase
     implementation(platform(libs.firebase.bom.v3430))
-    implementation(libs.google.firebase.auth)
-    implementation(libs.google.firebase.firestore)
-    implementation(libs.google.firebase.storage)
+    implementation(libs.com.google.firebase.firebase.auth2)
+    implementation(libs.com.google.firebase.firebase.firestore)
+    implementation(libs.com.google.firebase.firebase.storage)
 
     // Navigation
     implementation(libs.androidx.navigation.compose.v276)
@@ -85,8 +85,16 @@ dependencies {
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
     implementation(libs.androidx.adapters)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     ksp (libs.hilt.compiler)
     implementation (libs.androidx.hilt.navigation.compose)
+
+    implementation(libs.gms.play.services.auth)
+
+//    implementation(libs.play.services.bom)
+//    implementation(libs.play.services.auth)
 
     // Room Database
     implementation (libs.androidx.room.runtime)

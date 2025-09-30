@@ -33,6 +33,8 @@ import com.example.photonest.ui.components.OnBoardingTextField
 
 @Composable
 fun CategorySection(
+    caption: String,
+    onCaptionChange: (String) -> Unit,
     searchQuery: String,
     selectedCategories: Set<String>,
     onSearchQueryChange: (String) -> Unit,
@@ -108,6 +110,13 @@ fun CategorySection(
                 color = MaterialTheme.colorScheme.error
             )
         }
+
+        OnBoardingTextField(
+            label = "Caption ...",
+            showLabel = false,
+            value = caption,
+            onValueChange = onCaptionChange,
+        )
     }
 }
 

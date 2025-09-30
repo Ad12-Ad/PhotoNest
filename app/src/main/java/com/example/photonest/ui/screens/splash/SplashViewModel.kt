@@ -2,36 +2,44 @@ package com.example.photonest.ui.screens.splash
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
+import com.example.photonest.domain.repository.IAuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SplashViewModel : ViewModel() {
-    private val _loginState = MutableStateFlow<LoginState>(LoginState.Unknown)
-    val loginState: StateFlow<LoginState> = _loginState
+@HiltViewModel
+class SplashViewModel @Inject constructor(
+    private val authRepository: IAuthRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(SplashUiState())
+    val uiState: StateFlow<SplashUiState> = _uiState.asStateFlow()
 
     init {
-        checkLoginState()
+        checkAuthenticationState()
     }
 
-    private fun checkLoginState() {
+    private fun checkAuthenticationState() {
         viewModelScope.launch {
-            var isLoggedIn = false
-            val currentUser = FirebaseAuth.getInstance().currentUser
-            _loginState.value = if (currentUser != null) {
-                isLoggedIn = true
-                LoginState.LoggedIn
-            } else {
-                LoginState.NotLoggedIn
-            }
-            _loginState.value = if (isLoggedIn) LoginState.LoggedIn else LoginState.NotLoggedIn
+            // Show splash screen for at least 2 seconds
+            delay(2000)
+
+            authRepository.isUserLoggedIn()
+                .collect { isLoggedIn ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isUserLoggedIn = isLoggedIn
+                    )
+                }
         }
     }
 }
 
-sealed class LoginState {
-    object Unknown : LoginState()
-    object LoggedIn : LoginState()
-    object NotLoggedIn : LoginState()
-}
+data class SplashUiState(
+    val isLoading: Boolean = true,
+    val isUserLoggedIn: Boolean = false
+)
