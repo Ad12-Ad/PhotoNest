@@ -1,14 +1,22 @@
+package com.example.photonest.ui.screens.signin
+
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
+import com.example.photonest.core.utils.Resource
+import com.example.photonest.domain.repository.IAuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
-class SignInViewModel : ViewModel() {
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+@HiltViewModel
+class SignInViewModel @Inject constructor(
+    private val authRepository: IAuthRepository
+) : ViewModel() {
+
     private val _uiState = MutableStateFlow(SignInUiState())
     val uiState: StateFlow<SignInUiState> = _uiState
 
@@ -29,21 +37,95 @@ class SignInViewModel : ViewModel() {
 
     fun signIn() {
         val currentState = _uiState.value
-
         viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
-                auth.signInWithEmailAndPassword(currentState.email, currentState.password).await()
+            val result = authRepository.signInWithEmailAndPassword(
+                email = currentState.email,
+                password = currentState.password
+            )
 
-                _uiState.update { it.copy(isLoading = false, isSignInSuccessful = true) }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "An error occurred during sign in",
-                        showErrorDialog = true
-                    )
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSignInSuccessful = true,
+                            error = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message ?: "Sign in failed",
+                            showErrorDialog = true
+                        )
+                    }
+                }
+                is Resource.Loading -> {
+                    // Already handled above
+                }
+            }
+        }
+    }
+
+    fun signInWithGoogle() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            val result = authRepository.signInWithGoogle()
+
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSignInSuccessful = true,
+                            error = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message ?: "Google sign in failed",
+                            showErrorDialog = true
+                        )
+                    }
+                }
+                is Resource.Loading -> {
+                    // Already handled above
+                }
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String) {
+        viewModelScope.launch {
+            val result = authRepository.sendPasswordResetEmail(email)
+
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            error = null,
+                            showPasswordResetDialog = true
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            error = result.message ?: "Failed to send password reset email",
+                            showErrorDialog = true
+                        )
+                    }
+                }
+                is Resource.Loading -> {
+                    // Handle loading if needed
                 }
             }
         }
@@ -51,6 +133,10 @@ class SignInViewModel : ViewModel() {
 
     fun dismissErrorDialog() {
         _uiState.update { it.copy(showErrorDialog = false) }
+    }
+
+    fun dismissPasswordResetDialog() {
+        _uiState.update { it.copy(showPasswordResetDialog = false) }
     }
 
     fun resetError() {
@@ -61,14 +147,23 @@ class SignInViewModel : ViewModel() {
         val email = _uiState.value.email
         val password = _uiState.value.password
 
-        val isEmailValid = if (hasInteractedWithEmail) android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() else true
-        val isPasswordValid = if (hasInteractedWithPassword) password.isNotEmpty() else true
+        val isEmailValid = if (hasInteractedWithEmail) {
+            Patterns.EMAIL_ADDRESS.matcher(email).matches()
+        } else true
+
+        val isPasswordValid = if (hasInteractedWithPassword) {
+            password.isNotEmpty()
+        } else true
 
         _uiState.update {
             it.copy(
                 isInputValid = isEmailValid && isPasswordValid,
-                emailError = if (hasInteractedWithEmail && !isEmailValid) "Invalid email address" else null,
-                passwordError = if (hasInteractedWithPassword && !isPasswordValid) "Password cannot be empty" else null
+                emailError = if (hasInteractedWithEmail && !isEmailValid) {
+                    "Invalid email address"
+                } else null,
+                passwordError = if (hasInteractedWithPassword && !isPasswordValid) {
+                    "Password cannot be empty"
+                } else null
             )
         }
     }
@@ -83,5 +178,6 @@ data class SignInUiState(
     val error: String? = null,
     val emailError: String? = null,
     val passwordError: String? = null,
-    val showErrorDialog: Boolean = false
+    val showErrorDialog: Boolean = false,
+    val showPasswordResetDialog: Boolean = false
 )
