@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Post
+import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -189,6 +190,6 @@ class HomeScreenViewModel @Inject constructor(
 data class HomeUiState(
     val isLoading: Boolean = false,
     val posts: List<Post> = emptyList(),
-    val currentUser: com.example.photonest.data.model.User? = null,
+    val currentUser: User? = null,
     val error: String? = null
 )

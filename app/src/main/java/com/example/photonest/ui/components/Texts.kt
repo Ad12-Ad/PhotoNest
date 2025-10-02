@@ -159,7 +159,7 @@ fun annotatedText(
         pushStyle(
             SpanStyle(
                 fontFamily = bodyFontFamily,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,
                 color = text2Color
             )
