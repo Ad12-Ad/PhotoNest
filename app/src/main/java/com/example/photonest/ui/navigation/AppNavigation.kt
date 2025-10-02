@@ -219,25 +219,24 @@ private fun NavigationGraph(
 //
         composable(AppDestinations.PROFILE_ROUTE) {
             ProfileScreen(
-                onEditProfile = {
-//                    navController.navigate("edit_profile")
-                },
-                onSettings = {
-//                    navController.navigate("settings")
-                },
-                onNavigateToFollowers = { userId ->
-//                    navController.navigate("followers/$userId")
-                },
-                onNavigateToFollowing = { userId ->
-//                    navController.navigate("following/$userId")
-                },
-                onNavigateToPostDetail = { postId ->
-//                    navController.navigate("post_detail/$postId")
-                },
+//                onEditProfile = {
+////                    navController.navigate("edit_profile")
+//                },
+//                onSettings = {
+////                    navController.navigate("settings")
+//                },
+//                onNavigateToFollowers = { userId ->
+////                    navController.navigate("followers/$userId")
+//                },
+//                onNavigateToFollowing = { userId ->
+////                    navController.navigate("following/$userId")
+//                },
+//                onNavigateToPostDetail = { postId ->
+////                    navController.navigate("post_detail/$postId")
+//                },
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .fillMaxSize().padding(horizontal = 16.dp),
                 viewModel = hiltViewModel<ProfileViewModel>()
             )
         }
