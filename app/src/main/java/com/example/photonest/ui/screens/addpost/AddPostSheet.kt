@@ -35,7 +35,7 @@ fun AddPostBottomSheet(
     viewModel: AddPostViewModel,
     onDismiss: () -> Unit
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     MyAlertDialog(
