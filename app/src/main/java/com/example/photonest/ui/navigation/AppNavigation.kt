@@ -27,6 +27,8 @@ import com.example.photonest.ui.screens.home.HomeScreenViewModel
 import com.example.photonest.ui.screens.MainScaffold
 import com.example.photonest.ui.screens.addpost.AddPostBottomSheet
 import com.example.photonest.ui.screens.addpost.AddPostViewModel
+import com.example.photonest.ui.screens.explore.ExploreScreen
+import com.example.photonest.ui.screens.explore.ExploreViewModel
 import com.example.photonest.ui.screens.profile.ProfileScreen
 import com.example.photonest.ui.screens.profile.ProfileViewModel
 import com.example.photonest.ui.screens.signin.SignInScreen
@@ -185,22 +187,21 @@ private fun NavigationGraph(
             )
         }
 
-//        composable(AppDestinations.EXPLORE_ROUTE) {
-//            ExploreScreen(
-//                onNavigateToProfile = { userId ->
-//                    navController.navigate("${AppDestinations.PROFILE_ROUTE}/$userId")
-//                },
-//                onNavigateToPostDetail = { postId ->
-//                    navController.navigate("post_detail/$postId")
-//                },
-//                modifier = Modifier
-//                    .background(MaterialTheme.colorScheme.background)
-//                    .fillMaxSize()
-//                    .padding(horizontal = 16.dp),
-//                viewModel = hiltViewModel<ExploreViewModel>()
-//            )
-//        }
-//
+        composable(AppDestinations.EXPLORE_ROUTE) {
+            ExploreScreen(
+                onNavigateToProfile = { userId ->
+                    navController.navigate("${AppDestinations.PROFILE_ROUTE}/$userId")
+                },
+                onNavigateToPostDetail = { postId ->
+                    navController.navigate("post_detail/$postId")
+                },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize(),
+                viewModel = hiltViewModel<ExploreViewModel>()
+            )
+        }
+
 //        composable(AppDestinations.BOOKMARKS_ROUTE) {
 //            BookmarksScreen(
 //                onNavigateToPostDetail = { postId ->
