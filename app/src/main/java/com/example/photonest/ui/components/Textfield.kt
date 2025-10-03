@@ -2,16 +2,20 @@ package com.example.photonest.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -28,10 +32,14 @@ fun OnBoardingTextField(
     value: String,
     onValueChange: (String) -> Unit,
     isError: Boolean = false,
+    onSearch: () -> Unit = {},
+    onClearSearch: () -> Unit = {},
     errorMessage:  @Composable (() -> Unit)? = null,
     prefix: @Composable (() -> Unit)? = null,
     postfix: @Composable (() -> Unit)? = null,
 ) {
+
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(modifier = modifier) {
         if (showLabel){
@@ -54,22 +62,6 @@ fun OnBoardingTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 54.dp),
-            keyboardOptions = keyboardOptions,
-            isError = isError,
-            supportingText = if (isError) {errorMessage} else null,
-            textStyle = TextStyle(
-                fontFamily = bodyFontFamily,
-                fontSize = 16.sp,
-                lineHeight = 25.sp
-            ),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(0.4f)
-            ),
-            leadingIcon = prefix,
-            trailingIcon = postfix,
             placeholder = {
                 Text(
                     text = label,
@@ -80,6 +72,43 @@ fun OnBoardingTextField(
                         lineHeight = 25.sp
                     )
                 )
+            },
+            keyboardOptions = keyboardOptions,
+            isError = isError,
+            supportingText = if (isError) {
+                errorMessage
+            } else null,
+            textStyle = TextStyle(
+                fontFamily = bodyFontFamily,
+                fontSize = 16.sp,
+                lineHeight = 25.sp
+            ),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    onSearch()
+                    keyboardController?.hide()
+                }
+            ),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(0.4f)
+            ),
+            leadingIcon = prefix,
+            trailingIcon = {if(postfix != null){
+                postfix
+            }else{
+                if (value.isNotEmpty()) {
+                    IconButton(onClick = onClearSearch) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Clear search",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
             }
         )
     }
