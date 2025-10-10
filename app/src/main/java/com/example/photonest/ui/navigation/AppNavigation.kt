@@ -27,6 +27,8 @@ import com.example.photonest.ui.screens.home.HomeScreenViewModel
 import com.example.photonest.ui.screens.MainScaffold
 import com.example.photonest.ui.screens.addpost.AddPostBottomSheet
 import com.example.photonest.ui.screens.addpost.AddPostViewModel
+import com.example.photonest.ui.screens.bookmarks.BookmarksScreen
+import com.example.photonest.ui.screens.bookmarks.BookmarksViewModel
 import com.example.photonest.ui.screens.explore.ExploreScreen
 import com.example.photonest.ui.screens.explore.ExploreViewModel
 import com.example.photonest.ui.screens.profile.ProfileScreen
@@ -202,21 +204,22 @@ private fun NavigationGraph(
             )
         }
 
-//        composable(AppDestinations.BOOKMARKS_ROUTE) {
-//            BookmarksScreen(
-//                onNavigateToPostDetail = { postId ->
+        composable(AppDestinations.BOOKMARKS_ROUTE) {
+            BookmarksScreen(
+                onNavigateToPostDetail = { postId ->
 //                    navController.navigate("post_detail/$postId")
-//                },
-//                onNavigateToProfile = { userId ->
-//                    navController.navigate("${AppDestinations.PROFILE_ROUTE}/$userId")
-//                },
-//                modifier = Modifier
-//                    .background(MaterialTheme.colorScheme.background)
-//                    .fillMaxSize()
-//                    .padding(horizontal = 16.dp),
-//                viewModel = hiltViewModel<BookmarksViewModel>()
-//            )
-//        }
+                },
+                onNavigateToProfile = { userId ->
+                    navController.navigate("${AppDestinations.PROFILE_ROUTE}/$userId")
+                },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                viewModel = hiltViewModel<BookmarksViewModel>(),
+                onPostClick = {  }
+            )
+        }
 //
         composable(AppDestinations.PROFILE_ROUTE) {
             ProfileScreen(
@@ -237,7 +240,8 @@ private fun NavigationGraph(
 //                },
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
-                    .fillMaxSize().padding(horizontal = 16.dp),
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
                 viewModel = hiltViewModel<ProfileViewModel>()
             )
         }

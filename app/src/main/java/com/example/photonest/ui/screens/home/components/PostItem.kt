@@ -53,6 +53,8 @@ fun PostItem(
     onPostClick: () -> Unit,
     onLikeClick: () -> Unit,
     onBookmarkClick: () -> Unit,
+    onCommentClick: () -> Unit = {},
+    onShareClick: () -> Unit = {},
     onUserClick: () -> Unit
 ) {
     val constraintSet = ConstraintSet {
@@ -147,7 +149,7 @@ fun PostItem(
         ) {
             Icon(
                 painter = painterResource(
-                    id = if (post.isBookmarked) R.drawable.bookmark_icon_outlined else R.drawable.bookmark_icon_filled
+                    id = if (post.isBookmarked) R.drawable.bookmark_icon_filled else R.drawable.bookmark_icon_outlined
                 ),
                 contentDescription = if (post.isBookmarked) "Bookmarked post" else "not a Bookmarked post",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -163,6 +165,8 @@ fun PostItem(
             isLiked = post.isLiked,
             onPostClick = onPostClick,
             onLikeClick = onLikeClick,
+            onCommentClick = onCommentClick,
+            onShareClick = onShareClick,
             caption = post.caption,
             location = post.location,
             commentCount = post.commentCount,
