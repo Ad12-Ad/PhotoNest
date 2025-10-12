@@ -135,4 +135,12 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Pull-to-refresh
+//    implementation(libs.material3)
+//    implementation(libs.androidx.material3.android)
+    // For Material3 pull-to-refresh
+//    implementation("androidx.compose.material3:material3:1.4.0")
+    implementation(libs.material3) // or latest version
+
 }

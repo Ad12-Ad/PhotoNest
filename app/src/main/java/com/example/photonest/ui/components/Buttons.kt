@@ -120,7 +120,11 @@ fun BackTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
 }
 
 @Composable
-fun FollowTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun FollowTxtBtn(
+    isFollowing: Boolean = false,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Box(
         modifier = modifier
             .defaultMinSize(minHeight = 24.dp, minWidth = 52.dp)
@@ -130,7 +134,7 @@ fun FollowTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "Follow",
+            text = if (isFollowing) "Following" else "Follow",
             style = TextStyle(
                 fontSize = 12.sp,
                 fontFamily = bodyFontFamily,
