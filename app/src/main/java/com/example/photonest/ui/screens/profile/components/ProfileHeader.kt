@@ -3,6 +3,7 @@ package com.example.photonest.ui.screens.profile.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Link
@@ -19,12 +20,68 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.photonest.R
+import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
+import com.example.photonest.ui.components.NormalText
+import com.example.photonest.ui.screens.profile.StatIconLabel
 
 @Composable
-fun ProfileHeader(
+fun ProfileHeader(user: User) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 6.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = user.profilePicture,
+                contentDescription = "Profile Image",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.profile_photo),
+                error = painterResource(R.drawable.profile_photo)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                NormalText(
+                    text = user.username,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                )
+                NormalText(
+                    text = "(" + user.email + ")",
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    StatIconLabel(user.postsCount, "Posts")
+                    StatIconLabel(user.followers.size, "Followers")
+                    StatIconLabel(user.following.size, "Following")
+                }
+            }
+        }
+    }
+}
+
+/*
+* This is a backup file.
+* Will be used in the case of creating the Profile detail page
+*/
+@Composable
+fun ProfileHeader1(
     userProfile: UserProfile,
     onFollowClick: () -> Unit,
     modifier: Modifier = Modifier

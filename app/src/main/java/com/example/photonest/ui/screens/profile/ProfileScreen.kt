@@ -1,247 +1,235 @@
 package com.example.photonest.ui.screens.profile
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.ExitToApp
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.photonest.R
-import com.example.photonest.data.model.Post
-import com.example.photonest.ui.components.states.ErrorState
+import com.example.photonest.data.model.User
+import com.example.photonest.ui.components.Heading2
+import com.example.photonest.ui.components.MyAlertDialog
+import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.states.LoadingState
 import com.example.photonest.ui.screens.profile.components.ProfileHeader
-import com.example.photonest.ui.screens.profile.components.ProfileStats
-import com.example.photonest.ui.screens.profile.components.ProfilePostsGrid
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    onEditProfile: () -> Unit,
-    onSettings: () -> Unit,
-    onNavigateToFollowers: (String) -> Unit,
-    onNavigateToFollowing: (String) -> Unit,
-    onNavigateToPostDetail: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel(),
+    onNavToPersonalDetails: () -> Unit = {},
+    onNavToBookmarkCollection: () -> Unit = {},
+    onNavToLikedPosts: () -> Unit = {},
+    onNavToYourPosts: () -> Unit = {},
+    onNavToNotifications: () -> Unit = {},
+    onNavToTheme: () -> Unit = {},
+    onNavToPreferences: () -> Unit = {},
+    onLogOut: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showMoreMenu by remember { mutableStateOf(false) }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Top App Bar (same as before)
-        TopAppBar(
-            title = {
-                Text(text = uiState.userProfile?.user?.username ?: "Profile")
-            },
-            actions = {
-                if (uiState.userProfile?.isCurrentUser == true) {
-                    IconButton(onClick = onEditProfile) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
-                    }
-                    Box {
-                        IconButton(onClick = { showMoreMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More Options")
-                        }
-                        DropdownMenu(
-                            expanded = showMoreMenu,
-                            onDismissRequest = { showMoreMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Settings") },
-                                onClick = {
-                                    showMoreMenu = false
-                                    onSettings()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Settings, contentDescription = null)
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        )
-
-        when {
-            uiState.isLoading -> {
-                LoadingState(modifier = Modifier.fillMaxSize())
-            }
-            uiState.error != null -> {
-                ErrorState(
-                    message = uiState.error!!,
-                    onRetryClick = viewModel::loadUserProfile,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            uiState.userProfile != null -> {
+    when{
+        uiState.isLoading -> {
+            LoadingState(modifier = Modifier.fillMaxSize())
+        }
+        uiState.error != null -> {
+            MyAlertDialog(
+                shouldShowDialog = true,
+                title = "Alert",
+                confirmButtonText = "Retry",
+                onConfirmClick = {},
+                text = uiState.error!!,
+                onDismissRequest = {}
+            )
+            MyAlertDialog(
+                shouldShowDialog = uiState.showErrorDialog,
+                onDismissRequest = {viewModel.dismissError()},
+                title = "Can Load Profile",
+                text = uiState.error ?: "An unknown error occurred",
+                confirmButtonText = "Refresh",
+                onConfirmClick = {viewModel.refreshProfile()}
+            )
+        }
+        uiState.userProfile != null -> {
+            Surface(color = MaterialTheme.colorScheme.surface) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        ProfileHeader(
-                            userProfile = uiState.userProfile!!,
-                            onFollowClick = {
-                                viewModel.toggleFollow(uiState.userProfile!!.user.id)
-                            },
-                            modifier = Modifier.padding(16.dp)
-                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-
                     item {
-                        ProfileStats(
-                            userProfile = uiState.userProfile!!,
-                            onPostsClick = { },
-                            onFollowersClick = {
-                                onNavigateToFollowers(uiState.userProfile!!.user.id)
-                            },
-                            onFollowingClick = {
-                                onNavigateToFollowing(uiState.userProfile!!.user.id)
-                            },
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
+                        uiState.userProfile?.let { ProfileHeader(it.user) }
                     }
-
                     item {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            thickness = 0.5.dp
-                        )
-                    }
-
-                    // Grid Header
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GridOn,
-                                contentDescription = "Posts Grid",
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                        ProfileSection(
+                            title = "Account",
+                            items = listOf(
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.Person,
+                                    label = "Personal Details",
+                                    onClick = onNavToPersonalDetails
+                                ),
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.BookmarkBorder,
+                                    label = "Bookmark Collection",
+                                    onClick = onNavToBookmarkCollection
+                                ),
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.FavoriteBorder,
+                                    label = "Liked Post",
+                                    onClick = onNavToLikedPosts
+                                ),
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.Lock,
+                                    label = "Your Posts",
+                                    onClick = onNavToYourPosts
+                                )
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Posts",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    item {
+                        ProfileSection(
+                            title = "Settings",
+                            items = listOf(
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.Notifications,
+                                    label = "Notifications",
+                                    onClick = onNavToNotifications
+                                ),
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.Palette,
+                                    label = "Theme",
+                                    onClick = onNavToTheme
+                                ),
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.Favorite,
+                                    label = "Preferences",
+                                    onClick = onNavToPreferences
+                                )
                             )
-                        }
+                        )
                     }
 
-                    // Posts Grid Items
-                    val posts = uiState.userProfile!!.posts
-                    if (posts.isEmpty()) {
-                        item {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.GridOn,
-                                    contentDescription = "No Posts",
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    item {
+                        ProfileSection(
+                            items = listOf(
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.ExitToApp,
+                                    label = "Log Out",
+                                    onClick = onLogOut
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "No posts yet",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "When you share photos, they'll appear on your profile.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                )
-                            }
-                        }
-                    } else {
-                        items(posts.chunked(3)) { rowPosts ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                rowPosts.forEach { post ->
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        PostGridItem(
-                                            post = post,
-                                            onClick = { onNavigateToPostDetail(post.id) }
-                                        )
-                                    }
-                                }
-                                repeat(3 - rowPosts.size) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
-                            }
-                        }
+                            )
+                        )
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(2.dp))
                     }
                 }
             }
         }
     }
+}
 
-    // Error dialog (same as before)
-    if (uiState.showErrorDialog && uiState.error != null) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissError,
-            title = { Text("Error") },
-            text = { Text(uiState.error!!) },
-            confirmButton = {
-                TextButton(onClick = viewModel::dismissError) {
-                    Text("OK")
-                }
-            }
+
+
+@Composable
+fun StatIconLabel(value: Int, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        NormalText(
+            text = "$value",
+            fontSize = 20.sp
+        )
+        NormalText(
+            text = label,
+            fontSize = 14.sp
         )
     }
 }
 
+data class ProfileSectionItem(
+    val icon: ImageVector,
+    val label: String,
+    val onClick: () -> Unit
+)
+
 @Composable
-private fun PostGridItem(
-    post: Post,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+fun ProfileSection(
+    title: String? = null,
+    items: List<ProfileSectionItem>
 ) {
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(4.dp))
-            .clickable { onClick() }
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = if (title == null) 2.dp else 6.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        AsyncImage(
-            model = post.imageUrl.ifEmpty {
-                "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop"
-            },
-            contentDescription = post.caption,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            placeholder = painterResource(id = R.drawable.p1),
-            error = painterResource(id = R.drawable.p1)
+        Column {
+            title?.let {
+                NormalText(
+                    text = it,
+                    fontColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(start = 16.dp, top = 12.dp)
+                )
+            }
+            items.forEach { item ->
+                ProfileSectionRow(item)
+//                Divider()
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfileSectionRow(item: ProfileSectionItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { item.onClick() }
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = item.icon,
+            contentDescription = item.label,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        NormalText(
+            text = item.label,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
