@@ -185,7 +185,8 @@ private fun NavigationGraph(
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                viewModel = hiltViewModel<HomeScreenViewModel>()
+                onPostClick = {},
+                onUserClick = {}
             )
         }
 
