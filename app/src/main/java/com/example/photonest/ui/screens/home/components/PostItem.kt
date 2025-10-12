@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.ConstraintSet
 import androidx.constraintlayout.compose.Dimension
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.data.model.Post
 import com.example.photonest.ui.components.NormalText
@@ -89,11 +92,16 @@ fun PostItem(
                 .size(40.dp)
                 .layoutId("userImage")
         ) {
-            Image(
-                painter = painterResource(post.userImage),
-                contentDescription = "Profile picture",
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(post.userImage)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = post.userName,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clickable(onClick = onUserClick)
+                modifier = Modifier.fillMaxSize().clickable(onClick = onUserClick),
+                placeholder = painterResource(R.drawable.profile_photo), // Add placeholder
+                error = painterResource(R.drawable.p1) // Add error image
             )
         }
 
@@ -107,7 +115,7 @@ fun PostItem(
                 .clickable(onClick = onUserClick)
         )
         NormalText(
-            text = post.timestamp,
+            text = post.timestamp.toString(),
             fontSize = 12.sp,
             fontColor = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.layoutId("timeStamp")
@@ -128,7 +136,7 @@ fun PostItem(
         }
 
         PostContentCard(
-            image = post.imageUrl,
+            imageUrl = post.imageUrl,
             categories = post.category,
             likeCount = post.likeCount,
             isLiked = post.isLiked,
@@ -141,7 +149,7 @@ fun PostItem(
 
 @Composable
 private fun PostContentCard(
-    @DrawableRes image: Int,
+    imageUrl: String,
     categories: List<String>,
     likeCount: Int,
     isLiked: Boolean,
@@ -159,14 +167,25 @@ private fun PostContentCard(
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {
-        Image(
-            painter = painterResource(id = image),
-            contentDescription = "Post image",
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 200.dp, max = 350.dp),
-            contentScale = ContentScale.Crop
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(imageUrl)
+                .crossfade(true)
+                .build(),
+            contentDescription = "",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().clickable(onClick = onPostClick),
+            placeholder = painterResource(R.drawable.profile_photo), // Add placeholder
+            error = painterResource(R.drawable.p1) // Add error image
         )
+//        Image(
+//            painter = painterResource(id = image),
+//            contentDescription = "Post image",
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .heightIn(min = 200.dp, max = 350.dp),
+//            contentScale = ContentScale.Crop
+//        )
 
         Row(
             modifier = Modifier

@@ -26,7 +26,9 @@ import com.example.photonest.ui.theme.PhotoNestTheme
 import com.example.photonest.ui.screens.signup.SignUpScreen
 import com.example.photonest.ui.screens.signup.SignUpViewModel
 import com.google.firebase.FirebaseApp
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnrememberedMutableInteractionSource")
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -89,8 +89,10 @@ private fun AddPostContent(
         )
 
         CategorySection(
+            caption = state.caption,
             searchQuery = state.searchQuery,
             selectedCategories = state.selectedCategories,
+            onCaptionChange = { onEvent(AddPostEvent.CaptionChanged(it))},
             onSearchQueryChange = { onEvent(AddPostEvent.SearchQueryChanged(it)) },
             onCategoryToggled = { onEvent(AddPostEvent.CategoryToggled(it)) },
             onClearCategories = { onEvent(AddPostEvent.ClearCategories) },

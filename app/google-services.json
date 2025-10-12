@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "702010333991-mov53nncccf70ocuf147v1vngbg4h6f5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.photonest",
+            "certificate_hash": "f00942b93460b5d1b2179b01702f6c684695c4ca"
+          }
+        },
+        {
           "client_id": "702010333991-tsao48eanhnvbf4nvdgrcu5nasgf5fiv.apps.googleusercontent.com",
           "client_type": 3
         }

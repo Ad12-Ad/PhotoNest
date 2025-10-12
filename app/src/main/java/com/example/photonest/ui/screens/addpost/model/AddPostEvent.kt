@@ -4,6 +4,8 @@ import android.net.Uri
 
 sealed class AddPostEvent {
     data class ImageSelected(val uri: Uri?) : AddPostEvent()
+    data class CaptionChanged(val caption: String) : AddPostEvent()
+    data class LocationChanged(val location: String) : AddPostEvent()
     data class CategoryToggled(val category: String) : AddPostEvent()
     data class SearchQueryChanged(val query: String) : AddPostEvent()
     object ClearCategories : AddPostEvent()

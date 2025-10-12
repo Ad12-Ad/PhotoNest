@@ -2,8 +2,9 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.google.gms.google.services)
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt.android)
 }
 
 android {
@@ -69,16 +70,14 @@ dependencies {
     // AndroidX Core & Lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx.v286)
-    implementation(libs.androidx.lifecycle.lifecycle.viewmodel.compose2)
-
-    // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
-
-    // ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose.v270)
     implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom.v3430))
+    implementation(libs.com.google.firebase.firebase.auth2)
+    implementation(libs.com.google.firebase.firebase.firestore)
+    implementation(libs.com.google.firebase.firebase.storage)
 
     // Navigation
     implementation(libs.androidx.navigation.compose.v276)
@@ -86,8 +85,16 @@ dependencies {
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
     implementation(libs.androidx.adapters)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     ksp (libs.hilt.compiler)
     implementation (libs.androidx.hilt.navigation.compose)
+
+    implementation(libs.gms.play.services.auth)
+
+//    implementation(libs.play.services.bom)
+//    implementation(libs.play.services.auth)
 
     // Room Database
     implementation (libs.androidx.room.runtime)
