@@ -27,6 +27,8 @@ import com.example.photonest.ui.screens.home.HomeScreenViewModel
 import com.example.photonest.ui.screens.MainScaffold
 import com.example.photonest.ui.screens.addpost.AddPostBottomSheet
 import com.example.photonest.ui.screens.addpost.AddPostViewModel
+import com.example.photonest.ui.screens.profile.ProfileScreen
+import com.example.photonest.ui.screens.profile.ProfileViewModel
 import com.example.photonest.ui.screens.signin.SignInScreen
 import com.example.photonest.ui.screens.signin.SignInViewModel
 import com.example.photonest.ui.screens.signup.SignUpScreen
@@ -215,30 +217,30 @@ private fun NavigationGraph(
 //            )
 //        }
 //
-//        composable(AppDestinations.PROFILE_ROUTE) {
-//            ProfileScreen(
-//                onEditProfile = {
+        composable(AppDestinations.PROFILE_ROUTE) {
+            ProfileScreen(
+                onEditProfile = {
 //                    navController.navigate("edit_profile")
-//                },
-//                onSettings = {
+                },
+                onSettings = {
 //                    navController.navigate("settings")
-//                },
-//                onNavigateToFollowers = { userId ->
+                },
+                onNavigateToFollowers = { userId ->
 //                    navController.navigate("followers/$userId")
-//                },
-//                onNavigateToFollowing = { userId ->
+                },
+                onNavigateToFollowing = { userId ->
 //                    navController.navigate("following/$userId")
-//                },
-//                onNavigateToPostDetail = { postId ->
+                },
+                onNavigateToPostDetail = { postId ->
 //                    navController.navigate("post_detail/$postId")
-//                },
-//                modifier = Modifier
-//                    .background(MaterialTheme.colorScheme.background)
-//                    .fillMaxSize()
-//                    .padding(horizontal = 16.dp),
-//                viewModel = hiltViewModel<ProfileViewModel>()
-//            )
-//        }
+                },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                viewModel = hiltViewModel<ProfileViewModel>()
+            )
+        }
 
 //        To Implement
 //             - Post detail screen

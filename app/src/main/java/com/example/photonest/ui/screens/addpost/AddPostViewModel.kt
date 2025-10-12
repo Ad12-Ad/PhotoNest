@@ -9,12 +9,11 @@ import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.ui.screens.addpost.model.AddPostEvent
 import com.example.photonest.ui.screens.addpost.model.AddPostState
-import com.google.android.gms.common.util.CollectionUtils.listOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Collections.emptySet
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,8 +21,8 @@ class AddPostViewModel @Inject constructor(
     private val postRepository: IPostRepository,
     private val userRepository: IUserRepository
 ) : ViewModel() {
-    private val _state = MutableStateFlow(AddPostState())
-    val state: StateFlow<AddPostState> = _state
+    private val _uiState = MutableStateFlow(AddPostState())
+    val uiState: StateFlow<AddPostState> = _uiState
 
     companion object {
         const val MAX_CATEGORIES = 3
@@ -45,10 +44,10 @@ class AddPostViewModel @Inject constructor(
                 .collect { result ->
                     when (result) {
                         is Resource.Success -> {
-                            _state.value = _state.value.copy(currentUser = result.data)
+                            _uiState.value = _uiState.value.copy(currentUser = result.data)
                         }
                         is Resource.Error -> {
-                            _state.value = _state.value.copy(
+                            _uiState.value = _uiState.value.copy(
                                 error = result.message,
                                 showErrorDialog = true
                             )
@@ -75,26 +74,27 @@ class AddPostViewModel @Inject constructor(
     }
 
     private fun dismissErrorDialog() {
-        _state.value = _state.value.copy(
+        _uiState.value = _uiState.value.copy(
             showErrorDialog = false,
             error = null
         )
     }
 
+    // ✅ FIXED: Single image URI handling
     private fun updateImage(uri: Uri?) {
-        _state.value = _state.value.copy(selectedImageUri = uri)
+        _uiState.update { it.copy(selectedImageUri = uri) }
     }
 
     private fun updateCaption(caption: String) {
-        _state.value = _state.value.copy(caption = caption)
+        _uiState.value = _uiState.value.copy(caption = caption)
     }
 
     private fun updateLocation(location: String) {
-        _state.value = _state.value.copy(location = location)
+        _uiState.value = _uiState.value.copy(location = location)
     }
 
     private fun toggleCategory(category: String) {
-        val currentCategories = _state.value.selectedCategories
+        val currentCategories = _uiState.value.selectedCategories
         val newCategories = if (currentCategories.contains(category)) {
             currentCategories - category
         } else if (currentCategories.size < MAX_CATEGORIES) {
@@ -102,23 +102,24 @@ class AddPostViewModel @Inject constructor(
         } else {
             currentCategories
         }
-        _state.value = _state.value.copy(selectedCategories = newCategories)
+        _uiState.value = _uiState.value.copy(selectedCategories = newCategories)
     }
 
     private fun clearCategories() {
-        _state.value = _state.value.copy(selectedCategories = emptySet())
+        _uiState.value = _uiState.value.copy(selectedCategories = emptySet())
     }
 
     private fun updateSearchQuery(query: String) {
-        _state.value = _state.value.copy(searchQuery = query)
+        _uiState.value = _uiState.value.copy(searchQuery = query)
     }
 
+    // ✅ FIXED: Proper createPost implementation
     private fun createPost() {
-        val currentState = _state.value
+        val currentState = _uiState.value
         val currentUser = currentState.currentUser
 
         if (currentUser == null) {
-            _state.value = _state.value.copy(
+            _uiState.value = _uiState.value.copy(
                 error = "User not found. Please sign in again.",
                 showErrorDialog = true
             )
@@ -126,7 +127,7 @@ class AddPostViewModel @Inject constructor(
         }
 
         if (currentState.selectedImageUri == null) {
-            _state.value = _state.value.copy(
+            _uiState.value = _uiState.value.copy(
                 error = "Please select an image",
                 showErrorDialog = true
             )
@@ -134,7 +135,7 @@ class AddPostViewModel @Inject constructor(
         }
 
         if (currentState.caption.isBlank()) {
-            _state.value = _state.value.copy(
+            _uiState.value = _uiState.value.copy(
                 error = "Please add a caption",
                 showErrorDialog = true
             )
@@ -142,13 +143,13 @@ class AddPostViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
             try {
                 val post = Post(
                     id = "", // Will be generated by repository
                     userId = currentUser.id,
-                    userName = currentUser.name,
+                    userName = currentUser.username,
                     userImage = currentUser.profilePicture,
                     caption = currentState.caption,
                     location = currentState.location,
@@ -156,21 +157,23 @@ class AddPostViewModel @Inject constructor(
                     timestamp = System.currentTimeMillis()
                 )
 
+                // ✅ FIXED: Pass URI correctly as string
+                val imageUriString = currentState.selectedImageUri?.toString() ?: ""
                 val result = postRepository.createPost(
                     post = post,
-                    imageUri = currentState.selectedImageUri.toString()
+                    imageUri = imageUriString
                 )
 
                 when (result) {
                     is Resource.Success -> {
-                        _state.value = _state.value.copy(
+                        _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             isPostCreated = true,
                             error = null
                         )
                     }
                     is Resource.Error -> {
-                        _state.value = _state.value.copy(
+                        _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             error = result.message ?: "Failed to create post",
                             showErrorDialog = true
@@ -181,7 +184,7 @@ class AddPostViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message ?: "An error occurred while creating post",
                     showErrorDialog = true
@@ -192,11 +195,11 @@ class AddPostViewModel @Inject constructor(
 
     fun getFilteredCategories(): List<String> {
         return categories.filter {
-            it.lowercase().contains(_state.value.searchQuery.lowercase())
+            it.lowercase().contains(_uiState.value.searchQuery.lowercase())
         }
     }
 
     fun resetPostCreated() {
-        _state.value = _state.value.copy(isPostCreated = false)
+        _uiState.value = _uiState.value.copy(isPostCreated = false)
     }
 }

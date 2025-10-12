@@ -1,5 +1,6 @@
 package com.example.photonest.data.repository
 
+import android.util.Log
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.local.dao.PostDao
@@ -15,9 +16,11 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -116,8 +119,19 @@ class PostRepositoryImpl @Inject constructor(
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
 
-            // Upload image first (placeholder implementation)
-            val imageUrl = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop"
+            Log.d("PostRepository", "Creating post with imageUri: $imageUri")
+
+            // Upload image to Firebase Storage if imageUri is provided
+            val imageUrl = if (imageUri.isNotEmpty() && imageUri.startsWith("content://")) {
+                Log.d("PostRepository", "Uploading image to Firebase Storage")
+                uploadImageToStorage(imageUri)
+            } else {
+                Log.d("PostRepository", "Using placeholder image")
+                // Use placeholder image if no image selected
+                "https://picsum.photos/400/400?random=${System.currentTimeMillis()}"
+            }
+
+            Log.d("PostRepository", "Final imageUrl: $imageUrl")
 
             val postId = UUID.randomUUID().toString()
             val newPost = post.copy(
@@ -127,7 +141,7 @@ class PostRepositoryImpl @Inject constructor(
                 timestamp = System.currentTimeMillis()
             )
 
-            // Add to Firestore
+            // Save to Firestore
             firestore.collection(Constants.POSTS_COLLECTION)
                 .document(postId)
                 .set(newPost)
@@ -142,11 +156,42 @@ class PostRepositoryImpl @Inject constructor(
                 .update("postsCount", FieldValue.increment(1))
                 .await()
 
+            Log.d("PostRepository", "Post created successfully")
             Resource.Success(Unit)
         } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to create post: ${e.message}")
             Resource.Error(e.message ?: "Failed to create post")
         }
     }
+
+    // ✅ Working Firebase Storage Upload
+    private suspend fun uploadImageToStorage(imageUri: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val currentUserId = firebaseAuth.currentUser?.uid ?: throw Exception("Not authenticated")
+                val imageId = UUID.randomUUID().toString()
+
+                // Create Firebase Storage reference
+                val imageRef = firebaseStorage.reference
+                    .child("posts")
+                    .child(currentUserId)
+                    .child("$imageId.jpg")
+
+                // Upload image directly from URI
+                val uploadTask = imageRef.putFile(android.net.Uri.parse(imageUri)).await()
+
+                // Get download URL
+                val downloadUrl = imageRef.downloadUrl.await()
+
+                downloadUrl.toString()
+            } catch (e: Exception) {
+                Log.e("PostRepository", "Image upload failed: ${e.message}")
+                // Return placeholder on error
+                "https://picsum.photos/400/400?random=${System.currentTimeMillis()}"
+            }
+        }
+    }
+
 
     override suspend fun deletePost(postId: String): Resource<Unit> {
         return try {

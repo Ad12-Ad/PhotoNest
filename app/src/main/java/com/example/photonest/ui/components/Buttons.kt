@@ -120,6 +120,29 @@ fun BackTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
 }
 
 @Composable
+fun FollowTxtBtn(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .defaultMinSize(minHeight = 24.dp, minWidth = 52.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Follow",
+            style = TextStyle(
+                fontSize = 12.sp,
+                fontFamily = bodyFontFamily,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 20.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        )
+    }
+}
+
+@Composable
 fun BackCircleButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
     IconButton(
         modifier = modifier.then(Modifier.size(50.dp)),
