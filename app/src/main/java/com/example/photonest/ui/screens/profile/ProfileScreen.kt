@@ -58,14 +58,6 @@ fun ProfileScreen(
         }
         uiState.error != null -> {
             MyAlertDialog(
-                shouldShowDialog = true,
-                title = "Alert",
-                confirmButtonText = "Retry",
-                onConfirmClick = {},
-                text = uiState.error!!,
-                onDismissRequest = {}
-            )
-            MyAlertDialog(
                 shouldShowDialog = uiState.showErrorDialog,
                 onDismissRequest = {viewModel.dismissError()},
                 title = "Can Load Profile",

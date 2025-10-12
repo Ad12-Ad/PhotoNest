@@ -362,7 +362,11 @@ class PostRepositoryImpl @Inject constructor(
             Resource.Success(posts)
         } catch (e: Exception) {
             val localPosts = postDao.getPostsByCategory(category).map { it.toPost() }
-            Resource.Success(localPosts)
+            if (localPosts.isNotEmpty()) {
+                Resource.Success(localPosts)
+            } else {
+                Resource.Error(e.message ?: "Failed to load category posts")
+            }
         }
     }
 
