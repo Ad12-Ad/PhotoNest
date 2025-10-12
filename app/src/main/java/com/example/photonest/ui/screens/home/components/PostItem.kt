@@ -36,6 +36,7 @@ import androidx.constraintlayout.compose.Dimension
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
+import com.example.photonest.data.model.Follow
 import com.example.photonest.data.model.Post
 import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.FollowTxtBtn
@@ -55,7 +56,8 @@ fun PostItem(
     onBookmarkClick: () -> Unit,
     onCommentClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    onUserClick: () -> Unit
+    onUserClick: () -> Unit,
+    onFollowClick: () -> Unit = {},
 ) {
     val constraintSet = ConstraintSet {
         val userImage = createRefFor("userImage")
@@ -287,7 +289,7 @@ private fun PostContentCard(
 
         Row (
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceEvenly,
             modifier = Modifier.fillMaxWidth()
         ){
             StatIconLabel(
@@ -299,13 +301,13 @@ private fun PostContentCard(
             )
             StatIconLabel(
                 onClick = onCommentClick,
-                iconId = R.drawable.icon_message_outlined,
+                iconId = R.drawable.icon_comment_outlined,
                 label = commentCount,
                 iconColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
             StatIconLabel(
                 onClick = onShareClick,
-                iconId = R.drawable.icon_send_outlined,
+                iconId = R.drawable.icon_share_outlined,
                 label = shareCount,
                 iconColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
