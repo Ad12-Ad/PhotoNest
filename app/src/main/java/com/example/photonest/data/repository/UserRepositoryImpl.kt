@@ -1,5 +1,7 @@
 package com.example.photonest.data.repository
 
+import android.net.Uri
+import android.util.Log
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.local.dao.FollowDao
@@ -291,20 +293,29 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    // Replace this function in UserRepositoryImpl.kt:
     override suspend fun uploadProfilePicture(imageUri: String): Resource<String> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
 
             val imageRef = firebaseStorage.reference
-                .child("profile_pictures")
+                .child(Constants.PROFILE_IMAGES_PATH)
                 .child("$currentUserId.jpg")
 
-            // This is a placeholder - you would implement actual image upload here
-            Resource.Error("Image upload not implemented yet")
+            // Upload image directly from URI
+            val uploadTask = imageRef.putFile(Uri.parse(imageUri)).await()
+
+            // Get download URL
+            val downloadUrl = imageRef.downloadUrl.await()
+
+            Resource.Success(downloadUrl.toString())
         } catch (e: Exception) {
+            Log.e("UserRepository", "Profile picture upload failed: ${e.message}")
             Resource.Error(e.message ?: "Failed to upload profile picture")
         }
     }
+
 
     override suspend fun getPopularUsers(): Resource<List<User>> {
         return try {
