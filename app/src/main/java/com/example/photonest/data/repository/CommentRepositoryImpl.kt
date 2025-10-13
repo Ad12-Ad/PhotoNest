@@ -33,16 +33,34 @@ class CommentRepositoryImpl @Inject constructor(
                 .await()
 
             val comments = query.documents.mapNotNull { doc ->
-                doc.toObject(Comment::class.java)?.copy(id = doc.id)
+                val comment = doc.toObject(Comment::class.java)?.copy(id = doc.id)
+                comment
+            }.map { comment ->
+                // Fetch user info for each comment userId
+                val userSnapshot = firestore.collection(Constants.USERS_COLLECTION)
+                    .document(comment.userId)
+                    .get()
+                    .await()
+
+                val userName = userSnapshot.getString("name") ?: "Anonymous"
+                val userImage = userSnapshot.getString("profilePicture") ?: ""
+
+                comment.copy(
+                    userName = userName,
+                    userImage = userImage
+                )
             }
 
+            // Cache locally
             commentDao.insertComments(comments.map { it.toEntity() })
+
             Resource.Success(comments)
         } catch (e: Exception) {
             val localComments = commentDao.getCommentsForPost(postId).map { it.toComment() }
             Resource.Success(localComments)
         }
     }
+
 
     override suspend fun addComment(comment: Comment): Resource<Unit> {
         return try {
