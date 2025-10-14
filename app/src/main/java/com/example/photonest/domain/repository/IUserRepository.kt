@@ -20,4 +20,5 @@ interface IUserRepository {
     suspend fun getPopularUsers(): Resource<List<User>>
     suspend fun blockUser(userId: String): Resource<Unit>
     suspend fun unblockUser(userId: String): Resource<Unit>
+    suspend fun getLikedPostIdsByUserId(userId: String): List<String>
 }

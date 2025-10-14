@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PostAdd
+import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -25,24 +25,25 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.photonest.data.model.Post
 import com.example.photonest.ui.components.BackCircleButton
+import com.example.photonest.ui.screens.bookmarks.LikedPostsViewModel
 import com.example.photonest.ui.components.IconType
 import com.example.photonest.ui.components.PostGridItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun YourPostsScreen(
+fun LikedPostsScreen(
     onBack: () -> Unit,
     onPostClick: (String) -> Unit,
-    viewModel: YourPostsViewModel = hiltViewModel()
+    viewModel: LikedPostsViewModel = hiltViewModel()
 ) {
-    val posts = viewModel.yourPosts.collectAsState(emptyList())
+    val posts = viewModel.likedPosts.collectAsState(emptyList())
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Your Posts",
+                        text = "Liked Posts",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -54,9 +55,9 @@ fun YourPostsScreen(
         }
     ) { paddingValues: PaddingValues ->
         if (posts.value.isEmpty()) {
-            EmptyPostContent()
+            EmptyLikedContent()
         } else {
-            YourPostContent(
+            LikedPostsContent(
                 posts = posts.value,
                 onPostClick = onPostClick,
                 modifier = Modifier.fillMaxSize().padding(paddingValues)
@@ -66,7 +67,7 @@ fun YourPostsScreen(
 }
 
 @Composable
-private fun YourPostContent(
+private fun LikedPostsContent(
     posts: List<Post>,
     onPostClick: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -82,7 +83,7 @@ private fun YourPostContent(
             PostGridItem(
                 post = post,
                 onPostClick = { onPostClick(post.id) },
-                iconType = IconType.NONE,
+                iconType = IconType.LIKE,
                 onIconClick = { onPostClick(post.id) },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -91,7 +92,7 @@ private fun YourPostContent(
 }
 
 @Composable
-private fun EmptyPostContent() {
+private fun EmptyLikedContent() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -100,7 +101,7 @@ private fun EmptyPostContent() {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.PostAdd,
+            imageVector = Icons.Default.HeartBroken,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.outline
@@ -109,7 +110,7 @@ private fun EmptyPostContent() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "No Post Found",
+            text = "No Like Post",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
@@ -118,7 +119,7 @@ private fun EmptyPostContent() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "You haven't posted any photo yet.",
+            text = "Like some posts",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.outline,
             textAlign = TextAlign.Center
