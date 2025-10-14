@@ -3,7 +3,7 @@ package com.example.photonest.ui.components
 import java.text.SimpleDateFormat
 import java.util.*
 
-fun formatPostTimestamp(timestamp: Long): String {
+fun formatTimestamp(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
 
