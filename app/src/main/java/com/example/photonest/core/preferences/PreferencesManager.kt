@@ -26,6 +26,13 @@ class PreferencesManager @Inject constructor(
         val USER_ID_KEY = stringPreferencesKey(Constants.PreferenceKeys.USER_ID)
         val THEME_MODE_KEY = stringPreferencesKey(Constants.PreferenceKeys.THEME_MODE)
         val NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey(Constants.PreferenceKeys.NOTIFICATIONS_ENABLED)
+
+        // ✅ ADDED: Missing key declarations
+        val PUSH_NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey(Constants.PreferenceKeys.PUSH_NOTIFICATIONS_ENABLED)
+        val LIKE_NOTIFICATIONS_KEY = booleanPreferencesKey("like_notifications_enabled")
+        val COMMENT_NOTIFICATIONS_KEY = booleanPreferencesKey("comment_notifications_enabled")
+        val FOLLOW_NOTIFICATIONS_KEY = booleanPreferencesKey("follow_notifications_enabled")
+        val PRIVATE_ACCOUNT_KEY = booleanPreferencesKey(Constants.PreferenceKeys.ACCOUNT_PRIVATE)
     }
 
     val isLoggedIn: Flow<Boolean> = dataStore.data.map { preferences ->
@@ -36,12 +43,34 @@ class PreferencesManager @Inject constructor(
         preferences[USER_ID_KEY] ?: ""
     }
 
-    val themeMode: Flow<String> = dataStore.data.map { preferences ->
+    // ✅ FIXED: Changed from val to fun for consistency with ViewModel
+    fun getThemeMode(): Flow<String> = dataStore.data.map { preferences ->
         preferences[THEME_MODE_KEY] ?: "system"
     }
 
     val notificationsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[NOTIFICATIONS_ENABLED_KEY] ?: true
+    }
+
+    // ✅ ADDED: All the getter functions
+    fun getPushNotificationsEnabled(): Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[PUSH_NOTIFICATIONS_ENABLED_KEY] ?: true
+    }
+
+    fun getLikeNotificationsEnabled(): Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[LIKE_NOTIFICATIONS_KEY] ?: true
+    }
+
+    fun getCommentNotificationsEnabled(): Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[COMMENT_NOTIFICATIONS_KEY] ?: true
+    }
+
+    fun getFollowNotificationsEnabled(): Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[FOLLOW_NOTIFICATIONS_KEY] ?: true
+    }
+
+    fun getPrivateAccount(): Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[PRIVATE_ACCOUNT_KEY] ?: false
     }
 
     suspend fun setLoggedIn(isLoggedIn: Boolean) {
@@ -65,6 +94,36 @@ class PreferencesManager @Inject constructor(
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[NOTIFICATIONS_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setPushNotificationsEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PUSH_NOTIFICATIONS_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setLikeNotificationsEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[LIKE_NOTIFICATIONS_KEY] = enabled
+        }
+    }
+
+    suspend fun setCommentNotificationsEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[COMMENT_NOTIFICATIONS_KEY] = enabled
+        }
+    }
+
+    suspend fun setFollowNotificationsEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[FOLLOW_NOTIFICATIONS_KEY] = enabled
+        }
+    }
+
+    suspend fun setPrivateAccount(isPrivate: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PRIVATE_ACCOUNT_KEY] = isPrivate
         }
     }
 
