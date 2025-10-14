@@ -1,6 +1,5 @@
 package com.example.photonest.ui.screens.profile
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,29 +8,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ExitToApp
-import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import com.example.photonest.R
-import com.example.photonest.data.model.User
-import com.example.photonest.ui.components.Heading2
 import com.example.photonest.ui.components.MyAlertDialog
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.states.LoadingState
@@ -40,13 +30,13 @@ import com.example.photonest.ui.screens.profile.components.ProfileHeader
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
+    onNavigateToSettingScreen: () -> Unit = {},
     onNavToPersonalDetails: () -> Unit = {},
     onNavToBookmarkCollection: () -> Unit = {},
     onNavToLikedPosts: () -> Unit = {},
     onNavToYourPosts: () -> Unit = {},
     onNavToNotifications: () -> Unit = {},
     onNavToTheme: () -> Unit = {},
-    onNavToPreferences: () -> Unit = {},
     onLogOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -120,9 +110,9 @@ fun ProfileScreen(
                                     onClick = onNavToTheme
                                 ),
                                 ProfileSectionItem(
-                                    icon = Icons.Outlined.Favorite,
-                                    label = "Preferences",
-                                    onClick = onNavToPreferences
+                                    icon = Icons.Outlined.Settings,
+                                    label = "More Settings",
+                                    onClick = onNavigateToSettingScreen
                                 )
                             )
                         )

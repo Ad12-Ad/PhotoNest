@@ -13,4 +13,19 @@ object AppDestinations {
     const val ADD_POST_ROUTE = "add_post"
     const val BOOKMARKS_ROUTE = "bookmarks"
     const val PROFILE_ROUTE = "profile"
+
+    const val POST_DETAIL_ROUTE = "post_detail/{postId}"
+    const val EDIT_PROFILE_ROUTE = "edit_profile"
+    const val NOTIFICATION_ROUTE = "notifications"
+    const val SETTINGS_ROUTE = "settings"
+    const val FOLLOWERS_ROUTE = "followers/{userId}"
+    const val FOLLOWING_ROUTE = "following/{userId}"
+
+    const val NOTIFICATIONS_ROUTE = "notifications"
+    const val LIKED_POSTS_ROUTE = "liked_posts"
+    const val YOUR_POSTS_ROUTE = "your_posts"
+
+    fun postDetailRoute(postId: String) = "post_detail/$postId"
+    fun followersRoute(userId: String) = "followers/$userId"
+    fun followingRoute(userId: String) = "following/$userId"
 }

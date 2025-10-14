@@ -12,6 +12,7 @@ import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.PostDetail
 import com.example.photonest.domain.repository.IPostRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -418,4 +419,33 @@ class PostRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Failed to report post")
         }
     }
+    override suspend fun getPostsByIds(postIds: List<String>): Resource<List<Post>> {
+        return try {
+            if (postIds.isEmpty()) {
+                return Resource.Success(emptyList())
+            }
+
+            val posts = mutableListOf<Post>()
+
+            val batches = postIds.chunked(10)
+            for (batch in batches) {
+                val query = firestore.collection(Constants.POSTS_COLLECTION)
+                    .whereIn(FieldPath.documentId(), batch)
+                    .get()
+                    .await()
+
+                val batchPosts = query.documents.mapNotNull { doc ->
+                    doc.toObject(Post::class.java)?.copy(id = doc.id)
+                }
+                posts.addAll(batchPosts)
+            }
+
+            postDao.insertPosts(posts.map { it.toEntity() })
+
+            Resource.Success(posts)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get posts by IDs")
+        }
+    }
+
 }
