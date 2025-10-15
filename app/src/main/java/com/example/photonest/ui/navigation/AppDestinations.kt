@@ -25,6 +25,9 @@ object AppDestinations {
     const val LIKED_POSTS_ROUTE = "liked_posts"
     const val YOUR_POSTS_ROUTE = "your_posts"
 
+    const val USER_PROFILE_ROUTE = "user_profile"
+    fun getUserProfileRoute(userId: String) = "$USER_PROFILE_ROUTE/$userId"
+
     fun postDetailRoute(postId: String) = "post_detail/$postId"
     fun followersRoute(userId: String) = "followers/$userId"
     fun followingRoute(userId: String) = "following/$userId"

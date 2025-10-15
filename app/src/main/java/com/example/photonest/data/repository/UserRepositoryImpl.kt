@@ -335,8 +335,13 @@ class UserRepositoryImpl @Inject constructor(
             if (user is Resource.Success && user.data != null) {
                 val posts = postDao.getPostsByUser(userId).map { it.toPost() }
                 val currentUserId = firebaseAuth.currentUser?.uid
-                val isFollowing = if (currentUserId != null) {
-                    followDao.isFollowing(currentUserId, userId)
+                val isFollowing = if (currentUserId != null && currentUserId != userId) {
+                    val followId = "${currentUserId}_${userId}"
+                    val followDoc = firestore.collection("follows")
+                        .document(followId)
+                        .get()
+                        .await()
+                    followDoc.exists()
                 } else false
 
                 val userProfile = UserProfile(
