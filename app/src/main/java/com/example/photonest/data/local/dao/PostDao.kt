@@ -66,4 +66,7 @@ interface PostDao {
 
     @Query("DELETE FROM posts")
     suspend fun clearAllPosts()
+
+    @Query("SELECT * FROM posts ORDER BY timestamp DESC")
+    suspend fun getAllPosts(): List<PostEntity>
 }

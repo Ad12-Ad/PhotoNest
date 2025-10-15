@@ -6,6 +6,7 @@ import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.*
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
     private val postRepository: IPostRepository,
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
@@ -170,34 +172,48 @@ class ExploreViewModel @Inject constructor(
 
     fun followUser(userId: String) {
         viewModelScope.launch {
-            val result = userRepository.followUser(userId)
+            val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
+
+            if (currentUserId == userId) {
+                _uiState.update {
+                    it.copy(
+                        error = "Cannot follow yourself",
+                        showErrorDialog = true
+                    )
+                }
+                return@launch
+            }
+
+            // Check current follow status
+            val isFollowingResult = userRepository.isFollowing(userId)
+            val isCurrentlyFollowing = when (isFollowingResult) {
+                is Resource.Success -> isFollowingResult.data == true
+                else -> false
+            }
+
+            val result = if (isCurrentlyFollowing) {
+                userRepository.unfollowUser(userId)
+            } else {
+                userRepository.followUser(userId)
+            }
 
             when (result) {
                 is Resource.Success -> {
-                    val updatedUsers = _uiState.value.suggestedUsers.map { user ->
-                        if (user.id == userId) {
-                            user.copy(
-                                followersCount = user.followersCount + 1,
-                                followers = user.followers + listOf("current_user_id") // Placeholder
-                            )
-                        } else user
-                    }
-
-                    _uiState.update {
-                        it.copy(suggestedUsers = updatedUsers)
-                    }
+                    // Reload fresh data from Firestore
+                    loadExploreContent()
                 }
                 is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            error = result.message ?: "Failed to follow user",
-                            showErrorDialog = true
-                        )
+                    if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
+                        !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to update follow status",
+                                showErrorDialog = true
+                            )
+                        }
                     }
                 }
-                is Resource.Loading -> {
-                    // Handle loading if needed
-                }
+                is Resource.Loading -> {}
             }
         }
     }

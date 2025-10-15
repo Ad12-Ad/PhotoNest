@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
@@ -52,6 +53,7 @@ fun ButtonOnboarding(
     textSize: TextUnit = 16.sp,
     textWeight: FontWeight = FontWeight.Normal,
     textColor: Color = MaterialTheme.colorScheme.onPrimary,
+    border: BorderStroke? = null,
     buttonColors: ButtonColors = ButtonDefaults.buttonColors(
         containerColor = MaterialTheme.colorScheme.primary,
         disabledContainerColor = MaterialTheme.colorScheme.primary.copy(0.4f)
@@ -61,6 +63,7 @@ fun ButtonOnboarding(
     postfixIcon: @Composable (() -> Unit)? = null
 ) {
     Button(
+        border = border,
         onClick = onClick,
         enabled = enabled,
         colors = buttonColors,
@@ -141,7 +144,8 @@ fun FollowTxtBtn(
                 fontWeight = FontWeight.Medium,
                 lineHeight = 20.sp,
                 color = MaterialTheme.colorScheme.primary
-            )
+            ),
+            modifier = Modifier.padding(horizontal = 10.dp)
         )
     }
 }
@@ -172,12 +176,14 @@ fun OnboardingCircleBtn(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    shape: Shape = CircleShape,
     iconColors: IconButtonColors = IconButtonDefaults.iconButtonColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.4f)
     ),
 ) {
     IconButton(
+        shape = shape,
         modifier = modifier,
         onClick = onClick,
         enabled = enabled,

@@ -8,6 +8,8 @@ import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.data.repository.UserRepositoryImpl
 import com.example.photonest.domain.repository.ICommentRepository
 import com.example.photonest.data.repository.CommentRepositoryImpl
+import com.example.photonest.domain.repository.INotificationRepository
+import com.example.photonest.data.repository.NotificationRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -41,4 +43,10 @@ abstract class RepositoryModule {
     abstract fun bindCommentRepository(
         commentRepositoryImpl: CommentRepositoryImpl
     ): ICommentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNotificationRepository(
+        notificationRepositoryImpl: NotificationRepositoryImpl
+    ): INotificationRepository
 }
