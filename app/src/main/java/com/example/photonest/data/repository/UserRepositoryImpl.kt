@@ -149,9 +149,26 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun followUser(userId: String): Resource<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
+
+            if (currentUserId == userId) {
+                return Resource.Error("Cannot follow yourself")
+            }
+
             val followId = "${currentUserId}_${userId}"
 
+            // Check if already following
+            val existingFollow = firestore.collection("follows")
+                .document(followId)
+                .get()
+                .await()
+
+            if (existingFollow.exists()) {
+                return Resource.Error("Already following this user")
+            }
+
+            // Create follow document
             val followData = hashMapOf(
                 "id" to followId,
                 "followerId" to currentUserId,
@@ -159,13 +176,12 @@ class UserRepositoryImpl @Inject constructor(
                 "timestamp" to System.currentTimeMillis()
             )
 
-            // Add to Firestore with specific ID
             firestore.collection("follows")
                 .document(followId)
                 .set(followData)
                 .await()
 
-            // Update follower/following counts
+            // ✅ UPDATE FOLLOWER/FOLLOWING COUNTS
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(currentUserId)
                 .update("followingCount", FieldValue.increment(1))
@@ -176,29 +192,38 @@ class UserRepositoryImpl @Inject constructor(
                 .update("followersCount", FieldValue.increment(1))
                 .await()
 
+            // ✅ UPDATE LOCAL DATABASE
+            userDao.insertUser(
+                userDao.getUserById(currentUserId)?.copy(followingCount =
+                    (userDao.getUserById(currentUserId)?.followingCount ?: 0) + 1)
+                    ?: return Resource.Success(Unit)
+            )
+
+            userDao.insertUser(
+                userDao.getUserById(userId)?.copy(followersCount =
+                    (userDao.getUserById(userId)?.followersCount ?: 0) + 1)
+                    ?: return Resource.Success(Unit)
+            )
+
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to follow user")
         }
     }
 
-
     override suspend fun unfollowUser(userId: String): Resource<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
 
-            // Remove from Firestore
-            val followQuery = firestore.collection("follows")
-                .whereEqualTo("followerId", currentUserId)
-                .whereEqualTo("followingId", userId)
-                .get()
+            val followId = "${currentUserId}_${userId}"
+
+            firestore.collection("follows")
+                .document(followId)
+                .delete()
                 .await()
 
-            followQuery.documents.forEach { doc ->
-                doc.reference.delete()
-            }
-
-            // Update follower/following counts
+            // ✅ UPDATE FOLLOWER/FOLLOWING COUNTS
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(currentUserId)
                 .update("followingCount", FieldValue.increment(-1))
@@ -209,11 +234,46 @@ class UserRepositoryImpl @Inject constructor(
                 .update("followersCount", FieldValue.increment(-1))
                 .await()
 
+            // ✅ UPDATE LOCAL DATABASE
+            userDao.insertUser(
+                userDao.getUserById(currentUserId)?.copy(followingCount =
+                    maxOf(0, (userDao.getUserById(currentUserId)?.followingCount ?: 0) - 1))
+                    ?: return Resource.Success(Unit)
+            )
+
+            userDao.insertUser(
+                userDao.getUserById(userId)?.copy(followersCount =
+                    maxOf(0, (userDao.getUserById(userId)?.followersCount ?: 0) - 1))
+                    ?: return Resource.Success(Unit)
+            )
+
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to unfollow user")
         }
     }
+
+    override suspend fun isFollowing(userId: String): Resource<Boolean> {
+        return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Success(false)
+
+            if (currentUserId == userId) {
+                return Resource.Success(false) // Can't follow yourself
+            }
+
+            val followId = "${currentUserId}_${userId}"
+            val followDoc = firestore.collection("follows")
+                .document(followId)
+                .get()
+                .await()
+
+            Resource.Success(followDoc.exists())
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to check follow status")
+        }
+    }
+
 
     override suspend fun getFollowers(userId: String): Resource<List<User>> {
         return try {
@@ -320,6 +380,8 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getPopularUsers(): Resource<List<User>> {
         return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+
             val query = firestore.collection(Constants.USERS_COLLECTION)
                 .orderBy("followersCount", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .limit(20)
@@ -330,7 +392,24 @@ class UserRepositoryImpl @Inject constructor(
                 doc.toObject(User::class.java)?.copy(id = doc.id)
             }
 
-            Resource.Success(users)
+            val enrichedUsers = users.map { user ->
+                if (currentUserId != null && user.id != currentUserId) {
+                    val followId = "${currentUserId}_${user.id}"
+                    val isFollowingDoc = firestore.collection("follows")
+                        .document(followId)
+                        .get()
+                        .await()
+
+                    user.copy(
+                        followers = if (isFollowingDoc.exists())
+                            listOf(currentUserId) else emptyList()
+                    )
+                } else {
+                    user
+                }
+            }.filter { it.id != currentUserId }
+
+            Resource.Success(enrichedUsers)
         } catch (e: Exception) {
             val localUsers = userDao.getPopularUsers(20).map { it.toUser() }
             Resource.Success(localUsers)

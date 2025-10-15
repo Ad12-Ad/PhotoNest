@@ -142,7 +142,8 @@ fun FollowTxtBtn(
                 fontWeight = FontWeight.Medium,
                 lineHeight = 20.sp,
                 color = MaterialTheme.colorScheme.primary
-            )
+            ),
+            modifier = Modifier.padding(horizontal = 10.dp)
         )
     }
 }

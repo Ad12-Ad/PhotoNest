@@ -96,7 +96,8 @@ fun HomeScreen(
                             onBookmarkClick = { viewModel.toggleBookmark(post.id) },
                             onShareClick = {
                                 viewModel.sharePost(post, context)
-                            }
+                            },
+                            onFollowClick = { viewModel.toggleFollow(post.userId, post.id) }
                         )
                     }
 

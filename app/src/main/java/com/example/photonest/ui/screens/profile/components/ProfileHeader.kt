@@ -68,8 +68,8 @@ fun ProfileHeader(user: User) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     StatIconLabel(user.postsCount, "Posts")
-                    StatIconLabel(user.followers.size, "Followers")
-                    StatIconLabel(user.following.size, "Following")
+                    StatIconLabel(user.followersCount, "Followers")
+                    StatIconLabel(user.followingCount, "Following")
                 }
             }
         }

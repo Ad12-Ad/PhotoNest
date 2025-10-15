@@ -38,35 +38,78 @@ class PostRepositoryImpl @Inject constructor(
     override fun getPosts(): Flow<Resource<List<Post>>> = flow {
         emit(Resource.Loading())
         try {
-            // Get from local database first
-            val localPosts = postDao.getPosts(20, 0).map { it.toPost() }
-            emit(Resource.Success(localPosts))
+            val currentUserId = firebaseAuth.currentUser?.uid
 
-            // Then sync with Firestore
-            val query = firestore.collection(Constants.POSTS_COLLECTION)
+            // ✅ SIMPLE QUERY: Get posts
+            val postsQuery = firestore.collection(Constants.POSTS_COLLECTION)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(20)
+                .limit(50)
                 .get()
                 .await()
 
-            val firestorePosts = query.documents.mapNotNull { doc ->
+            val posts = postsQuery.documents.mapNotNull { doc ->
                 doc.toObject(Post::class.java)?.copy(id = doc.id)
             }
 
-            // Update local database
-            postDao.insertPosts(firestorePosts.map { it.toEntity() })
-            emit(Resource.Success(firestorePosts))
+            if (currentUserId != null && posts.isNotEmpty()) {
+                // ✅ SIMPLE QUERY: Get ALL follows for current user
+                val followsQuery = firestore.collection("follows")
+                    .whereEqualTo("followerId", currentUserId)
+                    .get()
+                    .await()
 
-        } catch (e: Exception) {
-            // Fallback to local data
-            val localPosts = postDao.getPosts(20, 0).map { it.toPost() }
-            if (localPosts.isNotEmpty()) {
-                emit(Resource.Success(localPosts))
+                val followedUserIds = followsQuery.documents
+                    .mapNotNull { it.getString("followingId") }
+                    .toSet()
+
+                // ✅ SIMPLE QUERY: Get ALL bookmarks for current user
+                val bookmarksQuery = firestore.collection("bookmarks")
+                    .whereEqualTo("userId", currentUserId)
+                    .get()
+                    .await()
+
+                val bookmarkedPostIds = bookmarksQuery.documents
+                    .mapNotNull { it.getString("postId") }
+                    .toSet()
+
+                // ✅ ENRICH IN MEMORY (no complex queries)
+                val enrichedPosts = posts.map { post ->
+                    post.copy(
+                        isLiked = post.likedBy.contains(currentUserId),
+                        isBookmarked = bookmarkedPostIds.contains(post.id),
+                        isUserFollowed = followedUserIds.contains(post.userId)
+                    )
+                }
+
+                // Save to local database
+                enrichedPosts.forEach { post ->
+                    postDao.insertPost(post.toEntity())
+                }
+
+                emit(Resource.Success(enrichedPosts))
             } else {
-                emit(Resource.Error(e.message ?: "Failed to load posts"))
+                emit(Resource.Success(posts))
             }
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to get posts: ${e.message}")
+            val localPosts = postDao.getAllPosts().map { it.toPost() }
+            emit(Resource.Success(localPosts))
         }
     }
+
+    private suspend fun checkIfBookmarked(userId: String, postId: String): Boolean {
+        return try {
+            val bookmarkQuery = firestore.collection("bookmarks")
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("postId", postId)
+                .get()
+                .await()
+            !bookmarkQuery.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
+
 
     override suspend fun getPostById(postId: String): Resource<PostDetail?> {
         return try {
@@ -294,16 +337,36 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun bookmarkPost(postId: String): Resource<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
 
-            // Update local database
-            postDao.updatePostBookmark(postId, true)
+            // ✅ CONSISTENT BOOKMARK ID
+            val bookmarkId = "${currentUserId}_${postId}"
 
-            // Add bookmark to user's bookmarks
-            firestore.collection(Constants.USERS_COLLECTION)
-                .document(currentUserId)
-                .update("bookmarks", FieldValue.arrayUnion(postId))
+            // Check if already bookmarked
+            val existingBookmark = firestore.collection("bookmarks")
+                .document(bookmarkId)
+                .get()
                 .await()
+
+            if (existingBookmark.exists()) {
+                return Resource.Error("Post already bookmarked")
+            }
+
+            // ✅ CREATE BOOKMARK DOCUMENT
+            val bookmarkData = hashMapOf(
+                "userId" to currentUserId,
+                "postId" to postId,
+                "timestamp" to System.currentTimeMillis()
+            )
+
+            firestore.collection("bookmarks")
+                .document(bookmarkId)
+                .set(bookmarkData)
+                .await()
+
+            // ✅ UPDATE LOCAL DATABASE
+            postDao.updatePostBookmark(postId, true)
 
             Resource.Success(Unit)
         } catch (e: Exception) {
@@ -313,16 +376,19 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun unbookmarkPost(postId: String): Resource<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
 
-            // Update local database
-            postDao.updatePostBookmark(postId, false)
+            // ✅ DELETE SPECIFIC BOOKMARK DOCUMENT
+            val bookmarkId = "${currentUserId}_${postId}"
 
-            // Remove bookmark from user's bookmarks
-            firestore.collection(Constants.USERS_COLLECTION)
-                .document(currentUserId)
-                .update("bookmarks", FieldValue.arrayRemove(postId))
+            firestore.collection("bookmarks")
+                .document(bookmarkId)
+                .delete()
                 .await()
+
+            // ✅ UPDATE LOCAL DATABASE
+            postDao.updatePostBookmark(postId, false)
 
             Resource.Success(Unit)
         } catch (e: Exception) {

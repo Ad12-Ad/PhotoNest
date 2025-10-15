@@ -22,4 +22,5 @@ interface IUserRepository {
     suspend fun unblockUser(userId: String): Resource<Unit>
     suspend fun getLikedPostIdsByUserId(userId: String): List<String>
     suspend fun getBookmarkedPostIdsByUserId(userId: String): List<String>
+    suspend fun isFollowing(userId: String): Resource<Boolean>
 }
