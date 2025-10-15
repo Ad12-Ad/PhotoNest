@@ -7,7 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Post
 import com.example.photonest.domain.repository.IPostRepository
+import com.example.photonest.domain.repository.IUserRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -22,7 +25,9 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
-    private val postRepository: IPostRepository
+    private val postRepository: IPostRepository,
+    private val userRepository: IUserRepository,
+    private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -34,13 +39,35 @@ class HomeScreenViewModel @Inject constructor(
 
     fun loadPosts() {
         viewModelScope.launch {
+            // Get current user id
+            val currentUserId = firebaseAuth.currentUser?.uid
+            if (currentUserId == null) {
+                _uiState.update { it.copy(error = "User not authenticated", showErrorDialog = true) }
+                return@launch
+            }
+
+            // Load liked and bookmarked post IDs in parallel
+            val likedPostIdsDeferred = async { userRepository.getLikedPostIdsByUserId(currentUserId) }
+            val bookmarkedPostIdsDeferred = async { userRepository.getBookmarkedPostIdsByUserId(currentUserId) }
+
+            val likedPostIds = likedPostIdsDeferred.await().toSet()
+            val bookmarkedPostIds = bookmarkedPostIdsDeferred.await().toSet()
+
+            // Load posts
             postRepository.getPosts().collect { result ->
                 when (result) {
                     is Resource.Success -> {
+                        val updatedPosts = result.data?.map { post ->
+                            post.copy(
+                                isLiked = likedPostIds.contains(post.id),
+                                isBookmarked = bookmarkedPostIds.contains(post.id)
+                            )
+                        } ?: emptyList()
+
                         _uiState.update { currentState ->
                             currentState.copy(
                                 isLoading = false,
-                                posts = result.data ?: emptyList(),
+                                posts = updatedPosts,
                                 error = null,
                                 isRefreshing = false
                             )
@@ -65,6 +92,7 @@ class HomeScreenViewModel @Inject constructor(
             }
         }
     }
+
 
     fun refreshPosts() {
         _uiState.update { it.copy(isRefreshing = true) }
@@ -126,6 +154,7 @@ class HomeScreenViewModel @Inject constructor(
                                 }
                             )
                         }
+                        loadPosts()
                     }
                     is Resource.Error -> {
                         showError(result.message ?: "Failed to toggle bookmark")

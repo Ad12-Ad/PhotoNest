@@ -223,25 +223,38 @@ class PostRepositoryImpl @Inject constructor(
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
 
-            // Add like to Firestore
-            val likeData = mapOf(
-                "userId" to currentUserId,
-                "postId" to postId,
-                "timestamp" to System.currentTimeMillis()
-            )
-
-            firestore.collection(Constants.LIKES_COLLECTION)
-                .add(likeData)
+            // Check if like already exists
+            val existingLikeQuery = firestore.collection(Constants.LIKES_COLLECTION)
+                .whereEqualTo("userId", currentUserId)
+                .whereEqualTo("postId", postId)
+                .get()
                 .await()
 
-            // Update post like count
-            firestore.collection(Constants.POSTS_COLLECTION)
-                .document(postId)
-                .update(
-                    "likeCount", FieldValue.increment(1),
-                    "likedBy", FieldValue.arrayUnion(currentUserId)
+            if (existingLikeQuery.isEmpty) {
+                // Create unique like ID
+                val likeId = "${currentUserId}_${postId}"
+
+                val likeData = hashMapOf(
+                    "userId" to currentUserId,
+                    "postId" to postId,
+                    "timestamp" to System.currentTimeMillis()
                 )
-                .await()
+
+                // Use .set() with specific document ID instead of .add()
+                firestore.collection(Constants.LIKES_COLLECTION)
+                    .document(likeId)
+                    .set(likeData)
+                    .await()
+
+                // Update post like count
+                firestore.collection(Constants.POSTS_COLLECTION)
+                    .document(postId)
+                    .update(
+                        "likeCount", FieldValue.increment(1),
+                        "likedBy", FieldValue.arrayUnion(currentUserId)
+                    )
+                    .await()
+            }
 
             Resource.Success(Unit)
         } catch (e: Exception) {

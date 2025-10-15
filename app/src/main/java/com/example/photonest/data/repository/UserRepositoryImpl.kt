@@ -150,19 +150,19 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun followUser(userId: String): Resource<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val followId = "${currentUserId}_${userId}"
 
-            val followId = UUID.randomUUID().toString()
-            val follow = Follow(
-                id = followId,
-                followerId = currentUserId,
-                followingId = userId,
-                timestamp = System.currentTimeMillis()
+            val followData = hashMapOf(
+                "id" to followId,
+                "followerId" to currentUserId,
+                "followingId" to userId,
+                "timestamp" to System.currentTimeMillis()
             )
 
-            // Add to Firestore
+            // Add to Firestore with specific ID
             firestore.collection("follows")
                 .document(followId)
-                .set(follow)
+                .set(followData)
                 .await()
 
             // Update follower/following counts
@@ -181,6 +181,7 @@ class UserRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Failed to follow user")
         }
     }
+
 
     override suspend fun unfollowUser(userId: String): Resource<Unit> {
         return try {
@@ -355,12 +356,27 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getLikedPostIdsByUserId(userId: String): List<String> {
-        val query = firestore.collection(Constants.LIKES_COLLECTION)
-            .whereEqualTo("userId", userId)
-            .get()
-            .await()
+        return try {
+            val snapshot = firestore.collection(Constants.LIKES_COLLECTION)
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            snapshot.documents.mapNotNull { it.getString("postId") }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
-        return query.documents.mapNotNull { it.getString("postId") }
+    override suspend fun getBookmarkedPostIdsByUserId(userId: String): List<String> {
+        return try {
+            val userDoc = firestore.collection(Constants.USERS_COLLECTION)
+                .document(userId)
+                .get()
+                .await()
+            userDoc.get("bookmarks") as? List<String> ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
 
