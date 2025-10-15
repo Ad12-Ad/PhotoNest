@@ -2,6 +2,7 @@ package com.example.photonest.ui.navigation
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -41,14 +42,16 @@ import com.example.photonest.ui.screens.profile.YourPostsScreen
 import com.example.photonest.ui.screens.profile.userprofile.UserProfileScreen
 import com.example.photonest.ui.screens.profile.userprofile.UserProfileViewModel
 import com.example.photonest.ui.screens.settings.SettingsScreen
+import com.example.photonest.ui.theme.PhotoNestTheme
 
 @Composable
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
     startDestination: String = AppDestinations.SPLASH_ROUTE
 ) {
+    val systemTheme = isSystemInDarkTheme()
     // For the theme switching functionality
-    var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+    var isDarkTheme by rememberSaveable { mutableStateOf(systemTheme) }
     var showAddPostSheet by rememberSaveable { mutableStateOf(false) }
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
@@ -74,35 +77,37 @@ fun AppNavigation(
         currentRoute !in nonScaffoldRoutes
     }
 
-    if (shouldShowScaffold) {
-        MainScaffold(
-            isDarkTheme = isDarkTheme,
-            onThemeToggle = { isDarkTheme = !isDarkTheme },
-            navController = navController,
-            onAddPostClick = { showAddPostSheet = true },
-            onNotificationClick = {
-                navController.navigate(AppDestinations.NOTIFICATIONS_ROUTE)
+    PhotoNestTheme(darkTheme = isDarkTheme) {
+        if (shouldShowScaffold) {
+            MainScaffold(
+                isDarkTheme = isDarkTheme,
+                onThemeToggle = { isDarkTheme = !isDarkTheme },
+                navController = navController,
+                onAddPostClick = { showAddPostSheet = true },
+                onNotificationClick = {
+                    navController.navigate(AppDestinations.NOTIFICATIONS_ROUTE)
+                }
+            ) { paddingValues ->
+                NavigationGraph(
+                    navController = navController,
+                    startDestination = startDestination,
+                    paddingValues = paddingValues
+                )
             }
-        ) { paddingValues ->
+
+            if (showAddPostSheet) {
+                AddPostBottomSheet(
+                    viewModel = hiltViewModel(),
+                    onDismiss = { showAddPostSheet = false }
+                )
+            }
+        } else {
             NavigationGraph(
                 navController = navController,
                 startDestination = startDestination,
-                paddingValues = paddingValues
+                paddingValues = PaddingValues(0.dp)
             )
         }
-
-        if (showAddPostSheet) {
-            AddPostBottomSheet(
-                viewModel = hiltViewModel(),
-                onDismiss = { showAddPostSheet = false }
-            )
-        }
-    } else {
-        NavigationGraph(
-            navController = navController,
-            startDestination = startDestination,
-            paddingValues = PaddingValues(0.dp)
-        )
     }
 }
 
