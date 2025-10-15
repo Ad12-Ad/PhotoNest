@@ -53,6 +53,7 @@ fun ButtonOnboarding(
     textSize: TextUnit = 16.sp,
     textWeight: FontWeight = FontWeight.Normal,
     textColor: Color = MaterialTheme.colorScheme.onPrimary,
+    border: BorderStroke? = null,
     buttonColors: ButtonColors = ButtonDefaults.buttonColors(
         containerColor = MaterialTheme.colorScheme.primary,
         disabledContainerColor = MaterialTheme.colorScheme.primary.copy(0.4f)
@@ -62,6 +63,7 @@ fun ButtonOnboarding(
     postfixIcon: @Composable (() -> Unit)? = null
 ) {
     Button(
+        border = border,
         onClick = onClick,
         enabled = enabled,
         colors = buttonColors,
