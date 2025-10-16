@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,10 +23,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.data.model.Notification
 import com.example.photonest.data.model.NotificationType
 import com.example.photonest.ui.components.MyAlertDialog
+import com.example.photonest.ui.components.ShimmerEffect
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -184,15 +187,32 @@ private fun NotificationItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // User Avatar
-        AsyncImage(
+        SubcomposeAsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(notification.fromUserImage)
                 .crossfade(true)
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .error(android.R.drawable.ic_menu_gallery)
                 .build(),
             contentDescription = "User avatar",
             contentScale = ContentScale.Crop,
+            loading = {
+                ShimmerEffect(
+                    modifier = Modifier.fillMaxSize()
+                )
+            },
+            error = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.BrokenImage,
+                        contentDescription = "Failed to load",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)

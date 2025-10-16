@@ -1,6 +1,7 @@
 package com.example.photonest.ui.screens.profile.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,12 +23,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.example.photonest.R
 import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
 import com.example.photonest.ui.components.ButtonOnboarding
 import com.example.photonest.ui.components.NormalText
+import com.example.photonest.ui.components.ShimmerEffect
 import com.example.photonest.ui.screens.profile.StatIconLabel
 
 @Composable
@@ -42,15 +45,32 @@ fun ProfileHeader(user: User) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = user.profilePicture,
                 contentDescription = "Profile Image",
                 modifier = Modifier
                     .size(100.dp)
                     .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.profile_photo),
-                error = painterResource(R.drawable.profile_photo)
+                loading = {
+                    ShimmerEffect(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -97,17 +117,32 @@ fun UserProfileHeader(
         Box(
             modifier = Modifier.size(120.dp)
         ) {
-            AsyncImage(
-                model = userProfile.user.profilePicture.ifEmpty {
-                    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&h=120&fit=crop&crop=face"
-                },
+            SubcomposeAsyncImage(
+                model = userProfile.user.profilePicture,
                 contentDescription = "Profile Picture",
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.profile_photo),
-                error = painterResource(id = R.drawable.profile_photo)
+                loading = {
+                    ShimmerEffect(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
         }
 

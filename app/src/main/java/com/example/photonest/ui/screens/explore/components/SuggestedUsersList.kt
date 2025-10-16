@@ -1,5 +1,6 @@
 package com.example.photonest.ui.screens.explore.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -8,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,8 +22,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.example.photonest.R
 import com.example.photonest.data.model.User
+import com.example.photonest.ui.components.ShimmerEffect
 import com.google.firebase.auth.FirebaseAuth
 import java.text.NumberFormat
 import java.util.Locale
@@ -80,7 +84,7 @@ private fun SuggestedUserItem(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Profile Image
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = user.profilePicture.ifEmpty {
                     "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face"
                 },
@@ -89,8 +93,25 @@ private fun SuggestedUserItem(
                     .size(60.dp)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.profile_photo),
-                error = painterResource(id = R.drawable.profile_photo)
+                loading = {
+                    ShimmerEffect(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))

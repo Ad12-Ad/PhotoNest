@@ -3,6 +3,7 @@ package com.example.photonest.ui.screens.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.ui.components.*
 import com.example.photonest.ui.theme.bodyFontFamily
@@ -111,7 +113,7 @@ fun EditProfileScreen(
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                     contentAlignment = Alignment.BottomEnd
                 ) {
-                    AsyncImage(
+                    SubcomposeAsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(uiState.profilePictureUri ?: uiState.currentUser?.profilePicture)
                             .crossfade(true)
@@ -121,7 +123,26 @@ fun EditProfileScreen(
                         modifier = Modifier
                             .size(100.dp)
                             .clip(CircleShape)
-                            .clickable { imagePickerLauncher.launch("image/*") }
+                            .clickable { imagePickerLauncher.launch("image/*") },
+                        loading = {
+                            ShimmerEffect(
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        },
+                        error = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.BrokenImage,
+                                    contentDescription = "Failed to load",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     )
 
                     if (uiState.isEditing){

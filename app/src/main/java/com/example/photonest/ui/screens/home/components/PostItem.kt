@@ -1,7 +1,9 @@
 package com.example.photonest.ui.screens.home.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CardDefaults
@@ -34,11 +38,13 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.ConstraintSet
 import androidx.constraintlayout.compose.Dimension
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.data.model.Post
 import com.example.photonest.ui.components.FollowTxtBtn
 import com.example.photonest.ui.components.NormalText
+import com.example.photonest.ui.components.ShimmerEffect
 import com.example.photonest.ui.components.annotatedText
 import com.example.photonest.ui.components.formatTimestamp
 import com.example.photonest.ui.theme.bodyFontFamily
@@ -110,7 +116,7 @@ fun PostItem(
                 .size(40.dp)
                 .layoutId("userImage")
         ) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(post.userImage)
                     .crossfade(true)
@@ -118,8 +124,25 @@ fun PostItem(
                 contentDescription = post.userName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().clickable(onClick = onUserClick),
-                placeholder = painterResource(R.drawable.profile_photo), // Add placeholder
-                error = painterResource(R.drawable.p1) // Add error image
+                loading = {
+                    ShimmerEffect(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
         }
 
@@ -210,19 +233,36 @@ private fun PostContentCard(
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {
-        AsyncImage(
+        SubcomposeAsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(imageUrl)
                 .crossfade(true)
                 .build(),
             contentDescription = "",
             contentScale = ContentScale.Crop,
-            placeholder = painterResource(R.drawable.profile_photo), // Add placeholder
-            error = painterResource(R.drawable.p1), // Add error image
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 200.dp, max = 350.dp)
-                .clickable(onClick = onPostClick)
+                .clickable(onClick = onPostClick),
+            loading = {
+                ShimmerEffect(
+                    modifier = Modifier.fillMaxSize()
+                )
+            },
+            error = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.BrokenImage,
+                        contentDescription = "Failed to load",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         )
 
         Text(
