@@ -20,4 +20,5 @@ interface IPostRepository {
     suspend fun getPostsByCategory(category: String): Resource<List<Post>>
     suspend fun searchPosts(query: String): Resource<List<Post>>
     suspend fun reportPost(postId: String, reason: String): Resource<Unit>
+    suspend fun getPostsByIds(postIds: List<String>): Resource<List<Post>>
 }

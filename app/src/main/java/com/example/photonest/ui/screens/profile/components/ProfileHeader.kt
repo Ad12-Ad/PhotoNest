@@ -1,6 +1,8 @@
 package com.example.photonest.ui.screens.profile.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,12 +10,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -21,11 +23,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.example.photonest.R
 import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
+import com.example.photonest.ui.components.ButtonOnboarding
 import com.example.photonest.ui.components.NormalText
+import com.example.photonest.ui.components.ShimmerEffect
 import com.example.photonest.ui.screens.profile.StatIconLabel
 
 @Composable
@@ -41,15 +45,32 @@ fun ProfileHeader(user: User) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = user.profilePicture,
                 contentDescription = "Profile Image",
                 modifier = Modifier
                     .size(100.dp)
                     .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.profile_photo),
-                error = painterResource(R.drawable.profile_photo)
+                loading = {
+                    ShimmerEffect(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -68,22 +89,22 @@ fun ProfileHeader(user: User) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     StatIconLabel(user.postsCount, "Posts")
-                    StatIconLabel(user.followers.size, "Followers")
-                    StatIconLabel(user.following.size, "Following")
+                    StatIconLabel(user.followersCount, "Followers")
+                    StatIconLabel(user.followingCount, "Following")
                 }
             }
         }
     }
 }
 
-/*
-* This is a backup file.
-* Will be used in the case of creating the Profile detail page
-*/
 @Composable
-fun ProfileHeader1(
+fun UserProfileHeader(
     userProfile: UserProfile,
-    onFollowClick: () -> Unit,
+    isCurrentUser: Boolean = false,
+    onFollowClick: () -> Unit = {},
+    onFollowersClick: (String) -> Unit = {},
+    onFollowingClick: (String) -> Unit = {},
+    onEditProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uriHandler = LocalUriHandler.current
@@ -96,17 +117,32 @@ fun ProfileHeader1(
         Box(
             modifier = Modifier.size(120.dp)
         ) {
-            AsyncImage(
-                model = userProfile.user.profilePicture.ifEmpty {
-                    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&h=120&fit=crop&crop=face"
-                },
+            SubcomposeAsyncImage(
+                model = userProfile.user.profilePicture,
                 contentDescription = "Profile Picture",
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.profile_photo),
-                error = painterResource(id = R.drawable.profile_photo)
+                loading = {
+                    ShimmerEffect(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
         }
 
@@ -145,13 +181,75 @@ fun ProfileHeader1(
             )
         }
 
+        // Stats Row (Posts, Followers, Following)
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "${userProfile.user.postsCount}",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Text(
+                    text = "Posts",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickableIf(!isCurrentUser) { onFollowersClick(userProfile.user.id) }
+            ) {
+                Text(
+                    text = "${userProfile.user.followersCount}",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Text(
+                    text = "Followers",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickableIf(!isCurrentUser) { onFollowingClick(userProfile.user.id) }
+            ) {
+                Text(
+                    text = "${userProfile.user.followingCount}",  // ✅ FIXED: Use count field
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Text(
+                    text = "Following",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        }
+
         // Bio
         if (userProfile.user.bio.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = userProfile.user.bio,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
@@ -223,45 +321,63 @@ fun ProfileHeader1(
             }
         }
 
-        // Follow Button (only show if not current user)
-        if (!userProfile.isCurrentUser) {
-            Spacer(modifier = Modifier.height(20.dp))
+        // Action Button (Follow/Edit Profile)
+        Spacer(modifier = Modifier.height(20.dp))
 
+        if (isCurrentUser) {
+            // Edit Profile Button
+            ButtonOnboarding(
+                buttonText = "Edit Profile",
+                textSize = 20.sp,
+                modifier = Modifier
+                    .height(60.dp)
+                    .fillMaxWidth(),
+                onClick = onEditProfileClick,
+                buttonColors = ButtonDefaults.outlinedButtonColors(),
+                enabled = false
+            )
+        } else {
+            // Follow/Unfollow Button
             if (userProfile.isFollowRequestPending) {
-                OutlinedButton(
-                    onClick = { /* Handle pending request */ },
-                    modifier = Modifier.fillMaxWidth(),
+                ButtonOnboarding(
+                    buttonText = "Request Pending",
+                    textSize = 20.sp,
+                    modifier = Modifier
+                        .height(60.dp)
+                        .fillMaxWidth(),
+                    onClick = {},
                     enabled = false
-                ) {
-                    Text("Request Pending")
-                }
+                )
             } else {
-                Button(
+                ButtonOnboarding(
+                    buttonText = if (userProfile.isFollowing) "Following" else "Follow",
+                    textSize = 20.sp,
+                    modifier = Modifier
+                        .height(40.dp)
+                        .fillMaxWidth(),
                     onClick = onFollowClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = if (userProfile.isFollowing) {
-                        ButtonDefaults.outlinedButtonColors()
+                    textColor = if (userProfile.isFollowing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimary,
+                    buttonColors = if (userProfile.isFollowing) {
+                        ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     } else {
-                        ButtonDefaults.buttonColors()
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(0.4f)
+                        )
                     },
                     border = if (userProfile.isFollowing) {
                         BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    } else null
-                ) {
-                    Text(
-                        text = if (userProfile.isFollowing) "Unfollow" else "Follow",
-                        color = if (userProfile.isFollowing) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onPrimary
-                        }
-                    )
-                }
+                    } else null,
+                    elevation = if(userProfile.isFollowing) ButtonDefaults.buttonElevation(0.dp) else ButtonDefaults.buttonElevation(4.dp)
+                )
             }
         }
 
         // Mutual Followers (only show if not current user and has mutual followers)
-        if (!userProfile.isCurrentUser && userProfile.mutualFollowersCount > 0) {
+        if (!isCurrentUser && userProfile.mutualFollowersCount > 0) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Followed by ${userProfile.mutualFollowersCount} people you follow",
@@ -269,5 +385,14 @@ fun ProfileHeader1(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
+    }
+}
+// Helper extension for conditional clickable
+@Composable
+fun Modifier.clickableIf(condition: Boolean, onClick: () -> Unit): Modifier {
+    return if (condition) {
+        this.clickable { onClick() }
+    } else {
+        this
     }
 }

@@ -33,10 +33,27 @@ class CommentRepositoryImpl @Inject constructor(
                 .await()
 
             val comments = query.documents.mapNotNull { doc ->
-                doc.toObject(Comment::class.java)?.copy(id = doc.id)
+                val comment = doc.toObject(Comment::class.java)?.copy(id = doc.id)
+                comment
+            }.map { comment ->
+                // Fetch user info for each comment userId
+                val userSnapshot = firestore.collection(Constants.USERS_COLLECTION)
+                    .document(comment.userId)
+                    .get()
+                    .await()
+
+                val userName = userSnapshot.getString("name") ?: "Anonymous"
+                val userImage = userSnapshot.getString("profilePicture") ?: ""
+
+                comment.copy(
+                    userName = userName,
+                    userImage = userImage
+                )
             }
 
+            // Cache locally
             commentDao.insertComments(comments.map { it.toEntity() })
+
             Resource.Success(comments)
         } catch (e: Exception) {
             val localComments = commentDao.getCommentsForPost(postId).map { it.toComment() }
@@ -44,21 +61,29 @@ class CommentRepositoryImpl @Inject constructor(
         }
     }
 
+
     override suspend fun addComment(comment: Comment): Resource<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
-
             val commentId = UUID.randomUUID().toString()
-            val newComment = comment.copy(
-                id = commentId,
-                userId = currentUserId,
-                timestamp = System.currentTimeMillis()
+
+            // Create comment data as Map to ensure userId field exists
+            val commentData = hashMapOf(
+                "id" to commentId,
+                "postId" to comment.postId,
+                "userId" to currentUserId,
+                "userName" to comment.userName,
+                "userProfilePicture" to comment.userImage,
+                "text" to comment.text,
+                "timestamp" to System.currentTimeMillis(),
+                "likeCount" to 0,
+                "parentCommentId" to comment.parentCommentId
             )
 
             // Add to Firestore
             firestore.collection(Constants.COMMENTS_COLLECTION)
                 .document(commentId)
-                .set(newComment)
+                .set(commentData)
                 .await()
 
             // Update post comment count
@@ -67,7 +92,13 @@ class CommentRepositoryImpl @Inject constructor(
                 .update("commentCount", FieldValue.increment(1))
                 .await()
 
+            val newComment = comment.copy(
+                id = commentId,
+                userId = currentUserId,
+                timestamp = System.currentTimeMillis()
+            )
             commentDao.insertComment(newComment.toEntity())
+
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to add comment")

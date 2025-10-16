@@ -8,6 +8,7 @@ data class AddPostState(
     val caption: String = "",
     val location: String = "",
     val selectedCategories: Set<String> = emptySet(),
+    val tags: List<String> = emptyList(),
     val searchQuery: String = "",
     val isLoading: Boolean = false,
     val isPostCreated: Boolean = false,
