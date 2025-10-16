@@ -120,7 +120,7 @@ fun PostDetailScreen(
                             onCommentClick = { /* Already in comments view */ },
                             onShareClick = { viewModel.sharePost(context) },
                             onUserClick = { onNavigateToProfile(uiState.postDetail!!.post.userId) },
-                            onFollowClick = { /* Implement follow logic */ },
+                            onFollowClick = { viewModel.toggleFollow() },
                             shape = RoundedCornerShape(bottomEnd = 16.dp, bottomStart = 16.dp)
                         )
                     }

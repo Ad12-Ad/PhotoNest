@@ -114,51 +114,6 @@ class PostRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(enrichedPosts))
 
-//            val postsQuery = firestore.collection(Constants.POSTS_COLLECTION)
-//                .orderBy("timestamp", Query.Direction.DESCENDING)
-//                .limit(50)
-//                .get()
-//                .await()
-//
-//            val posts = postsQuery.documents.mapNotNull { doc ->
-//                doc.toObject(Post::class.java)?.copy(id = doc.id)
-//            }
-//
-//            if (currentUserId != null && posts.isNotEmpty()) {
-//                val followsQuery = firestore.collection("follows")
-//                    .whereEqualTo("followerId", currentUserId)
-//                    .get()
-//                    .await()
-//
-//                val followedUserIds = followsQuery.documents
-//                    .mapNotNull { it.getString("followingId") }
-//                    .toSet()
-//
-//                val bookmarksQuery = firestore.collection("bookmarks")
-//                    .whereEqualTo("userId", currentUserId)
-//                    .get()
-//                    .await()
-//
-//                val bookmarkedPostIds = bookmarksQuery.documents
-//                    .mapNotNull { it.getString("postId") }
-//                    .toSet()
-//
-//                val enrichedPosts = posts.map { post ->
-//                    post.copy(
-//                        isLiked = post.likedBy.contains(currentUserId),
-//                        isBookmarked = bookmarkedPostIds.contains(post.id),
-//                        isUserFollowed = followedUserIds.contains(post.userId)
-//                    )
-//                }
-//
-//                enrichedPosts.forEach { post ->
-//                    postDao.insertPost(post.toEntity())
-//                }
-//
-//                emit(Resource.Success(enrichedPosts))
-//            } else {
-//                emit(Resource.Success(posts))
-//            }
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to get posts: ${e.message}")
             val localPosts = postDao.getAllPosts().map { it.toPost() }
@@ -182,6 +137,8 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun getPostById(postId: String): Resource<PostDetail?> {
         return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+
             val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
                 .document(postId)
                 .get()
@@ -190,13 +147,42 @@ class PostRepositoryImpl @Inject constructor(
             val post = postDoc.toObject(Post::class.java)?.copy(id = postDoc.id)
 
             if (post != null) {
-                // Get user details
                 val user = userDao.getUserById(post.userId)?.toUser()
 
+                val enrichedPost = if (currentUserId != null) {
+                    val isLiked = post.likedBy.contains(currentUserId)
+
+                    val bookmarkId = "${currentUserId}_${postId}"
+                    val bookmarkDoc = firestore.collection("bookmarks")
+                        .document(bookmarkId)
+                        .get()
+                        .await()
+                    val isBookmarked = bookmarkDoc.exists()
+
+                    val isFollowing = if (currentUserId != post.userId) {
+                        val followId = "${currentUserId}_${post.userId}"
+                        val followDoc = firestore.collection("follows")
+                            .document(followId)
+                            .get()
+                            .await()
+                        followDoc.exists()
+                    } else {
+                        false
+                    }
+
+                    post.copy(
+                        isLiked = isLiked,
+                        isBookmarked = isBookmarked,
+                        isUserFollowed = isFollowing
+                    )
+                } else {
+                    post
+                }
+
                 val postDetail = PostDetail(
-                    post = post,
+                    post = enrichedPost,
                     user = user,
-                    isOwner = firebaseAuth.currentUser?.uid == post.userId
+                    isOwner = currentUserId == enrichedPost.userId
                 )
 
                 Resource.Success(postDetail)
@@ -204,9 +190,11 @@ class PostRepositoryImpl @Inject constructor(
                 Resource.Error("Post not found")
             }
         } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to get post by ID: ${e.message}")
             Resource.Error(e.message ?: "Failed to get post")
         }
     }
+
 
     override suspend fun getUserPosts(userId: String): Resource<List<Post>> {
         return try {
