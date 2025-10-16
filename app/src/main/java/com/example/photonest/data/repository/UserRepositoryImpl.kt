@@ -181,7 +181,6 @@ class UserRepositoryImpl @Inject constructor(
                 .set(followData)
                 .await()
 
-            // ✅ UPDATE FOLLOWER/FOLLOWING COUNTS
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(currentUserId)
                 .update("followingCount", FieldValue.increment(1))
@@ -192,7 +191,36 @@ class UserRepositoryImpl @Inject constructor(
                 .update("followersCount", FieldValue.increment(1))
                 .await()
 
-            // ✅ UPDATE LOCAL DATABASE
+            try {
+                val currentUserDoc = firestore.collection(Constants.USERS_COLLECTION)
+                    .document(currentUserId)
+                    .get()
+                    .await()
+
+                val currentUser = currentUserDoc.toObject(User::class.java)
+
+                val notificationData = hashMapOf(
+                    "userId" to userId,
+                    "fromUserId" to currentUserId,
+                    "fromUsername" to (currentUser?.username ?: "Someone"),
+                    "fromUserImage" to (currentUser?.profilePicture ?: ""),
+                    "type" to "FOLLOW",
+                    "message" to "${currentUser?.username ?: "Someone"} started following you",
+                    "timestamp" to System.currentTimeMillis(),
+                    "isRead" to false,
+                    "isClicked" to false
+                )
+
+                // Add notification to Firestore
+                firestore.collection(Constants.NOTIFICATIONS_COLLECTION)
+                    .add(notificationData)
+                    .await()
+
+                Log.d("UserRepository", "Notification created for follow")
+            } catch (e: Exception) {
+                Log.e("UserRepository", "Failed to create notification: ${e.message}")
+            }
+
             userDao.insertUser(
                 userDao.getUserById(currentUserId)?.copy(followingCount =
                     (userDao.getUserById(currentUserId)?.followingCount ?: 0) + 1)

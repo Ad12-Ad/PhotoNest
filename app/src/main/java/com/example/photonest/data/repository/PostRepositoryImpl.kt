@@ -10,6 +10,7 @@ import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.PostDetail
+import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IPostRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldPath
@@ -208,7 +209,6 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    // ✅ Working Firebase Storage Upload
     private suspend fun uploadImageToStorage(imageUri: String): String {
         return withContext(Dispatchers.IO) {
             try {
@@ -297,6 +297,46 @@ class PostRepositoryImpl @Inject constructor(
                         "likedBy", FieldValue.arrayUnion(currentUserId)
                     )
                     .await()
+
+                try {
+                    val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
+                        .document(postId)
+                        .get()
+                        .await()
+
+                    val post = postDoc.toObject(Post::class.java)
+                    val postOwnerId = post?.userId
+
+                    if (postOwnerId != null && postOwnerId != currentUserId) {
+                        val currentUserDoc = firestore.collection(Constants.USERS_COLLECTION)
+                            .document(currentUserId)
+                            .get()
+                            .await()
+
+                        val currentUser = currentUserDoc.toObject(User::class.java)
+
+                        val notificationData = hashMapOf(
+                            "userId" to postOwnerId,
+                            "fromUserId" to currentUserId,
+                            "fromUsername" to (currentUser?.username ?: "Someone"),
+                            "fromUserImage" to (currentUser?.profilePicture ?: ""),
+                            "type" to "LIKE",
+                            "postId" to postId,
+                            "message" to "${currentUser?.username ?: "Someone"} liked your post",
+                            "timestamp" to System.currentTimeMillis(),
+                            "isRead" to false,
+                            "isClicked" to false
+                        )
+
+                        firestore.collection(Constants.NOTIFICATIONS_COLLECTION)
+                            .add(notificationData)
+                            .await()
+
+                        Log.d("PostRepository", "Notification created for like")
+                    }
+                } catch (e: Exception) {
+                    Log.e("PostRepository", "Failed to create notification: ${e.message}")
+                }
             }
 
             Resource.Success(Unit)
@@ -340,7 +380,6 @@ class PostRepositoryImpl @Inject constructor(
             val currentUserId = firebaseAuth.currentUser?.uid
                 ?: return Resource.Error("Not authenticated")
 
-            // ✅ CONSISTENT BOOKMARK ID
             val bookmarkId = "${currentUserId}_${postId}"
 
             // Check if already bookmarked
@@ -353,7 +392,6 @@ class PostRepositoryImpl @Inject constructor(
                 return Resource.Error("Post already bookmarked")
             }
 
-            // ✅ CREATE BOOKMARK DOCUMENT
             val bookmarkData = hashMapOf(
                 "userId" to currentUserId,
                 "postId" to postId,
@@ -365,7 +403,6 @@ class PostRepositoryImpl @Inject constructor(
                 .set(bookmarkData)
                 .await()
 
-            // ✅ UPDATE LOCAL DATABASE
             postDao.updatePostBookmark(postId, true)
 
             Resource.Success(Unit)

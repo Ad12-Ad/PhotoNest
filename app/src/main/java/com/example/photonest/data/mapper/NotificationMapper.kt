@@ -11,7 +11,7 @@ fun Notification.toEntity(): NotificationEntity {
         fromUserId = fromUserId,
         fromUsername = fromUsername,
         fromUserImage = fromUserImage,
-        type = type.name,
+        type = type,
         postId = postId,
         commentId = commentId,
         message = message,
@@ -28,11 +28,7 @@ fun NotificationEntity.toNotification(): Notification {
         fromUserId = fromUserId,
         fromUsername = fromUsername,
         fromUserImage = fromUserImage,
-        type = try {
-            NotificationType.valueOf(type)
-        } catch (e: Exception) {
-            NotificationType.LIKE // Default fallback
-        },
+        type = type,
         postId = postId,
         commentId = commentId,
         message = message,

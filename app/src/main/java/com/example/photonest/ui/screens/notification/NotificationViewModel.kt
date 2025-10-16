@@ -1,5 +1,6 @@
 package com.example.photonest.ui.screens.notification
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
@@ -23,33 +24,49 @@ class NotificationViewModel @Inject constructor(
 
     fun loadNotifications() {
         viewModelScope.launch {
+            Log.d("NotificationVM", "====== VM: Loading notifications ======")
+
             notificationRepository.getUserNotifications().collect { result ->
+                Log.d("NotificationVM", "VM received result: ${result::class.simpleName}")
+
                 when (result) {
                     is Resource.Success -> {
+                        val notifications = result.data ?: emptyList()
+                        Log.d("NotificationVM", "✅ VM: Success with ${notifications.size} notifications")
+                        notifications.forEachIndexed { index, notif ->
+                            Log.d("NotificationVM", "  [$index] ${notif.fromUsername}: ${notif.message}")
+                        }
+
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                notifications = result.data ?: emptyList(),
+                                notifications = notifications,
                                 error = null
                             )
                         }
+                        Log.d("NotificationVM", "UI State updated - notifications count: ${_uiState.value.notifications.size}")
                     }
+
                     is Resource.Error -> {
+                        Log.e("NotificationVM", "VM: Error - ${result.message}")
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                error = result.message ?: "Failed to load notifications",
-                                showErrorDialog = true
+                                notifications = emptyList(),
+                                error = result.message
                             )
                         }
                     }
+
                     is Resource.Loading -> {
+                        Log.d("NotificationVM", "⏳ VM: Loading...")
                         _uiState.update { it.copy(isLoading = true) }
                     }
                 }
             }
         }
     }
+
 
     fun markAsRead(notificationId: String) {
         viewModelScope.launch {
