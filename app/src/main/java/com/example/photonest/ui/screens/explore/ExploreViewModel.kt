@@ -184,7 +184,30 @@ class ExploreViewModel @Inject constructor(
                 return@launch
             }
 
-            // Check current follow status
+            _uiState.update { state ->
+                state.copy(
+                    suggestedUsers = state.suggestedUsers.map { user ->
+                        if (user.id == userId) {
+                            val isCurrentlyFollowing = user.followers.contains(currentUserId)
+                            user.copy(
+                                followers = if (isCurrentlyFollowing) {
+                                    user.followers - currentUserId
+                                } else {
+                                    user.followers + currentUserId
+                                },
+                                followersCount = if (isCurrentlyFollowing) {
+                                    user.followersCount - 1
+                                } else {
+                                    user.followersCount + 1
+                                }
+                            )
+                        } else {
+                            user
+                        }
+                    }
+                )
+            }
+
             val isFollowingResult = userRepository.isFollowing(userId)
             val isCurrentlyFollowing = when (isFollowingResult) {
                 is Resource.Success -> isFollowingResult.data == true
@@ -198,20 +221,42 @@ class ExploreViewModel @Inject constructor(
             }
 
             when (result) {
-                is Resource.Success -> {
-                    // Reload fresh data from Firestore
-                    loadExploreContent()
-                }
                 is Resource.Error -> {
                     if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
                         !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
-                        _uiState.update {
-                            it.copy(
+
+                        // Rollback the optimistic update
+                        _uiState.update { state ->
+                            state.copy(
+                                suggestedUsers = state.suggestedUsers.map { user ->
+                                    if (user.id == userId) {
+                                        // Revert the change
+                                        val wasFollowing = user.followers.contains(currentUserId)
+                                        user.copy(
+                                            followers = if (wasFollowing) {
+                                                user.followers - currentUserId
+                                            } else {
+                                                user.followers + currentUserId
+                                            },
+                                            followersCount = if (wasFollowing) {
+                                                user.followersCount - 1
+                                            } else {
+                                                user.followersCount + 1
+                                            }
+                                        )
+                                    } else {
+                                        user
+                                    }
+                                },
                                 error = result.message ?: "Failed to update follow status",
                                 showErrorDialog = true
                             )
                         }
                     }
+                }
+                is Resource.Success -> {
+                    // Success! UI is already updated optimistically
+                    // No need to reload anything
                 }
                 is Resource.Loading -> {}
             }
