@@ -41,7 +41,12 @@ class PostDetailViewModel @Inject constructor(
 
             userRepository.getCurrentUser().collect { result ->
                 if (result is Resource.Success && result.data != null) {
-                    _uiState.update { it.copy(currentUserImage = result.data.profilePicture) }
+                    _uiState.update {
+                        it.copy(
+                            currentUserImage = result.data.profilePicture,
+                            currentUserName = result.data.name
+                        )
+                    }
                 }
             }
         }
@@ -319,7 +324,6 @@ class PostDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isAddingComment = true) }
-
             try {
                 val currentUser = FirebaseAuth.getInstance().currentUser
                 if (currentUser == null) {
@@ -333,26 +337,45 @@ class PostDetailViewModel @Inject constructor(
                     return@launch
                 }
 
+                val userName = _uiState.value.currentUserName ?: "Anonymous"
+                val userImage = _uiState.value.currentUserImage ?: ""
+
                 val newComment = Comment(
-                    id = "",
+                    id = "", // Will be set by repository
                     postId = currentPostId,
                     userId = currentUser.uid,
-                    userName = currentUser.displayName ?: "Anonymous",
-                    userImage = _uiState.value.currentUserImage ?: "",
+                    userName = userName,
+                    userImage = userImage,
                     text = comment,
                     timestamp = System.currentTimeMillis()
                 )
 
                 val result = commentRepository.addComment(newComment)
+
                 when (result) {
                     is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                isAddingComment = false,
-                                newComment = ""
-                            )
+                        _uiState.update { state ->
+                            val currentPostDetail = state.postDetail
+                            if (currentPostDetail != null) {
+                                val updatedComments = listOf(newComment) + currentPostDetail.comments
+                                val updatedPost = currentPostDetail.post.copy(
+                                    commentCount = currentPostDetail.post.commentCount + 1
+                                )
+                                state.copy(
+                                    isAddingComment = false,
+                                    newComment = "",
+                                    postDetail = currentPostDetail.copy(
+                                        comments = updatedComments,
+                                        post = updatedPost
+                                    )
+                                )
+                            } else {
+                                state.copy(
+                                    isAddingComment = false,
+                                    newComment = ""
+                                )
+                            }
                         }
-                        loadPostDetail(currentPostId)
                     }
                     is Resource.Error -> {
                         _uiState.update {
@@ -391,5 +414,6 @@ data class PostDetailUiState(
     val showErrorDialog: Boolean = false,
     val newComment: String = "",
     val isAddingComment: Boolean = false,
-    val currentUserImage: String? = null
+    val currentUserImage: String? = null,
+    val currentUserName: String? = null
 )
