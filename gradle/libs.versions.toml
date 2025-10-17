@@ -29,7 +29,6 @@ lifecycleViewmodelCompose = "2.7.0"
 loggingInterceptor = "5.1.0"
 material3 = "1.4.0"
 material3Android = "1.4.0"
-material3Z = "1.3.0"
 materialIconsExtended = "1.7.4"
 navigationCompose = "2.8.3"
 navigationComposeVersion = "2.7.6"
@@ -64,7 +63,6 @@ androidx-lifecycle-runtime-ktx-v286 = { module = "androidx.lifecycle:lifecycle-r
 androidx-lifecycle-viewmodel-compose-v270 = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-material3-android = { module = "androidx.compose.material3:material3-android", version.ref = "material3Android" }
-androidx-material3-z = { module = "androidx.compose.material3:material3-*", version.ref = "material3Z" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 androidx-navigation-compose-v276 = { module = "androidx.navigation:navigation-compose", version.ref = "navigationComposeVersion" }
 androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "pagingRuntime" }

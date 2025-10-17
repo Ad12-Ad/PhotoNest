@@ -26,7 +26,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -94,9 +95,6 @@ dependencies {
 
     implementation(libs.gms.play.services.auth)
 
-//    implementation(libs.play.services.bom)
-//    implementation(libs.play.services.auth)
-
     // Room Database
     implementation (libs.androidx.room.runtime)
     implementation (libs.androidx.room.ktx)
@@ -137,11 +135,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Pull-to-refresh
-//    implementation(libs.material3)
-//    implementation(libs.androidx.material3.android)
-    // For Material3 pull-to-refresh
-//    implementation("androidx.compose.material3:material3:1.4.0")
     implementation(libs.material3) // or latest version
 
 }
