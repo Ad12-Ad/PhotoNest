@@ -7,11 +7,13 @@ import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Notification
 import com.example.photonest.domain.repository.INotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -23,44 +25,36 @@ class NotificationViewModel @Inject constructor(
     val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
 
     fun loadNotifications() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             Log.d("NotificationVM", "====== VM: Loading notifications ======")
 
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true) }
+            }
+
             notificationRepository.getUserNotifications().collect { result ->
-                Log.d("NotificationVM", "VM received result: ${result::class.simpleName}")
-
-                when (result) {
-                    is Resource.Success -> {
-                        val notifications = result.data ?: emptyList()
-                        Log.d("NotificationVM", "✅ VM: Success with ${notifications.size} notifications")
-                        notifications.forEachIndexed { index, notif ->
-                            Log.d("NotificationVM", "  [$index] ${notif.fromUsername}: ${notif.message}")
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    notifications = result.data ?: emptyList(),
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
                         }
-
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                notifications = notifications,
-                                error = null
-                            )
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    error = result.message,
+                                    isLoading = false
+                                )
+                            }
                         }
-                        Log.d("NotificationVM", "UI State updated - notifications count: ${_uiState.value.notifications.size}")
-                    }
-
-                    is Resource.Error -> {
-                        Log.e("NotificationVM", "VM: Error - ${result.message}")
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                notifications = emptyList(),
-                                error = result.message
-                            )
+                        is Resource.Loading -> {
+                            _uiState.update { it.copy(isLoading = true) }
                         }
-                    }
-
-                    is Resource.Loading -> {
-                        Log.d("NotificationVM", "⏳ VM: Loading...")
-                        _uiState.update { it.copy(isLoading = true) }
                     }
                 }
             }
@@ -69,33 +63,41 @@ class NotificationViewModel @Inject constructor(
 
 
     fun markAsRead(notificationId: String) {
-        viewModelScope.launch {
-            notificationRepository.markNotificationAsRead(notificationId)
-            // Update local state
-            _uiState.update { state ->
-                state.copy(
-                    notifications = state.notifications.map { notification ->
-                        if (notification.id == notificationId) {
-                            notification.copy(isRead = true)
-                        } else {
-                            notification
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = notificationRepository.markNotificationAsRead(notificationId)
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        loadNotifications()
+                    }
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(error = result.message)
                         }
                     }
-                )
+                    is Resource.Loading -> { }
+                }
             }
         }
     }
 
     fun markAllAsRead() {
-        viewModelScope.launch {
-            notificationRepository.markAllNotificationsAsRead()
-            // Update local state
-            _uiState.update { state ->
-                state.copy(
-                    notifications = state.notifications.map { notification ->
-                        notification.copy(isRead = true)
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = notificationRepository.markAllNotificationsAsRead()
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        loadNotifications()
                     }
-                )
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(error = result.message)
+                        }
+                    }
+                    is Resource.Loading -> { }
+                }
             }
         }
     }
@@ -105,12 +107,21 @@ class NotificationViewModel @Inject constructor(
     }
 
     fun deleteNotification(notificationId: String) {
-        viewModelScope.launch {
-            notificationRepository.deleteNotification(notificationId)
-            _uiState.update { state ->
-                state.copy(
-                    notifications = state.notifications.filter { it.id != notificationId }
-                )
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = notificationRepository.deleteNotification(notificationId)
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        loadNotifications()
+                    }
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(error = result.message)
+                        }
+                    }
+                    is Resource.Loading -> { }
+                }
             }
         }
     }

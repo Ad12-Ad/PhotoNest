@@ -8,11 +8,13 @@ import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IUserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,38 +30,42 @@ class EditProfileViewModel @Inject constructor(
     }
 
     private fun loadCurrentUser() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true) }
+            }
 
             userRepository.getCurrentUser().collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        val user = result.data
-                        if (user != null) {
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            val user = result.data
+                            if (user != null) {
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        currentUser = user,
+                                        name = user.name,
+                                        username = user.username,
+                                        bio = user.bio,
+                                        website = user.website,
+                                        location = user.location
+                                    )
+                                }
+                            }
+                        }
+                        is Resource.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    currentUser = user,
-                                    name = user.name,
-                                    username = user.username,
-                                    bio = user.bio,
-                                    website = user.website,
-                                    location = user.location
+                                    error = result.message ?: "Failed to load user",
+                                    showErrorDialog = true
                                 )
                             }
                         }
-                    }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message ?: "Failed to load user",
-                                showErrorDialog = true
-                            )
+                        is Resource.Loading -> {
+                            _uiState.update { it.copy(isLoading = true) }
                         }
-                    }
-                    is Resource.Loading -> {
-                        _uiState.update { it.copy(isLoading = true) }
                     }
                 }
             }
@@ -123,22 +129,24 @@ class EditProfileViewModel @Inject constructor(
     fun saveProfile() {
         val currentState = _uiState.value
         val currentUser = currentState.currentUser ?: return
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             try {
-                // Upload profile picture if changed
                 val profilePictureUrl = if (currentState.profilePictureUri != null) {
                     when (val result = userRepository.uploadProfilePicture(currentState.profilePictureUri.toString())) {
                         is Resource.Success -> result.data ?: currentUser.profilePicture
                         is Resource.Error -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = result.message ?: "Failed to upload profile picture",
-                                    showErrorDialog = true
-                                )
+                            withContext(Dispatchers.Main) {
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        error = result.message ?: "Failed to upload profile picture",
+                                        showErrorDialog = true
+                                    )
+                                }
                             }
                             return@launch
                         }
@@ -148,7 +156,6 @@ class EditProfileViewModel @Inject constructor(
                     currentUser.profilePicture
                 }
 
-                // Update user profile
                 val updatedUser = currentUser.copy(
                     name = currentState.name,
                     username = currentState.username,
@@ -158,33 +165,37 @@ class EditProfileViewModel @Inject constructor(
                     profilePicture = profilePictureUrl
                 )
 
-                when (val result = userRepository.updateUser(updatedUser)) {
-                    is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                isUpdateSuccessful = true
-                            )
+                withContext(Dispatchers.Main) {
+                    when (val result = userRepository.updateUser(updatedUser)) {
+                        is Resource.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isUpdateSuccessful = true
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message ?: "Failed to update profile",
-                                showErrorDialog = true
-                            )
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = result.message ?: "Failed to update profile",
+                                    showErrorDialog = true
+                                )
+                            }
                         }
+                        else -> Unit
                     }
-                    else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message ?: "An error occurred",
+                            showErrorDialog = true
+                        )
+                    }
                 }
             }
         }

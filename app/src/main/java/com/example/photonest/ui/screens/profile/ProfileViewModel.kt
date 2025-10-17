@@ -8,8 +8,10 @@ import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,8 +27,10 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun loadUserProfile(userId: String? = null) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main){
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             try {
                 // If userId is null, get current user profile
@@ -47,43 +51,47 @@ class ProfileViewModel @Inject constructor(
 
                 val result = userRepository.getUserProfile(targetUserId)
 
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                userProfile = result.data,
-                                error = null
-                            )
+                withContext(Dispatchers.Main){
+                    when (result) {
+                        is Resource.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    userProfile = result.data,
+                                    error = null
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message ?: "Failed to load profile",
-                                showErrorDialog = true
-                            )
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = result.message ?: "Failed to load profile",
+                                    showErrorDialog = true
+                                )
+                            }
                         }
-                    }
-                    is Resource.Loading -> {
-                        _uiState.update { it.copy(isLoading = true) }
+                        is Resource.Loading -> {
+                            _uiState.update { it.copy(isLoading = true) }
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main){
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message ?: "An error occurred",
+                            showErrorDialog = true
+                        )
+                    }
                 }
             }
         }
     }
 
     fun toggleFollow(userId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val currentUserProfile = _uiState.value.userProfile ?: return@launch
 
             try {
@@ -106,16 +114,20 @@ class ProfileViewModel @Inject constructor(
                                 }
                             )
                         )
-                        _uiState.update {
-                            it.copy(userProfile = updatedProfile)
+                        withContext(Dispatchers.Main){
+                            _uiState.update {
+                                it.copy(userProfile = updatedProfile)
+                            }
                         }
                     }
                     is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to update follow status",
-                                showErrorDialog = true
-                            )
+                        withContext(Dispatchers.Main){
+                            _uiState.update {
+                                it.copy(
+                                    error = result.message ?: "Failed to update follow status",
+                                    showErrorDialog = true
+                                )
+                            }
                         }
                     }
                     is Resource.Loading -> {
@@ -123,11 +135,13 @@ class ProfileViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main){
+                    _uiState.update {
+                        it.copy(
+                            error = e.message ?: "An error occurred",
+                            showErrorDialog = true
+                        )
+                    }
                 }
             }
         }

@@ -12,11 +12,13 @@ import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -36,16 +38,17 @@ class PostDetailViewModel @Inject constructor(
     }
 
     private fun loadCurrentUserImage() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
-
             userRepository.getCurrentUser().collect { result ->
-                if (result is Resource.Success && result.data != null) {
-                    _uiState.update {
-                        it.copy(
-                            currentUserImage = result.data.profilePicture,
-                            currentUserName = result.data.name
-                        )
+                withContext(Dispatchers.Main) {
+                    if (result is Resource.Success && result.data != null) {
+                        _uiState.update {
+                            it.copy(
+                                currentUserImage = result.data.profilePicture,
+                                currentUserName = result.data.name
+                            )
+                        }
                     }
                 }
             }
@@ -54,63 +57,54 @@ class PostDetailViewModel @Inject constructor(
 
     fun loadPostDetail(postId: String) {
         currentPostId = postId
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             try {
                 val postResult = postRepository.getPostById(postId)
-                when (postResult) {
-                    is Resource.Success -> {
-                        val postDetail = postResult.data
-                        if (postDetail != null) {
-                            // Load comments
-                            val commentsResult = commentRepository.getCommentsForPost(postId)
-                            when (commentsResult) {
-                                is Resource.Success -> {
-                                    val updatedPostDetail = postDetail.copy(comments = commentsResult.data ?: emptyList())
-                                    _uiState.update {
-                                        it.copy(
-                                            isLoading = false,
-                                            postDetail = updatedPostDetail
-                                        )
+
+                withContext(Dispatchers.Main) {
+                    when (postResult) {
+                        is Resource.Success -> {
+                            val postDetail = postResult.data
+                            if (postDetail != null) {
+                                val commentsResult = commentRepository.getCommentsForPost(postId)
+                                when (commentsResult) {
+                                    is Resource.Success -> {
+                                        val updatedPostDetail = postDetail.copy(comments = commentsResult.data ?: emptyList())
+                                        _uiState.update {
+                                            it.copy(isLoading = false, postDetail = updatedPostDetail)
+                                        }
                                     }
-                                }
-                                is Resource.Error -> {
-                                    _uiState.update {
-                                        it.copy(
-                                            isLoading = false,
-                                            postDetail = postDetail,
-                                            error = "Failed to load comments: ${commentsResult.message}"
-                                        )
+                                    is Resource.Error -> {
+                                        _uiState.update {
+                                            it.copy(isLoading = false, postDetail = postDetail,
+                                                error = "Failed to load comments: ${commentsResult.message}")
+                                        }
                                     }
+                                    else -> Unit
                                 }
-                                else -> Unit
+                            } else {
+                                _uiState.update {
+                                    it.copy(isLoading = false, error = "Post not found")
+                                }
                             }
-                        } else {
+                        }
+                        is Resource.Error -> {
                             _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = "Post not found"
-                                )
+                                it.copy(isLoading = false, error = postResult.message ?: "Failed to load post")
                             }
                         }
+                        else -> Unit
                     }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = postResult.message ?: "Failed to load post"
-                            )
-                        }
-                    }
-                    else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "An error occurred"
-                    )
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(isLoading = false, error = e.message ?: "An error occurred")
+                    }
                 }
             }
         }
@@ -118,21 +112,21 @@ class PostDetailViewModel @Inject constructor(
 
     fun toggleLike() {
         val currentPost = _uiState.value.postDetail?.post ?: return
-        viewModelScope.launch {
-            _uiState.update { state ->
-                state.postDetail?.let { postDetail ->
-                    state.copy(
-                        postDetail = postDetail.copy(
-                            post = postDetail.post.copy(
-                                isLiked = !currentPost.isLiked,
-                                likeCount = if (currentPost.isLiked)
-                                    currentPost.likeCount - 1
-                                else
-                                    currentPost.likeCount + 1
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { state ->
+                    state.postDetail?.let { postDetail ->
+                        state.copy(
+                            postDetail = postDetail.copy(
+                                post = postDetail.post.copy(
+                                    isLiked = !currentPost.isLiked,
+                                    likeCount = if (currentPost.isLiked) currentPost.likeCount - 1
+                                    else currentPost.likeCount + 1
+                                )
                             )
                         )
-                    )
-                } ?: state
+                    } ?: state
+                }
             }
 
             try {
@@ -142,41 +136,43 @@ class PostDetailViewModel @Inject constructor(
                     postRepository.likePost(currentPost.id)
                 }
 
-                when (result) {
-                    is Resource.Error -> {
-                        _uiState.update { state ->
-                            state.postDetail?.let { postDetail ->
-                                state.copy(
-                                    postDetail = postDetail.copy(
-                                        post = postDetail.post.copy(
-                                            isLiked = currentPost.isLiked,
-                                            likeCount = currentPost.likeCount
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Error -> {
+                            _uiState.update { state ->
+                                state.postDetail?.let { postDetail ->
+                                    state.copy(
+                                        postDetail = postDetail.copy(
+                                            post = postDetail.post.copy(
+                                                isLiked = currentPost.isLiked,
+                                                likeCount = currentPost.likeCount
+                                            )
                                         )
                                     )
-                                )
-                            } ?: state
+                                } ?: state
+                            }
+                            _uiState.update {
+                                it.copy(error = result.message ?: "Failed to update like status",
+                                    showErrorDialog = true)
+                            }
                         }
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to update like status",
-                                showErrorDialog = true
-                            )
-                        }
+                        else -> Unit
                     }
-                    else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update { state ->
-                    state.postDetail?.let { postDetail ->
-                        state.copy(
-                            postDetail = postDetail.copy(
-                                post = postDetail.post.copy(
-                                    isLiked = currentPost.isLiked,
-                                    likeCount = currentPost.likeCount
+                withContext(Dispatchers.Main) {
+                    _uiState.update { state ->
+                        state.postDetail?.let { postDetail ->
+                            state.copy(
+                                postDetail = postDetail.copy(
+                                    post = postDetail.post.copy(
+                                        isLiked = currentPost.isLiked,
+                                        likeCount = currentPost.likeCount
+                                    )
                                 )
                             )
-                        )
-                    } ?: state
+                        } ?: state
+                    }
                 }
             }
         }
@@ -184,17 +180,19 @@ class PostDetailViewModel @Inject constructor(
 
     fun toggleBookmark() {
         val currentPost = _uiState.value.postDetail?.post ?: return
-        viewModelScope.launch {
-            _uiState.update { state ->
-                state.postDetail?.let { postDetail ->
-                    state.copy(
-                        postDetail = postDetail.copy(
-                            post = postDetail.post.copy(
-                                isBookmarked = !currentPost.isBookmarked
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main){
+                _uiState.update { state ->
+                    state.postDetail?.let { postDetail ->
+                        state.copy(
+                            postDetail = postDetail.copy(
+                                post = postDetail.post.copy(
+                                    isBookmarked = !currentPost.isBookmarked
+                                )
                             )
                         )
-                    )
-                } ?: state
+                    } ?: state
+                }
             }
 
             try {
@@ -204,33 +202,37 @@ class PostDetailViewModel @Inject constructor(
                     postRepository.bookmarkPost(currentPost.id)
                 }
 
-                when (result) {
-                    is Resource.Error -> {
-                        _uiState.update { state ->
-                            state.postDetail?.let { postDetail ->
-                                state.copy(
-                                    postDetail = postDetail.copy(
-                                        post = postDetail.post.copy(
-                                            isBookmarked = currentPost.isBookmarked
+                withContext(Dispatchers.Main){
+                    when (result) {
+                        is Resource.Error -> {
+                            _uiState.update { state ->
+                                state.postDetail?.let { postDetail ->
+                                    state.copy(
+                                        postDetail = postDetail.copy(
+                                            post = postDetail.post.copy(
+                                                isBookmarked = currentPost.isBookmarked
+                                            )
                                         )
                                     )
-                                )
-                            } ?: state
+                                } ?: state
+                            }
                         }
+                        else -> Unit
                     }
-                    else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update { state ->
-                    state.postDetail?.let { postDetail ->
-                        state.copy(
-                            postDetail = postDetail.copy(
-                                post = postDetail.post.copy(
-                                    isBookmarked = currentPost.isBookmarked
+                withContext(Dispatchers.Main){
+                    _uiState.update { state ->
+                        state.postDetail?.let { postDetail ->
+                            state.copy(
+                                postDetail = postDetail.copy(
+                                    post = postDetail.post.copy(
+                                        isBookmarked = currentPost.isBookmarked
+                                    )
                                 )
                             )
-                        )
-                    } ?: state
+                        } ?: state
+                    }
                 }
             }
         }
@@ -238,17 +240,19 @@ class PostDetailViewModel @Inject constructor(
 
     fun toggleFollow() {
         val currentPost = _uiState.value.postDetail?.post ?: return
-        viewModelScope.launch {
-            _uiState.update { state ->
-                state.postDetail?.let { postDetail ->
-                    state.copy(
-                        postDetail = postDetail.copy(
-                            post = postDetail.post.copy(
-                                isUserFollowed = !currentPost.isUserFollowed
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main){
+                _uiState.update { state ->
+                    state.postDetail?.let { postDetail ->
+                        state.copy(
+                            postDetail = postDetail.copy(
+                                post = postDetail.post.copy(
+                                    isUserFollowed = !currentPost.isUserFollowed
+                                )
                             )
                         )
-                    )
-                } ?: state
+                    } ?: state
+                }
             }
 
             try {
@@ -258,33 +262,37 @@ class PostDetailViewModel @Inject constructor(
                     userRepository.followUser(currentPost.userId)
                 }
 
-                when (result) {
-                    is Resource.Error -> {
-                        _uiState.update { state ->
-                            state.postDetail?.let { postDetail ->
-                                state.copy(
-                                    postDetail = postDetail.copy(
-                                        post = postDetail.post.copy(
-                                            isUserFollowed = currentPost.isUserFollowed
+                withContext(Dispatchers.Main){
+                    when (result) {
+                        is Resource.Error -> {
+                            _uiState.update { state ->
+                                state.postDetail?.let { postDetail ->
+                                    state.copy(
+                                        postDetail = postDetail.copy(
+                                            post = postDetail.post.copy(
+                                                isUserFollowed = currentPost.isUserFollowed
+                                            )
                                         )
                                     )
-                                )
-                            } ?: state
+                                } ?: state
+                            }
                         }
+                        else -> Unit
                     }
-                    else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update { state ->
-                    state.postDetail?.let { postDetail ->
-                        state.copy(
-                            postDetail = postDetail.copy(
-                                post = postDetail.post.copy(
-                                    isUserFollowed = currentPost.isUserFollowed
+                withContext(Dispatchers.Main){
+                    _uiState.update { state ->
+                        state.postDetail?.let { postDetail ->
+                            state.copy(
+                                postDetail = postDetail.copy(
+                                    post = postDetail.post.copy(
+                                        isUserFollowed = currentPost.isUserFollowed
+                                    )
                                 )
                             )
-                        )
-                    } ?: state
+                        } ?: state
+                    }
                 }
             }
         }
@@ -322,17 +330,21 @@ class PostDetailViewModel @Inject constructor(
         val comment = _uiState.value.newComment.trim()
         if (comment.isEmpty()) return
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isAddingComment = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main){
+                _uiState.update { it.copy(isAddingComment = true) }
+            }
             try {
                 val currentUser = FirebaseAuth.getInstance().currentUser
                 if (currentUser == null) {
-                    _uiState.update {
-                        it.copy(
-                            isAddingComment = false,
-                            error = "You must be logged in to comment",
-                            showErrorDialog = true
-                        )
+                    withContext(Dispatchers.Main){
+                        _uiState.update {
+                            it.copy(
+                                isAddingComment = false,
+                                error = "You must be logged in to comment",
+                                showErrorDialog = true
+                            )
+                        }
                     }
                     return@launch
                 }
@@ -352,49 +364,53 @@ class PostDetailViewModel @Inject constructor(
 
                 val result = commentRepository.addComment(newComment)
 
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.update { state ->
-                            val currentPostDetail = state.postDetail
-                            if (currentPostDetail != null) {
-                                val updatedComments = listOf(newComment) + currentPostDetail.comments
-                                val updatedPost = currentPostDetail.post.copy(
-                                    commentCount = currentPostDetail.post.commentCount + 1
-                                )
-                                state.copy(
-                                    isAddingComment = false,
-                                    newComment = "",
-                                    postDetail = currentPostDetail.copy(
-                                        comments = updatedComments,
-                                        post = updatedPost
+                withContext(Dispatchers.Main){
+                    when (result) {
+                        is Resource.Success -> {
+                            _uiState.update { state ->
+                                val currentPostDetail = state.postDetail
+                                if (currentPostDetail != null) {
+                                    val updatedComments = listOf(newComment) + currentPostDetail.comments
+                                    val updatedPost = currentPostDetail.post.copy(
+                                        commentCount = currentPostDetail.post.commentCount + 1
                                     )
-                                )
-                            } else {
-                                state.copy(
+                                    state.copy(
+                                        isAddingComment = false,
+                                        newComment = "",
+                                        postDetail = currentPostDetail.copy(
+                                            comments = updatedComments,
+                                            post = updatedPost
+                                        )
+                                    )
+                                } else {
+                                    state.copy(
+                                        isAddingComment = false,
+                                        newComment = ""
+                                    )
+                                }
+                            }
+                        }
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
                                     isAddingComment = false,
-                                    newComment = ""
+                                    error = result.message ?: "Failed to add comment",
+                                    showErrorDialog = true
                                 )
                             }
                         }
+                        else -> Unit
                     }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isAddingComment = false,
-                                error = result.message ?: "Failed to add comment",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                    else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isAddingComment = false,
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main){
+                    _uiState.update {
+                        it.copy(
+                            isAddingComment = false,
+                            error = e.message ?: "An error occurred",
+                            showErrorDialog = true
+                        )
+                    }
                 }
             }
         }

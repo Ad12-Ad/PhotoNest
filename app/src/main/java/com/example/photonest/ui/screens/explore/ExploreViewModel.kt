@@ -8,10 +8,12 @@ import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -47,7 +49,7 @@ class ExploreViewModel @Inject constructor(
 
     private fun performSearchWithDelay(query: String) {
         searchJob?.cancel()
-        searchJob = viewModelScope.launch {
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
             delay(500)
             performSearchInternal(query)
         }
@@ -61,8 +63,10 @@ class ExploreViewModel @Inject constructor(
     }
 
     private fun performSearchInternal(query: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main){
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             try {
                 // Search users
@@ -92,48 +96,7 @@ class ExploreViewModel @Inject constructor(
                     query = query
                 )
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        searchResults = searchResults,
-                        error = null
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Search failed",
-                        showErrorDialog = true
-                    )
-                }
-            }
-        }
-    }
-
-    fun searchByCategory(categoryName: String) {
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    searchQuery = categoryName,
-                    isSearchActive = true,
-                    isLoading = true,
-                    error = null
-                )
-            }
-
-            val result = postRepository.getPostsByCategory(categoryName)
-
-            when (result) {
-                is Resource.Success -> {
-                    val searchResults = SearchResult(
-                        posts = result.data ?: emptyList(),
-                        users = emptyList(),
-                        categories = emptyList(),
-                        totalResults = result.data?.size ?: 0,
-                        query = categoryName
-                    )
-
+                withContext(Dispatchers.Main){
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -142,17 +105,66 @@ class ExploreViewModel @Inject constructor(
                         )
                     }
                 }
-                is Resource.Error -> {
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main){
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = result.message ?: "Failed to load category posts",
+                            error = e.message ?: "Search failed",
                             showErrorDialog = true
                         )
                     }
                 }
-                is Resource.Loading -> {
-                    _uiState.update { it.copy(isLoading = true) }
+            }
+        }
+    }
+
+    fun searchByCategory(categoryName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main){
+                _uiState.update {
+                    it.copy(
+                        searchQuery = categoryName,
+                        isSearchActive = true,
+                        isLoading = true,
+                        error = null
+                    )
+                }
+            }
+
+            val result = postRepository.getPostsByCategory(categoryName)
+
+            withContext(Dispatchers.Main){
+                when (result) {
+                    is Resource.Success -> {
+                        val searchResults = SearchResult(
+                            posts = result.data ?: emptyList(),
+                            users = emptyList(),
+                            categories = emptyList(),
+                            totalResults = result.data?.size ?: 0,
+                            query = categoryName
+                        )
+
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                searchResults = searchResults,
+                                error = null
+                            )
+                        }
+                    }
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = result.message ?: "Failed to load category posts",
+                                showErrorDialog = true
+                            )
+                        }
+                    }
+                    is Resource.Loading -> {
+                        _uiState.update { it.copy(isLoading = true) }
+                    }
                 }
             }
         }
@@ -171,41 +183,45 @@ class ExploreViewModel @Inject constructor(
     }
 
     fun followUser(userId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
 
             if (currentUserId == userId) {
-                _uiState.update {
-                    it.copy(
-                        error = "Cannot follow yourself",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main){
+                    _uiState.update {
+                        it.copy(
+                            error = "Cannot follow yourself",
+                            showErrorDialog = true
+                        )
+                    }
                 }
                 return@launch
             }
 
-            _uiState.update { state ->
-                state.copy(
-                    suggestedUsers = state.suggestedUsers.map { user ->
-                        if (user.id == userId) {
-                            val isCurrentlyFollowing = user.followers.contains(currentUserId)
-                            user.copy(
-                                followers = if (isCurrentlyFollowing) {
-                                    user.followers - currentUserId
-                                } else {
-                                    user.followers + currentUserId
-                                },
-                                followersCount = if (isCurrentlyFollowing) {
-                                    user.followersCount - 1
-                                } else {
-                                    user.followersCount + 1
-                                }
-                            )
-                        } else {
-                            user
+            withContext(Dispatchers.Main){
+                _uiState.update { state ->
+                    state.copy(
+                        suggestedUsers = state.suggestedUsers.map { user ->
+                            if (user.id == userId) {
+                                val isCurrentlyFollowing = user.followers.contains(currentUserId)
+                                user.copy(
+                                    followers = if (isCurrentlyFollowing) {
+                                        user.followers - currentUserId
+                                    } else {
+                                        user.followers + currentUserId
+                                    },
+                                    followersCount = if (isCurrentlyFollowing) {
+                                        user.followersCount - 1
+                                    } else {
+                                        user.followersCount + 1
+                                    }
+                                )
+                            } else {
+                                user
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
 
             val isFollowingResult = userRepository.isFollowing(userId)
@@ -220,45 +236,47 @@ class ExploreViewModel @Inject constructor(
                 userRepository.followUser(userId)
             }
 
-            when (result) {
-                is Resource.Error -> {
-                    if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
-                        !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
+            withContext(Dispatchers.Main){
+                when (result) {
+                    is Resource.Error -> {
+                        if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
+                            !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
 
-                        // Rollback the optimistic update
-                        _uiState.update { state ->
-                            state.copy(
-                                suggestedUsers = state.suggestedUsers.map { user ->
-                                    if (user.id == userId) {
-                                        // Revert the change
-                                        val wasFollowing = user.followers.contains(currentUserId)
-                                        user.copy(
-                                            followers = if (wasFollowing) {
-                                                user.followers - currentUserId
-                                            } else {
-                                                user.followers + currentUserId
-                                            },
-                                            followersCount = if (wasFollowing) {
-                                                user.followersCount - 1
-                                            } else {
-                                                user.followersCount + 1
-                                            }
-                                        )
-                                    } else {
-                                        user
-                                    }
-                                },
-                                error = result.message ?: "Failed to update follow status",
-                                showErrorDialog = true
-                            )
+                            // Rollback the optimistic update
+                            _uiState.update { state ->
+                                state.copy(
+                                    suggestedUsers = state.suggestedUsers.map { user ->
+                                        if (user.id == userId) {
+                                            // Revert the change
+                                            val wasFollowing = user.followers.contains(currentUserId)
+                                            user.copy(
+                                                followers = if (wasFollowing) {
+                                                    user.followers - currentUserId
+                                                } else {
+                                                    user.followers + currentUserId
+                                                },
+                                                followersCount = if (wasFollowing) {
+                                                    user.followersCount - 1
+                                                } else {
+                                                    user.followersCount + 1
+                                                }
+                                            )
+                                        } else {
+                                            user
+                                        }
+                                    },
+                                    error = result.message ?: "Failed to update follow status",
+                                    showErrorDialog = true
+                                )
+                            }
                         }
                     }
+                    is Resource.Success -> {
+                        // Success! UI is already updated optimistically
+                        // No need to reload anything
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Success -> {
-                    // Success! UI is already updated optimistically
-                    // No need to reload anything
-                }
-                is Resource.Loading -> {}
             }
         }
     }
@@ -277,8 +295,10 @@ class ExploreViewModel @Inject constructor(
     }
 
     private fun loadExploreContent() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main){
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             try {
                 // Load trending posts
@@ -298,22 +318,26 @@ class ExploreViewModel @Inject constructor(
                 // Load trending categories (dummy data for now)
                 val trendingCategories = getDummyCategories()
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        trendingPosts = trendingPosts,
-                        suggestedUsers = suggestedUsers,
-                        trendingCategories = trendingCategories,
-                        error = null
-                    )
+                withContext(Dispatchers.Main){
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            trendingPosts = trendingPosts,
+                            suggestedUsers = suggestedUsers,
+                            trendingCategories = trendingCategories,
+                            error = null
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load content",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main){
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message ?: "Failed to load content",
+                            showErrorDialog = true
+                        )
+                    }
                 }
             }
         }

@@ -10,10 +10,12 @@ import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.ui.screens.addpost.model.AddPostEvent
 import com.example.photonest.ui.screens.addpost.model.AddPostState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,21 +42,23 @@ class AddPostViewModel @Inject constructor(
     }
 
     private fun loadCurrentUser() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             userRepository.getCurrentUser()
                 .collect { result ->
-                    when (result) {
-                        is Resource.Success -> {
-                            _uiState.value = _uiState.value.copy(currentUser = result.data)
-                        }
-                        is Resource.Error -> {
-                            _uiState.value = _uiState.value.copy(
-                                error = result.message,
-                                showErrorDialog = true
-                            )
-                        }
-                        is Resource.Loading -> {
-                            // Handle loading if needed
+                    withContext(Dispatchers.Main) {
+                        when (result) {
+                            is Resource.Success -> {
+                                _uiState.value = _uiState.value.copy(currentUser = result.data)
+                            }
+                            is Resource.Error -> {
+                                _uiState.value = _uiState.value.copy(
+                                    error = result.message,
+                                    showErrorDialog = true
+                                )
+                            }
+                            is Resource.Loading -> {
+                                // Handle loading if needed
+                            }
                         }
                     }
                 }
@@ -150,8 +154,10 @@ class AddPostViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            }
 
             try {
                 val post = Post(
@@ -171,31 +177,35 @@ class AddPostViewModel @Inject constructor(
                     imageUri = imageUriString
                 )
 
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            isPostCreated = true,
-                            error = null
-                        )
-                    }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = result.message ?: "Failed to create post",
-                            showErrorDialog = true
-                        )
-                    }
-                    is Resource.Loading -> {
-                        // Already handled above
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                isPostCreated = true,
+                                error = null
+                            )
+                        }
+                        is Resource.Error -> {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                error = result.message ?: "Failed to create post",
+                                showErrorDialog = true
+                            )
+                        }
+                        is Resource.Loading -> {
+                            // Already handled above
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "An error occurred while creating post",
-                    showErrorDialog = true
-                )
+                withContext(Dispatchers.Main) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = e.message ?: "An error occurred while creating post",
+                        showErrorDialog = true
+                    )
+                }
             }
         }
     }
