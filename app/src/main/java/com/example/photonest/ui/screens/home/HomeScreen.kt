@@ -15,11 +15,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.photonest.data.model.User
 import com.example.photonest.ui.components.MyAlertDialog
+import com.example.photonest.ui.components.UserListBottomSheet
+import com.example.photonest.ui.components.UserListType
 import com.example.photonest.ui.screens.home.components.PostItem
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -28,6 +33,24 @@ fun HomeScreen(
     viewModel: HomeScreenViewModel = hiltViewModel()
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    var likesMap by remember { mutableStateOf<Map<String, List<User>>>(emptyMap()) }
+
+    val likesSheetState = rememberModalBottomSheetState()
+    var showLikesSheet by remember { mutableStateOf(false) }
+    var selectedLikesList by remember { mutableStateOf<List<User>>(emptyList()) }
+    var isLoadingLikes by remember { mutableStateOf(false) }
+
+    var currentPostIdForLikes by remember { mutableStateOf<String?>(null) }
+
+    fun loadLikesForPost(postId: String) {
+        if (likesMap[postId] != null) return
+
+        viewModel.loadUsersWhoLiked(postId) { users ->
+            likesMap = likesMap.toMutableMap().apply {
+                put(postId, users)
+            }
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -81,17 +104,17 @@ fun HomeScreen(
             }
         }
 
-        uiState.posts.isEmpty() && !uiState.isLoading -> {
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = onRefresh,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                EmptyState(
-                    onRefresh = onRefresh
-                )
-            }
-        }
+//        uiState.posts.isEmpty() -> {
+//            PullToRefreshBox(
+//                isRefreshing = isRefreshing,
+//                onRefresh = onRefresh,
+//                modifier = Modifier.fillMaxSize()
+//            ) {
+//                EmptyState(
+//                    onRefresh = onRefresh
+//                )
+//            }
+//        }
 
         else -> {
             PullToRefreshBox(
@@ -105,7 +128,14 @@ fun HomeScreen(
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(uiState.posts) { post ->
+                    items(
+                        items = uiState.posts,
+                        key = { post -> post.id }
+                    ) { post ->
+                        LaunchedEffect(post.id) {
+                            loadLikesForPost(post.id)
+                        }
+
                         PostItem(
                             post = post,
                             onPostClick = { onPostClick(post.id) },
@@ -116,7 +146,17 @@ fun HomeScreen(
                             onShareClick = {
                                 viewModel.sharePost(post, context)
                             },
-                            onFollowClick = { viewModel.toggleFollow(post.userId, post.id) }
+                            onFollowClick = { viewModel.toggleFollow(post.userId, post.id) },
+                            usersWhoLiked = likesMap[post.id] ?: emptyList(),
+                            onLikesInfoClick = {
+                                currentPostIdForLikes = post.id
+                                isLoadingLikes = true
+                                showLikesSheet = true
+                                viewModel.loadUsersWhoLiked(post.id) { users ->
+                                    selectedLikesList = users
+                                    isLoadingLikes = false
+                                }
+                            }
                         )
                     }
 
@@ -134,6 +174,39 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (showLikesSheet) {
+        FirebaseAuth.getInstance().currentUser?.uid?.let {
+            UserListBottomSheet(
+                sheetState = likesSheetState,
+                userList = selectedLikesList,
+                listType = UserListType.LIKES,
+                isLoading = isLoadingLikes,
+                onDismiss = { showLikesSheet = false },
+                onUserClick = { userId ->
+                    showLikesSheet = false
+                    onUserClick(userId)
+                },
+                onFollowClick = { userId, wasFollowing ->
+                    currentPostIdForLikes?.let { postId ->
+                        viewModel.toggleFollowFromBottomSheet(
+                            userId = userId,
+                            isCurrentlyFollowing = wasFollowing,
+                            postId = postId
+                        )
+
+                        viewModel.loadUsersWhoLiked(postId) { refreshedList ->
+                            selectedLikesList = refreshedList
+                            likesMap = likesMap.toMutableMap().apply {
+                                put(postId, refreshedList)
+                            }
+                        }
+                    }
+                },
+                currentUserId = it
+            )
         }
     }
 }

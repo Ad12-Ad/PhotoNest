@@ -266,6 +266,9 @@ private fun NavigationGraph(
                 onNavToLikedPosts = { navController.navigate(AppDestinations.LIKED_POSTS_ROUTE) },
                 onNavToYourPosts = { navController.navigate(AppDestinations.YOUR_POSTS_ROUTE) },
                 onNavToNotifications = { navController.navigate(AppDestinations.NOTIFICATION_ROUTE) },
+                onNavigateToUserProfile = { userId ->
+                    navController.navigate(AppDestinations.getUserProfileRoute(userId))
+                },
                 onNavToTheme = { navController.navigate(AppDestinations.SETTINGS_ROUTE) },
                 onLogOut = {
                     navController.navigate(AppDestinations.SIGN_IN_ROUTE) {
@@ -362,11 +365,8 @@ private fun NavigationGraph(
                 onPostClick = { postId ->
                     navController.navigate("post_detail/$postId")
                 },
-                onFollowersClick = { userId ->
-                    navController.navigate("followers/$userId")
-                },
-                onFollowingClick = { userId ->
-                    navController.navigate("following/$userId")
+                onNavigateToUserProfile = { userId ->
+                    navController.navigate(AppDestinations.getUserProfileRoute(userId))
                 },
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)

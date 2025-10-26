@@ -7,9 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Comment
 import com.example.photonest.data.model.PostDetail
+import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.ICommentRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
+import com.example.photonest.ui.components.UserListType
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -415,6 +417,109 @@ class PostDetailViewModel @Inject constructor(
             }
         }
     }
+
+    fun loadUsersWhoLiked(postId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = postRepository.getUsersWhoLikedPost(postId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+    fun deletePost(postId: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isLoading = true) }
+
+            try {
+                val result = postRepository.deletePost(postId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onComplete(true)
+                        }
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = result.message ?: "Failed to delete post",
+                                    showErrorDialog = true
+                                )
+                            }
+                            onComplete(false)
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message ?: "Failed to delete post",
+                            showErrorDialog = true
+                        )
+                    }
+                    onComplete(false)
+                }
+            }
+        }
+    }
+
+    fun onFollowClickFromSheet(userId: String, isCurrentlyFollowing: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = if (isCurrentlyFollowing) {
+                userRepository.unfollowUser(userId)
+            } else {
+                userRepository.followUser(userId)
+            }
+
+            when (result) {
+                is Resource.Success -> {
+                    // Reload users who liked the post to reflect updated follow states
+                    loadUsersWhoLiked(currentPostId) { /* updated automatically via callback */ }
+                }
+                is Resource.Error -> {
+                    withContext(Dispatchers.Main) {
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to update follow status",
+                                showErrorDialog = true
+                            )
+                        }
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun followUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.followUser(userId)
+        }
+    }
+
+    fun unfollowUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.unfollowUser(userId)
+        }
+    }
+
 
     fun dismissError() {
         _uiState.update {

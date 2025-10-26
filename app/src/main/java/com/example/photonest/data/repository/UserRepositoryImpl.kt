@@ -183,12 +183,22 @@ class UserRepositoryImpl @Inject constructor(
 
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(currentUserId)
-                .update("followingCount", FieldValue.increment(1))
+                .update(
+                    mapOf(
+                        "followingCount" to FieldValue.increment(1),
+                        "following" to FieldValue.arrayUnion(userId)  // ADD THIS
+                    )
+                )
                 .await()
 
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(userId)
-                .update("followersCount", FieldValue.increment(1))
+                .update(
+                    mapOf(
+                        "followersCount" to FieldValue.increment(1),
+                        "followers" to FieldValue.arrayUnion(currentUserId)  // ADD THIS
+                    )
+                )
                 .await()
 
             try {
@@ -251,29 +261,41 @@ class UserRepositoryImpl @Inject constructor(
                 .delete()
                 .await()
 
-            // ✅ UPDATE FOLLOWER/FOLLOWING COUNTS
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(currentUserId)
-                .update("followingCount", FieldValue.increment(-1))
+                .update(
+                    mapOf(
+                        "followingCount" to FieldValue.increment(-1),
+                        "following" to FieldValue.arrayRemove(userId)  // ADD THIS
+                    )
+                )
                 .await()
 
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(userId)
-                .update("followersCount", FieldValue.increment(-1))
+                .update(
+                    mapOf(
+                        "followersCount" to FieldValue.increment(-1),
+                        "followers" to FieldValue.arrayRemove(currentUserId)  // ADD THIS
+                    )
+                )
                 .await()
 
-            // ✅ UPDATE LOCAL DATABASE
-            userDao.insertUser(
-                userDao.getUserById(currentUserId)?.copy(followingCount =
-                    maxOf(0, (userDao.getUserById(currentUserId)?.followingCount ?: 0) - 1))
-                    ?: return Resource.Success(Unit)
-            )
+            userDao.getUserById(currentUserId)?.let { user ->
+                userDao.insertUser(
+                    user.copy(
+                        followingCount = maxOf(0, user.followingCount - 1)
+                    )
+                )
+            }
 
-            userDao.insertUser(
-                userDao.getUserById(userId)?.copy(followersCount =
-                    maxOf(0, (userDao.getUserById(userId)?.followersCount ?: 0) - 1))
-                    ?: return Resource.Success(Unit)
-            )
+            userDao.getUserById(userId)?.let { user ->
+                userDao.insertUser(
+                    user.copy(
+                        followersCount = maxOf(0, user.followersCount - 1)
+                    )
+                )
+            }
 
             Resource.Success(Unit)
         } catch (e: Exception) {

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Post
+import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
@@ -69,6 +70,103 @@ class UserProfileViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    // ADD THESE NEW METHODS to UserProfileViewModel:
+
+    fun loadFollowers(userId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = userRepository.getFollowers(userId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+    fun loadFollowing(userId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = userRepository.getFollowing(userId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+
+    fun onFollowClickFromSheet(userId: String, currentProfileUserId: String, listType: String, isCurrentlyFollowing: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = if (isCurrentlyFollowing) {
+                userRepository.unfollowUser(userId)
+            } else {
+                userRepository.followUser(userId)
+            }
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        when (listType) {
+                            "FOLLOWERS" -> {
+                                loadFollowers(currentProfileUserId) { /* callback updates automatically */ }
+                            }
+                            "FOLLOWING" -> {
+                                loadFollowing(currentProfileUserId) { /* callback updates automatically */ }
+                            }
+                        }
+                        // Also refresh the profile to update counts
+                        loadUserProfile(currentProfileUserId)
+                    }
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to update follow status",
+                                showErrorDialog = true
+                            )
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun followUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.followUser(userId)
+        }
+    }
+
+    fun unfollowUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.unfollowUser(userId)
         }
     }
 

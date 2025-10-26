@@ -42,7 +42,9 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.data.model.Post
+import com.example.photonest.data.model.User
 import com.example.photonest.ui.components.FollowTxtBtn
+import com.example.photonest.ui.components.LikesInfoBar
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.ShimmerEffect
 import com.example.photonest.ui.components.annotatedText
@@ -60,6 +62,8 @@ fun PostItem(
     onCommentClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onUserClick: () -> Unit,
+    onLikesInfoClick: () -> Unit = {},
+    usersWhoLiked: List<User> = emptyList<User>(),
     onFollowClick: () -> Unit = {},
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
 ) {
@@ -186,6 +190,7 @@ fun PostItem(
         }
 
         PostContentCard(
+            post = post,
             userName = post.userName,
             imageUrl = post.imageUrl,
             categories = post.category,
@@ -199,6 +204,8 @@ fun PostItem(
             location = post.location,
             commentCount = post.commentCount,
             shareCount = post.shareCount,
+            onLikesInfoClick = onLikesInfoClick,
+            usersWhoLiked = usersWhoLiked,
             shape = shape,
             modifier = Modifier.layoutId("postCard")
         )
@@ -207,6 +214,7 @@ fun PostItem(
 
 @Composable
 private fun PostContentCard(
+    post: Post,
     location: String,
     userName: String,
     imageUrl: String,
@@ -219,6 +227,8 @@ private fun PostContentCard(
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
+    onLikesInfoClick: () -> Unit = {},
+    usersWhoLiked: List<User>,
     caption: String,
     shape: RoundedCornerShape,
     modifier: Modifier = Modifier
@@ -356,7 +366,15 @@ private fun PostContentCard(
                 label = shareCount,
                 iconColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
 
+        if (post.likeCount > 0) {
+            LikesInfoBar(
+                users = usersWhoLiked,
+                mainUsername = usersWhoLiked.firstOrNull()?.username ?: "Someone",
+                likeCount = post.likeCount,
+                onClick = onLikesInfoClick
+            )
         }
     }
 }

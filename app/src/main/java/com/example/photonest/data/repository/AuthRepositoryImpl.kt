@@ -5,7 +5,6 @@ import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
-import com.example.photonest.data.mapper.toUser
 import com.example.photonest.data.model.AuthResult
 import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IAuthRepository
@@ -13,7 +12,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton

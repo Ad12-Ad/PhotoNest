@@ -22,11 +22,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.photonest.data.model.User
 import com.example.photonest.ui.components.MyAlertDialog
 import com.example.photonest.ui.components.NormalText
+import com.example.photonest.ui.components.UserListBottomSheet
+import com.example.photonest.ui.components.UserListType
 import com.example.photonest.ui.components.states.LoadingState
 import com.example.photonest.ui.screens.profile.components.ProfileHeader
+import com.google.firebase.auth.FirebaseAuth
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
@@ -37,9 +42,20 @@ fun ProfileScreen(
     onNavToYourPosts: () -> Unit = {},
     onNavToNotifications: () -> Unit = {},
     onNavToTheme: () -> Unit = {},
+    onNavigateToUserProfile: (String) -> Unit = {},
     onLogOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val followersSheetState = rememberModalBottomSheetState()
+    val followingSheetState = rememberModalBottomSheetState()
+    var showFollowersSheet by remember { mutableStateOf(false) }
+    var showFollowingSheet by remember { mutableStateOf(false) }
+    var followersList by remember { mutableStateOf<List<User>>(emptyList()) }
+    var followingList by remember { mutableStateOf<List<User>>(emptyList()) }
+    var isLoadingFollowers by remember { mutableStateOf(false) }
+    var isLoadingFollowing by remember { mutableStateOf(false) }
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+
     val uiState by viewModel.uiState.collectAsState()
 
     when{
@@ -66,7 +82,27 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     item {
-                        uiState.userProfile?.let { ProfileHeader(it.user) }
+                        uiState.userProfile?.let {
+                            ProfileHeader(
+                                user = it.user,
+                                onFollowersClick = {
+                                    isLoadingFollowers = true
+                                    showFollowersSheet = true
+                                    viewModel.loadFollowers(uiState.userProfile?.user?.id ?: "") { users ->
+                                        followersList = users
+                                        isLoadingFollowers = false
+                                    }
+                                },
+                                onFollowingClick = {
+                                    isLoadingFollowing = true
+                                    showFollowingSheet = true
+                                    viewModel.loadFollowing(uiState.userProfile?.user?.id ?: "") { users ->
+                                        followingList = users
+                                        isLoadingFollowing = false
+                                    }
+                                }
+                            )
+                        }
                     }
                     item {
                         ProfileSection(
@@ -136,13 +172,68 @@ fun ProfileScreen(
             }
         }
     }
+
+    if (showFollowersSheet) {
+        currentUserId?.let {
+            UserListBottomSheet(
+                sheetState = followersSheetState,
+                userList = followersList,
+                listType = UserListType.FOLLOWERS,
+                isLoading = isLoadingFollowers,
+                onDismiss = { showFollowersSheet = false },
+                onUserClick = { userId ->
+                    showFollowersSheet = false
+                    onNavigateToUserProfile(userId)},
+                onFollowClick = { userId, isFollowing ->
+                    viewModel.onFollowClickFromSheet(
+                        userId = userId,
+                        currentUserId = currentUserId,
+                        listType = UserListType.FOLLOWERS,  // or FOLLOWING based on which sheet
+                        isCurrentlyFollowing = isFollowing
+                    )
+                },
+                currentUserId = it
+            )
+        }
+    }
+    if (showFollowingSheet) {
+        currentUserId?.let {
+            UserListBottomSheet(
+                sheetState = followingSheetState,
+                userList = followingList,
+                listType = UserListType.FOLLOWING,
+                isLoading = isLoadingFollowing,
+                onDismiss = { showFollowingSheet = false },
+                onUserClick = { userId ->
+                    showFollowingSheet = false
+                    onNavigateToUserProfile(userId)
+                },
+                onFollowClick = { userId, isFollowing ->
+                    if (isFollowing) {
+                        viewModel.unfollowUser(userId)
+                    } else {
+                        viewModel.followUser(userId)
+                    }
+                    isLoadingFollowing = true
+                    viewModel.loadFollowing(uiState.userProfile?.user?.id ?: "") { users ->
+                        followingList = users
+                        isLoadingFollowing = false
+                    }
+                },
+                currentUserId = it
+            )
+        }
+    }
 }
 
 
 
 @Composable
-fun StatIconLabel(value: Int, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun StatIconLabel(value: Int, label: String, onClick: () -> Unit = {}) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }
+    ) {
         NormalText(
             text = "$value",
             fontSize = 20.sp

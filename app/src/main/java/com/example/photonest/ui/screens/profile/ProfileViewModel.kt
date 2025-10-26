@@ -3,8 +3,10 @@ package com.example.photonest.ui.screens.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
+import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
 import com.example.photonest.domain.repository.IUserRepository
+import com.example.photonest.ui.components.UserListType
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -87,6 +89,116 @@ class ProfileViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    // ADD THESE NEW METHODS:
+
+    fun loadFollowers(userId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = userRepository.getFollowers(userId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                            _uiState.update {
+                                it.copy(
+                                    error = result.message ?: "Failed to load followers",
+                                    showErrorDialog = true
+                                )
+                            }
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+    fun loadFollowing(userId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = userRepository.getFollowing(userId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                            _uiState.update {
+                                it.copy(
+                                    error = result.message ?: "Failed to load following",
+                                    showErrorDialog = true
+                                )
+                            }
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+    fun onFollowClickFromSheet(userId: String, currentUserId: String, listType: UserListType, isCurrentlyFollowing: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = if (isCurrentlyFollowing) {
+                userRepository.unfollowUser(userId)
+            } else {
+                userRepository.followUser(userId)
+            }
+
+            when (result) {
+                is Resource.Success -> {
+                    // Reload the appropriate list to reflect updated follow states
+                    when (listType) {
+                        UserListType.FOLLOWERS -> {
+                            loadFollowers(currentUserId) { /* callback updates automatically */ }
+                        }
+                        UserListType.FOLLOWING -> {
+                            loadFollowing(currentUserId) { /* callback updates automatically */ }
+                        }
+                        else -> {}
+                    }
+                    // Also refresh the profile to update counts
+                    loadUserProfile(currentUserId)
+                }
+                is Resource.Error -> {
+                    withContext(Dispatchers.Main) {
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to update follow status",
+                                showErrorDialog = true
+                            )
+                        }
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun followUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.followUser(userId)
+        }
+    }
+
+    fun unfollowUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.unfollowUser(userId)
         }
     }
 

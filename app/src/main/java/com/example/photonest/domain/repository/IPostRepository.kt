@@ -3,6 +3,7 @@ package com.example.photonest.domain.repository
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.PostDetail
+import com.example.photonest.data.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface IPostRepository {
@@ -21,4 +22,5 @@ interface IPostRepository {
     suspend fun searchPosts(query: String): Resource<List<Post>>
     suspend fun reportPost(postId: String, reason: String): Resource<Unit>
     suspend fun getPostsByIds(postIds: List<String>): Resource<List<Post>>
+    suspend fun getUsersWhoLikedPost(postId: String): Resource<List<User>>
 }

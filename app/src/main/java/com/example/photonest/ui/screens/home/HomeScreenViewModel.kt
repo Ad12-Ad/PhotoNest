@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Post
+import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -40,14 +41,28 @@ class HomeScreenViewModel @Inject constructor(
 
     fun loadPosts() {
         viewModelScope.launch(Dispatchers.IO) {
+            val currentFollowStates = _uiState.value.posts
+                .associate { it.userId to it.isUserFollowed }
+
             postRepository.getPosts().collect { result ->
                 withContext(Dispatchers.Main){
                     when (result) {
                         is Resource.Success -> {
+                            val posts = result.data?.map { post ->
+                                val savedFollowState = currentFollowStates[post.userId]
+                                if (savedFollowState != null) {
+                                    // Use the preserved optimistic state
+                                    post.copy(isUserFollowed = savedFollowState)
+                                } else {
+                                    // Use fresh state from Firestore
+                                    post
+                                }
+                            } ?: emptyList()
+
                             _uiState.update { currentState ->
                                 currentState.copy(
                                     isLoading = false,
-                                    posts = result.data ?: emptyList(),
+                                    posts = posts,
                                     error = null,
                                     isRefreshing = false
                                 )
@@ -108,6 +123,15 @@ class HomeScreenViewModel @Inject constructor(
 
             withContext(Dispatchers.Main){
                 when (result) {
+                    is Resource.Success -> {
+                        if (isCurrentlyFollowing) {
+                            _uiState.update { currentState ->
+                                currentState.copy(
+                                    posts = currentState.posts.filter { it.userId != userId }
+                                )
+                            }
+                        }
+                    }
                     is Resource.Error -> {
                         _uiState.update { currentState ->
                             currentState.copy(
@@ -242,6 +266,72 @@ class HomeScreenViewModel @Inject constructor(
 
         context.startActivity(Intent.createChooser(shareIntent, "Share Post"))
     }
+
+    fun loadUsersWhoLiked(postId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = postRepository.getUsersWhoLikedPost(postId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+    fun followUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.followUser(userId)
+        }
+    }
+
+    fun unfollowUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.unfollowUser(userId)
+        }
+    }
+
+    fun toggleFollowFromBottomSheet(userId: String, isCurrentlyFollowing: Boolean, postId: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
+            if (currentUserId == userId) return@launch
+
+            val result = if (isCurrentlyFollowing) {
+                userRepository.unfollowUser(userId)
+            } else {
+                userRepository.followUser(userId)
+            }
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        postId?.let { id ->
+                            loadUsersWhoLiked(id) { /* callback updates automatically */ }
+                        }
+                    }
+                    is Resource.Error -> {
+                        if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
+                            !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
+                            showError(result.message ?: "Failed to update follow status")
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
 
     fun dismissErrorDialog() {
         _uiState.update {

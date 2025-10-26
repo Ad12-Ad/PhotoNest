@@ -292,32 +292,6 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-
-    override suspend fun deletePost(postId: String): Resource<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
-
-            // Delete from Firestore
-            firestore.collection(Constants.POSTS_COLLECTION)
-                .document(postId)
-                .delete()
-                .await()
-
-            // Delete from local database
-            postDao.deletePostById(postId)
-
-            // Update user's post count
-            firestore.collection(Constants.USERS_COLLECTION)
-                .document(currentUserId)
-                .update("postsCount", FieldValue.increment(-1))
-                .await()
-
-            Resource.Success(Unit)
-        } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to delete post")
-        }
-    }
-
     override suspend fun likePost(postId: String): Resource<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
@@ -617,6 +591,102 @@ class PostRepositoryImpl @Inject constructor(
             Resource.Success(posts)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to get posts by IDs")
+        }
+    }
+
+    override suspend fun getUsersWhoLikedPost(postId: String): Resource<List<User>> {
+        return try {
+            // Get post first to get likedBy list
+            val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
+                .document(postId)
+                .get()
+                .await()
+
+            val post = postDoc.toObject(Post::class.java)
+                ?: return Resource.Error("Post not found")
+
+            if (post.likedBy.isEmpty()) {
+                return Resource.Success(emptyList())
+            }
+
+            // Fetch user details for each userId in likedBy
+            val users = mutableListOf<User>()
+            post.likedBy.chunked(10).forEach { chunk ->
+                val usersSnapshot = firestore.collection(Constants.USERS_COLLECTION)
+                    .whereIn("id", chunk)
+                    .get()
+                    .await()
+
+                usersSnapshot.documents.forEach { doc ->
+                    doc.toObject(User::class.java)?.let { users.add(it) }
+                }
+            }
+
+            Resource.Success(users)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get users who liked post")
+        }
+    }
+
+    // Also update deletePost if it doesn't match this:
+    override suspend fun deletePost(postId: String): Resource<Unit> {
+        return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
+
+            // Get post to verify ownership and get image URL
+            val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
+                .document(postId)
+                .get()
+                .await()
+
+            val post = postDoc.toObject(Post::class.java)
+                ?: return Resource.Error("Post not found")
+
+            // Verify user owns the post
+            if (post.userId != currentUserId) {
+                return Resource.Error("You don't have permission to delete this post")
+            }
+
+            // Delete image from Firebase Storage
+            if (post.imageUrl.isNotEmpty()) {
+                try {
+                    val imageRef = firebaseStorage.getReferenceFromUrl(post.imageUrl)
+                    imageRef.delete().await()
+                } catch (e: Exception) {
+                    Log.e("PostRepository", "Failed to delete image: ${e.message}")
+                }
+            }
+
+            // Delete all comments associated with this post
+            val commentsSnapshot = firestore.collection(Constants.COMMENTS_COLLECTION)
+                .whereEqualTo("postId", postId)
+                .get()
+                .await()
+
+            val batch = firestore.batch()
+            commentsSnapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+
+            // Delete post document
+            batch.delete(firestore.collection(Constants.POSTS_COLLECTION).document(postId))
+
+            // Update user's posts count
+            batch.update(
+                firestore.collection(Constants.USERS_COLLECTION).document(currentUserId),
+                "postsCount",
+                FieldValue.increment(-1)
+            )
+
+            batch.commit().await()
+
+            // Delete from local database
+            postDao.deletePostById(postId)
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to delete post")
         }
     }
 
