@@ -58,13 +58,15 @@ class PostRepositoryImpl @Inject constructor(
             followedUserIds.add(currentUserId)
 
             if (followedUserIds.isEmpty()) {
+                postDao.clearAllPosts()
                 emit(Resource.Success(emptyList()))
                 return@flow
             }
 
+            postDao.clearAllPosts()
+
             val allPosts = mutableListOf<Post>()
             val batches = followedUserIds.chunked(10)
-
 
             for (batch in batches) {
                 val postsQuery = firestore.collection(Constants.POSTS_COLLECTION)
@@ -83,7 +85,6 @@ class PostRepositoryImpl @Inject constructor(
             val sortedPosts = allPosts.sortedByDescending { it.timestamp }
 
             val enrichedPosts = if (sortedPosts.isNotEmpty()) {
-                // Get bookmarks
                 val bookmarksQuery = firestore.collection("bookmarks")
                     .whereEqualTo("userId", currentUserId)
                     .get()
@@ -107,7 +108,6 @@ class PostRepositoryImpl @Inject constructor(
                 sortedPosts
             }
 
-            // Save to local database
             enrichedPosts.forEach { post ->
                 postDao.insertPost(post.toEntity())
             }
@@ -116,8 +116,7 @@ class PostRepositoryImpl @Inject constructor(
 
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to get posts: ${e.message}")
-            val localPosts = postDao.getAllPosts().map { it.toPost() }
-            emit(Resource.Success(localPosts))
+            emit(Resource.Error(e.message ?: "Failed to load posts"))
         }
     }
 

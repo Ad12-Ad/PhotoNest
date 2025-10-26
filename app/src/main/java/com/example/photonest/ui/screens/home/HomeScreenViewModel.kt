@@ -97,7 +97,6 @@ class HomeScreenViewModel @Inject constructor(
     fun toggleFollow(userId: String, postId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
-
             if (currentUserId == userId) return@launch
 
             val post = _uiState.value.posts.find { it.id == postId } ?: return@launch
