@@ -24,9 +24,13 @@ class NotificationViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NotificationUiState())
     val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
 
+    init {
+        loadNotifications()
+    }
+
     fun loadNotifications() {
         viewModelScope.launch(Dispatchers.IO) {
-            Log.d("NotificationVM", "====== VM: Loading notifications ======")
+            Log.d("NotificationVM", "Loading notifications...")
 
             withContext(Dispatchers.Main) {
                 _uiState.update { it.copy(isLoading = true) }
@@ -36,6 +40,7 @@ class NotificationViewModel @Inject constructor(
                 withContext(Dispatchers.Main) {
                     when (result) {
                         is Resource.Success -> {
+                            Log.d("NotificationVM", "Loaded ${result.data?.size ?: 0} notifications")
                             _uiState.update {
                                 it.copy(
                                     notifications = result.data ?: emptyList(),
@@ -45,6 +50,7 @@ class NotificationViewModel @Inject constructor(
                             }
                         }
                         is Resource.Error -> {
+                            Log.e("NotificationVM", "Error loading notifications: ${result.message}")
                             _uiState.update {
                                 it.copy(
                                     error = result.message,
@@ -61,22 +67,47 @@ class NotificationViewModel @Inject constructor(
         }
     }
 
-
     fun markAsRead(notificationId: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            Log.d("NotificationVM", "Marking notification $notificationId as read")
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        notifications = currentState.notifications.map { notification ->
+                            if (notification.id == notificationId) {
+                                notification.copy(isRead = true)
+                            } else {
+                                notification
+                            }
+                        }
+                    )
+                }
+            }
+
             val result = notificationRepository.markNotificationAsRead(notificationId)
 
             withContext(Dispatchers.Main) {
                 when (result) {
                     is Resource.Success -> {
-                        loadNotifications()
+                        Log.d("NotificationVM", "Successfully marked as read")
                     }
                     is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(error = result.message)
+                        Log.e("NotificationVM", "Failed to mark as read: ${result.message}")
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                notifications = currentState.notifications.map { notification ->
+                                    if (notification.id == notificationId) {
+                                        notification.copy(isRead = false)
+                                    } else {
+                                        notification
+                                    }
+                                },
+                                error = result.message
+                            )
                         }
                     }
-                    is Resource.Loading -> { }
+                    is Resource.Loading -> {}
                 }
             }
         }
@@ -84,19 +115,67 @@ class NotificationViewModel @Inject constructor(
 
     fun markAllAsRead() {
         viewModelScope.launch(Dispatchers.IO) {
+            Log.d("NotificationVM", "Marking all notifications as read")
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        notifications = currentState.notifications.map { it.copy(isRead = true) }
+                    )
+                }
+            }
+
             val result = notificationRepository.markAllNotificationsAsRead()
 
             withContext(Dispatchers.Main) {
                 when (result) {
                     is Resource.Success -> {
-                        loadNotifications()
+                        Log.d("NotificationVM", "Successfully marked all as read")
                     }
                     is Resource.Error -> {
+                        Log.e("NotificationVM", "Failed to mark all as read: ${result.message}")
                         _uiState.update {
                             it.copy(error = result.message)
                         }
+                        loadNotifications()
                     }
-                    is Resource.Loading -> { }
+                    is Resource.Loading -> {}
+                }
+            }
+        }
+    }
+
+    fun deleteNotification(notificationId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val deletedNotification = _uiState.value.notifications.find { it.id == notificationId }
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        notifications = currentState.notifications.filter { it.id != notificationId }
+                    )
+                }
+            }
+
+            val result = notificationRepository.deleteNotification(notificationId)
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        Log.d("NotificationVM", "Notification deleted")
+                    }
+                    is Resource.Error -> {
+                        if (deletedNotification != null) {
+                            _uiState.update { currentState ->
+                                currentState.copy(
+                                    notifications = (currentState.notifications + deletedNotification)
+                                        .sortedByDescending { it.timestamp },
+                                    error = result.message
+                                )
+                            }
+                        }
+                    }
+                    is Resource.Loading -> {}
                 }
             }
         }
@@ -106,24 +185,8 @@ class NotificationViewModel @Inject constructor(
         _uiState.update { it.copy(error = null, showErrorDialog = false) }
     }
 
-    fun deleteNotification(notificationId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = notificationRepository.deleteNotification(notificationId)
-
-            withContext(Dispatchers.Main) {
-                when (result) {
-                    is Resource.Success -> {
-                        loadNotifications()
-                    }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(error = result.message)
-                        }
-                    }
-                    is Resource.Loading -> { }
-                }
-            }
-        }
+    fun getUnreadCount(): Int {
+        return _uiState.value.notifications.count { !it.isRead }
     }
 }
 

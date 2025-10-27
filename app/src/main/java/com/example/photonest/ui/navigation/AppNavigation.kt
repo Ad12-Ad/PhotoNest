@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +32,7 @@ import com.example.photonest.ui.screens.MainScaffold
 import com.example.photonest.ui.screens.addpost.AddPostScreen
 import com.example.photonest.ui.screens.bookmarks.BookmarksScreen
 import com.example.photonest.ui.screens.explore.ExploreScreen
+import com.example.photonest.ui.screens.notification.NotificationBadgeViewModel
 import com.example.photonest.ui.screens.profile.ProfileScreen
 import com.example.photonest.ui.screens.signin.SignInScreen
 import com.example.photonest.ui.screens.signup.SignUpScreen
@@ -77,6 +80,14 @@ fun AppNavigation(
         currentRoute !in nonScaffoldRoutes
     }
 
+    val badgeVm: NotificationBadgeViewModel = hiltViewModel()
+    val unreadCount by badgeVm.unreadCount.collectAsState(initial = 0)
+
+    // Optional: prime local cache once on app start
+    LaunchedEffect(Unit) {
+        badgeVm.refreshOnce()
+    }
+
     PhotoNestTheme(darkTheme = isDarkTheme) {
         if (shouldShowScaffold) {
             MainScaffold(
@@ -88,7 +99,8 @@ fun AppNavigation(
                 },
                 onNotificationClick = {
                     navController.navigate(AppDestinations.NOTIFICATIONS_ROUTE)
-                }
+                },
+                hasUnreadNotifications = unreadCount > 0
             ) { paddingValues ->
                 NavigationGraph(
                     navController = navController,

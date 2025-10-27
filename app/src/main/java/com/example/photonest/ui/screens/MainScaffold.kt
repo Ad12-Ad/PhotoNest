@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -170,8 +171,8 @@ private fun NotificationIconButton(
             Badge(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(8.dp)
-                    .padding(2.dp),
+                    .padding(5.dp)
+                    .size(8.dp),
                 containerColor = MaterialTheme.colorScheme.error
             )
         }

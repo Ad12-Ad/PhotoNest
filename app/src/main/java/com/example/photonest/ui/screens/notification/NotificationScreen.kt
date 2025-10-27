@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -22,7 +23,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.data.model.Notification
@@ -43,10 +43,7 @@ fun NotificationScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.loadNotifications()
-    }
-
+    // Show error dialog
     if (uiState.showErrorDialog && uiState.error != null) {
         MyAlertDialog(
             shouldShowDialog = true,
@@ -74,6 +71,18 @@ fun NotificationScreen(
                     }
                 },
                 actions = {
+                    // Show unread count
+                    val unreadCount = viewModel.getUnreadCount()
+                    if (unreadCount > 0) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(unreadCount.toString())
+                        }
+                    }
+
                     IconButton(onClick = { viewModel.markAllAsRead() }) {
                         Icon(Icons.Default.DoneAll, contentDescription = "Mark all as read")
                     }
@@ -82,7 +91,7 @@ fun NotificationScreen(
         }
     ) { paddingValues ->
         when {
-            uiState.isLoading -> {
+            uiState.isLoading && uiState.notifications.isEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -121,7 +130,9 @@ fun NotificationScreen(
                                             onNavigateToPost(postId)
                                         }
                                     }
-                                    NotificationType.FOLLOW -> onNavigateToProfile(notification.fromUserId)
+                                    NotificationType.FOLLOW -> {
+                                        onNavigateToProfile(notification.fromUserId)
+                                    }
                                     else -> {}
                                 }
                             },
@@ -149,19 +160,24 @@ private fun EmptyNotificationsState(
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.outline
         )
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Text(
             text = "No notifications yet",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
         Spacer(modifier = Modifier.height(8.dp))
+
         Text(
             text = "You'll see notifications here when people interact with your posts",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.outline,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(16.dp))
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
     }
 }
 
@@ -173,7 +189,7 @@ private fun NotificationItem(
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = if (!notification.isRead) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
     } else {
         MaterialTheme.colorScheme.surface
     }
@@ -272,7 +288,7 @@ private fun NotificationItem(
         if (!notification.isRead) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(10.dp)
                     .background(
                         MaterialTheme.colorScheme.primary,
                         CircleShape
