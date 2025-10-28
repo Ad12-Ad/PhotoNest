@@ -17,6 +17,7 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source.*
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -40,22 +41,18 @@ class PostRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val currentUserId = firebaseAuth.currentUser?.uid
+                ?: run { emit(Resource.Error("Not authenticated")); return@flow }
 
-            if (currentUserId == null) {
-                emit(Resource.Error("Not authenticated"))
-                return@flow
-            }
-
-            val followsQuery = firestore.collection("follows")
+            // FORCE server read for follows - no cache
+            val followsSnapshot = firestore.collection("follows")
                 .whereEqualTo("followerId", currentUserId)
-                .get()
+                .get(SERVER)
                 .await()
 
-            val followedUserIds = followsQuery.documents
+            val followedUserIds = followsSnapshot.documents
                 .mapNotNull { it.getString("followingId") }
                 .toMutableList()
-
-            followedUserIds.add(currentUserId)
+                .apply { add(currentUserId) } // include your own posts
 
             if (followedUserIds.isEmpty()) {
                 postDao.clearAllPosts()
@@ -63,62 +60,147 @@ class PostRepositoryImpl @Inject constructor(
                 return@flow
             }
 
+            // Clear Room cache BEFORE fetching new data
             postDao.clearAllPosts()
 
+            // Fetch posts ONLY for followed users (server only)
             val allPosts = mutableListOf<Post>()
             val batches = followedUserIds.chunked(10)
-
             for (batch in batches) {
-                val postsQuery = firestore.collection(Constants.POSTS_COLLECTION)
+                val postsSnapshot = firestore.collection(Constants.POSTS_COLLECTION)
                     .whereIn("userId", batch)
                     .limit(50)
-                    .get()
+                    .get(SERVER)
                     .await()
 
-                val batchPosts = postsQuery.documents.mapNotNull { doc ->
+                val batchPosts = postsSnapshot.documents.mapNotNull { doc ->
                     doc.toObject(Post::class.java)?.copy(id = doc.id)
                 }
-
                 allPosts.addAll(batchPosts)
             }
 
             val sortedPosts = allPosts.sortedByDescending { it.timestamp }
 
-            val enrichedPosts = if (sortedPosts.isNotEmpty()) {
-                val bookmarksQuery = firestore.collection("bookmarks")
-                    .whereEqualTo("userId", currentUserId)
-                    .get()
-                    .await()
+            // Get bookmarks (server only)
+            val bookmarksSnapshot = firestore.collection("bookmarks")
+                .whereEqualTo("userId", currentUserId)
+                .get(SERVER)
+                .await()
 
-                val bookmarkedPostIds = bookmarksQuery.documents
-                    .mapNotNull { it.getString("postId") }
-                    .toSet()
+            val bookmarkedPostIds = bookmarksSnapshot.documents
+                .mapNotNull { it.getString("postId") }
+                .toSet()
 
-                val followedUserIdsSet = followedUserIds.toSet()
+            val followedUserIdsSet = followedUserIds.toSet()
 
-                // Enrich posts
-                sortedPosts.map { post ->
-                    post.copy(
-                        isLiked = post.likedBy.contains(currentUserId),
-                        isBookmarked = bookmarkedPostIds.contains(post.id),
-                        isUserFollowed = followedUserIdsSet.contains(post.userId)
-                    )
-                }
-            } else {
-                sortedPosts
+            // Enrich posts
+            val enrichedPosts = sortedPosts.map { post ->
+                post.copy(
+                    isLiked = post.likedBy.contains(currentUserId),
+                    isBookmarked = bookmarkedPostIds.contains(post.id),
+                    isUserFollowed = followedUserIdsSet.contains(post.userId)
+                )
             }
 
-            enrichedPosts.forEach { post ->
-                postDao.insertPost(post.toEntity())
+            // DEFENSIVE FILTER - only keep posts from current user or followed users
+            val finalPosts = enrichedPosts.filter {
+                it.userId == currentUserId || followedUserIdsSet.contains(it.userId)
             }
 
-            emit(Resource.Success(enrichedPosts))
+            // Save only filtered posts to Room
+            finalPosts.forEach { postDao.insertPost(it.toEntity()) }
 
+            emit(Resource.Success(finalPosts))
         } catch (e: Exception) {
-            Log.e("PostRepository", "Failed to get posts: ${e.message}")
+            Log.e("PostRepository", "Failed to get posts: ${e.message}", e)
+            // DO NOT fall back to Room - prevents stale posts from reappearing
             emit(Resource.Error(e.message ?: "Failed to load posts"))
         }
     }
+
+//    override fun getPosts(): Flow<Resource<List<Post>>> = flow {
+//        emit(Resource.Loading())
+//        try {
+//            val currentUserId = firebaseAuth.currentUser?.uid
+//
+//            if (currentUserId == null) {
+//                emit(Resource.Error("Not authenticated"))
+//                return@flow
+//            }
+//
+//            val followsQuery = firestore.collection("follows")
+//                .whereEqualTo("followerId", currentUserId)
+//                .get()
+//                .await()
+//
+//            val followedUserIds = followsQuery.documents
+//                .mapNotNull { it.getString("followingId") }
+//                .toMutableList()
+//
+//            followedUserIds.add(currentUserId)
+//
+//            if (followedUserIds.isEmpty()) {
+//                postDao.clearAllPosts()
+//                emit(Resource.Success(emptyList()))
+//                return@flow
+//            }
+//
+//            postDao.clearAllPosts()
+//
+//            val allPosts = mutableListOf<Post>()
+//            val batches = followedUserIds.chunked(10)
+//
+//            for (batch in batches) {
+//                val postsQuery = firestore.collection(Constants.POSTS_COLLECTION)
+//                    .whereIn("userId", batch)
+//                    .limit(50)
+//                    .get()
+//                    .await()
+//
+//                val batchPosts = postsQuery.documents.mapNotNull { doc ->
+//                    doc.toObject(Post::class.java)?.copy(id = doc.id)
+//                }
+//
+//                allPosts.addAll(batchPosts)
+//            }
+//
+//            val sortedPosts = allPosts.sortedByDescending { it.timestamp }
+//
+//            val enrichedPosts = if (sortedPosts.isNotEmpty()) {
+//                val bookmarksQuery = firestore.collection("bookmarks")
+//                    .whereEqualTo("userId", currentUserId)
+//                    .get()
+//                    .await()
+//
+//                val bookmarkedPostIds = bookmarksQuery.documents
+//                    .mapNotNull { it.getString("postId") }
+//                    .toSet()
+//
+//                val followedUserIdsSet = followedUserIds.toSet()
+//
+//                // Enrich posts
+//                sortedPosts.map { post ->
+//                    post.copy(
+//                        isLiked = post.likedBy.contains(currentUserId),
+//                        isBookmarked = bookmarkedPostIds.contains(post.id),
+//                        isUserFollowed = followedUserIdsSet.contains(post.userId)
+//                    )
+//                }
+//            } else {
+//                sortedPosts
+//            }
+//
+//            enrichedPosts.forEach { post ->
+//                postDao.insertPost(post.toEntity())
+//            }
+//
+//            emit(Resource.Success(enrichedPosts))
+//
+//        } catch (e: Exception) {
+//            Log.e("PostRepository", "Failed to get posts: ${e.message}")
+//            emit(Resource.Error(e.message ?: "Failed to load posts"))
+//        }
+//    }
 
     private suspend fun checkIfBookmarked(userId: String, postId: String): Boolean {
         return try {

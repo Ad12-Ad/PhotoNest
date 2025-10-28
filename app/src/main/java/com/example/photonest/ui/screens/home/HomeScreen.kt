@@ -70,18 +70,9 @@ fun HomeScreen(
     val context = LocalContext.current
     val listState = rememberLazyListState()
 
-    // Pull-to-refresh state
-    var isRefreshing by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
-    // Handle refresh
     val onRefresh: () -> Unit = {
-        isRefreshing = true
-        coroutineScope.launch {
-            viewModel.refreshPosts()
-            delay(1000)
-            isRefreshing = false
-        }
+        viewModel.refreshPosts()
     }
 
     // Error dialog
@@ -118,7 +109,7 @@ fun HomeScreen(
 
         else -> {
             PullToRefreshBox(
-                isRefreshing = isRefreshing,
+                isRefreshing = uiState.isRefreshing,
                 onRefresh = onRefresh,
                 modifier = Modifier.fillMaxSize()
             ) {

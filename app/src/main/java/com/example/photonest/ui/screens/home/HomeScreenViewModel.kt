@@ -41,36 +41,22 @@ class HomeScreenViewModel @Inject constructor(
 
     fun loadPosts() {
         viewModelScope.launch(Dispatchers.IO) {
-            val currentFollowStates = _uiState.value.posts
-                .associate { it.userId to it.isUserFollowed }
-
             postRepository.getPosts().collect { result ->
-                withContext(Dispatchers.Main){
+                withContext(Dispatchers.Main) {
                     when (result) {
                         is Resource.Success -> {
-                            val posts = result.data?.map { post ->
-                                val savedFollowState = currentFollowStates[post.userId]
-                                if (savedFollowState != null) {
-                                    // Use the preserved optimistic state
-                                    post.copy(isUserFollowed = savedFollowState)
-                                } else {
-                                    // Use fresh state from Firestore
-                                    post
-                                }
-                            } ?: emptyList()
-
-                            _uiState.update { currentState ->
-                                currentState.copy(
+                            _uiState.update {
+                                it.copy(
                                     isLoading = false,
-                                    posts = posts,
+                                    posts = result.data ?: emptyList(),
                                     error = null,
                                     isRefreshing = false
                                 )
                             }
                         }
                         is Resource.Error -> {
-                            _uiState.update { currentState ->
-                                currentState.copy(
+                            _uiState.update {
+                                it.copy(
                                     isLoading = false,
                                     error = result.message ?: "Failed to load posts",
                                     showErrorDialog = true,
@@ -79,15 +65,48 @@ class HomeScreenViewModel @Inject constructor(
                             }
                         }
                         is Resource.Loading -> {
-                            _uiState.update { currentState ->
-                                currentState.copy(isLoading = true)
-                            }
+                            _uiState.update { it.copy(isLoading = true) }
                         }
                     }
                 }
             }
         }
     }
+//    fun loadPosts() {
+//        viewModelScope.launch(Dispatchers.IO) {
+//            postRepository.getPosts().collect { result ->
+//                withContext(Dispatchers.Main) {
+//                    when (result) {
+//                        is Resource.Success -> {
+//                            _uiState.update {
+//                                it.copy(
+//                                    isLoading = false,
+//                                    posts = result.data ?: emptyList(),
+//                                    error = null,
+//                                    isRefreshing = false
+//                                )
+//                            }
+//                        }
+//                        is Resource.Error -> {
+//                            _uiState.update {
+//                                it.copy(
+//                                    isLoading = false,
+//                                    error = result.message ?: "Failed to load posts",
+//                                    showErrorDialog = true,
+//                                    isRefreshing = false
+//                                )
+//                            }
+//                        }
+//                        is Resource.Loading -> {
+//                            _uiState.update { currentState ->
+//                                currentState.copy(isLoading = true)
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     fun refreshPosts() {
         _uiState.update { it.copy(isRefreshing = true) }

@@ -253,6 +253,8 @@ class UserRepositoryImpl @Inject constructor(
 
             batch.commit().await()
 
+            postDao.deletePostsByUser(userId)
+
             Log.d("UserRepository", "Unfollow successful: $followId")
 
             // Update local database
