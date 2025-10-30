@@ -27,7 +27,6 @@ import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -40,11 +39,8 @@ import com.example.photonest.data.model.Post
 import com.example.photonest.ui.components.FollowTxtBtn
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.annotatedText
-import com.example.photonest.ui.components.formatPostTimestamp
+import com.example.photonest.ui.components.formatTimestamp
 import com.example.photonest.ui.theme.bodyFontFamily
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun PostItem(
@@ -133,7 +129,7 @@ fun PostItem(
         )
 
         NormalText(
-            text = formatPostTimestamp(post.timestamp),
+            text = formatTimestamp(post.timestamp),
             fontSize = 12.sp,
             fontColor = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.layoutId("timeStamp")

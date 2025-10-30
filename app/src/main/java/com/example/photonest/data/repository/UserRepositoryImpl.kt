@@ -353,4 +353,15 @@ class UserRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Failed to unblock user")
         }
     }
+
+    override suspend fun getLikedPostIdsByUserId(userId: String): List<String> {
+        val query = firestore.collection(Constants.LIKES_COLLECTION)
+            .whereEqualTo("userId", userId)
+            .get()
+            .await()
+
+        return query.documents.mapNotNull { it.getString("postId") }
+    }
+
+
 }

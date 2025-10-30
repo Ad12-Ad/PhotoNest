@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.GridView
@@ -21,7 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.photonest.data.model.Post
 import com.example.photonest.ui.components.MyAlertDialog
-import com.example.photonest.ui.screens.bookmarks.components.PostGridItem
+import com.example.photonest.ui.components.IconType
+import com.example.photonest.ui.components.PostGridItem
 import com.example.photonest.ui.screens.bookmarks.model.BookmarksEvent
 import com.example.photonest.ui.screens.home.components.PostItem
 
@@ -165,8 +165,9 @@ private fun BookmarkedPostsContent(
             items(posts) { post ->
                 PostGridItem(
                     post = post,
-                    onClick = { onPostClick(post.id) },
-                    onBookmarkClick = { onBookmarkToggle(post.id) },
+                    onPostClick = { onPostClick(post.id) },
+                    iconType = IconType.BOOKMARK,
+                    onIconClick = { onBookmarkToggle(post.id) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
