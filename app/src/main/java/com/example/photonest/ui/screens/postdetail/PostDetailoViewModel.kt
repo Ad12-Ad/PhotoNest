@@ -112,6 +112,39 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
+    fun deleteComment(commentId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = commentRepository.deleteComment(commentId)
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        // Remove comment from UI state
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                postDetail = currentState.postDetail?.copy(
+                                    comments = currentState.postDetail.comments.filter {
+                                        it.id != commentId
+                                    }
+                                )
+                            )
+                        }
+                    }
+                    is Resource.Error -> {
+                        // Show error message
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to delete comment",
+                                showErrorDialog = true
+                            )
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
     fun toggleLike() {
         val currentPost = _uiState.value.postDetail?.post ?: return
         viewModelScope.launch(Dispatchers.IO) {

@@ -1,5 +1,6 @@
 package com.example.photonest.data.repository
 
+import android.util.Log
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.local.dao.CommentDao
@@ -107,17 +108,45 @@ class CommentRepositoryImpl @Inject constructor(
 
     override suspend fun deleteComment(commentId: String): Resource<Unit> {
         return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
+
+            // Get comment to verify ownership
+            val commentDoc = firestore.collection(Constants.COMMENTS_COLLECTION)
+                .document(commentId)
+                .get()
+                .await()
+
+            val comment = commentDoc.toObject(Comment::class.java)
+                ?: return Resource.Error("Comment not found")
+
+            // Verify user owns the comment
+            if (comment.userId != currentUserId) {
+                return Resource.Error("You don't have permission to delete this comment")
+            }
+
+            // Delete comment
             firestore.collection(Constants.COMMENTS_COLLECTION)
                 .document(commentId)
                 .delete()
                 .await()
 
+            // Update post's comment count
+            firestore.collection(Constants.POSTS_COLLECTION)
+                .document(comment.postId)
+                .update("commentCount", FieldValue.increment(-1))
+                .await()
+
+            // Delete from local database
             commentDao.deleteCommentById(commentId)
+
             Resource.Success(Unit)
         } catch (e: Exception) {
+            Log.e("CommentRepository", "Failed to delete comment: ${e.message}", e)
             Resource.Error(e.message ?: "Failed to delete comment")
         }
     }
+
 
     override suspend fun likeComment(commentId: String): Resource<Unit> {
         return try {

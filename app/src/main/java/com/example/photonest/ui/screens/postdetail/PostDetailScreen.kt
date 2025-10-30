@@ -12,8 +12,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.BrokenImage
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -96,7 +94,6 @@ fun PostDetailScreen(
             )
         },
         bottomBar = {
-            // Sticky comment input at bottom
             if (uiState.postDetail != null) {
                 CommentInputBar(
                     userImage = uiState.currentUserImage,
@@ -171,7 +168,11 @@ fun PostDetailScreen(
                                 comment = comment,
                                 onUserClick = { onNavigateToProfile(comment.userId) },
                                 onLikeClick = { /* TODO: Implement comment like */ },
-                                onReplyClick = { /* TODO: Implement reply */ }
+                                onReplyClick = { /* TODO: Implement reply */ },
+                                currentUserId = currentUserId,
+                                onDeleteClick = if (comment.userId == currentUserId) {
+                                    { viewModel.deleteComment(comment.id) }
+                                } else null
                             )
                             Divider(
                                 modifier = Modifier.padding(start = 72.dp),
@@ -299,10 +300,13 @@ private fun EmptyCommentsState() {
 private fun EnhancedCommentItem(
     comment: Comment,
     onUserClick: () -> Unit,
+    currentUserId: String?,
     onLikeClick: () -> Unit,
+    onDeleteClick: (() -> Unit)? = null,
     onReplyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -374,6 +378,24 @@ private fun EnhancedCommentItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (currentUserId == comment.userId) {
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    if (onDeleteClick != null) {
+                        IconButton(
+                            onClick = onDeleteClick,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete comment",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
