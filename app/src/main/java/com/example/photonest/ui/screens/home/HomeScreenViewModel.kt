@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
+import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IPostRepository
@@ -27,6 +28,7 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
+    private val postDao: PostDao,
     private val postRepository: IPostRepository,
     private val userRepository: IUserRepository,
     private val firebaseAuth: FirebaseAuth
@@ -121,7 +123,8 @@ class HomeScreenViewModel @Inject constructor(
             val post = _uiState.value.posts.find { it.id == postId } ?: return@launch
             val isCurrentlyFollowing = post.isUserFollowed
 
-            withContext(Dispatchers.Main){
+            // Optimistic UI update
+            withContext(Dispatchers.Main) {
                 _uiState.update { currentState ->
                     currentState.copy(
                         posts = currentState.posts.map { p ->
@@ -139,18 +142,24 @@ class HomeScreenViewModel @Inject constructor(
                 userRepository.followUser(userId)
             }
 
-            withContext(Dispatchers.Main){
+            withContext(Dispatchers.Main) {
                 when (result) {
                     is Resource.Success -> {
                         if (isCurrentlyFollowing) {
+                            // User unfollowed - IMMEDIATELY remove their posts
                             _uiState.update { currentState ->
                                 currentState.copy(
                                     posts = currentState.posts.filter { it.userId != userId }
                                 )
                             }
+                            // Also clear from Room database
+                            withContext(Dispatchers.IO) {
+                                postDao.deletePostsByUser(userId)
+                            }
                         }
                     }
                     is Resource.Error -> {
+                        // Revert optimistic update on error
                         _uiState.update { currentState ->
                             currentState.copy(
                                 posts = currentState.posts.map { p ->
@@ -161,7 +170,8 @@ class HomeScreenViewModel @Inject constructor(
                             )
                         }
 
-                        if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
+                        // Only show error if it's a real error (not "already following" messages)
+                        if (!result.message.orEmpty().contains("Already", ignoreCase = true) &&
                             !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
                             showError(result.message ?: "Failed to update follow status")
                         }
