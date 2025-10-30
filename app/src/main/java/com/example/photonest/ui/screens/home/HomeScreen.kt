@@ -95,17 +95,17 @@ fun HomeScreen(
             }
         }
 
-//        uiState.posts.isEmpty() -> {
-//            PullToRefreshBox(
-//                isRefreshing = isRefreshing,
-//                onRefresh = onRefresh,
-//                modifier = Modifier.fillMaxSize()
-//            ) {
-//                EmptyState(
-//                    onRefresh = onRefresh
-//                )
-//            }
-//        }
+        uiState.posts.isEmpty() -> {
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = onRefresh,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                EmptyState(
+                    onRefresh = onRefresh
+                )
+            }
+        }
 
         else -> {
             PullToRefreshBox(

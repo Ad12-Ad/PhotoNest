@@ -277,34 +277,34 @@ private fun UserListItem(
                 }
             }
 
-            if (!isCurrentUser) {
-                Spacer(modifier = Modifier.width(8.dp))
-
-                ButtonOnboarding(
-                    buttonText = if (isFollowing) "Following" else "Follow",
-                    onClick = onFollowClick,
-                    shape = RoundedCornerShape(20.dp),
-                    textColor = if (isFollowing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimary,
-                    textSize = 14.sp,
-                    textWeight = FontWeight.Medium,
-                    buttonColors = if (isFollowing)
-                        ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    else  {
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(0.4f)
-                        )
-                    },
-                    border = if (isFollowing)
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    else null,
-                    modifier = Modifier.height(36.dp),
-                    elevation = if(isFollowing) ButtonDefaults.buttonElevation(0.dp) else ButtonDefaults.buttonElevation(4.dp)
-                )
-            }
+//            if (!isCurrentUser) {
+//                Spacer(modifier = Modifier.width(8.dp))
+//
+//                ButtonOnboarding(
+//                    buttonText = if (isFollowing) "Following" else "Follow",
+//                    onClick = onFollowClick,
+//                    shape = RoundedCornerShape(20.dp),
+//                    textColor = if (isFollowing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimary,
+//                    textSize = 14.sp,
+//                    textWeight = FontWeight.Medium,
+//                    buttonColors = if (isFollowing)
+//                        ButtonDefaults.outlinedButtonColors(
+//                            containerColor = MaterialTheme.colorScheme.surface,
+//                            contentColor = MaterialTheme.colorScheme.onSurface
+//                        )
+//                    else  {
+//                        ButtonDefaults.buttonColors(
+//                            containerColor = MaterialTheme.colorScheme.primary,
+//                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(0.4f)
+//                        )
+//                    },
+//                    border = if (isFollowing)
+//                        BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+//                    else null,
+//                    modifier = Modifier.height(36.dp),
+//                    elevation = if(isFollowing) ButtonDefaults.buttonElevation(0.dp) else ButtonDefaults.buttonElevation(4.dp)
+//                )
+//            }
         }
     }
 }
