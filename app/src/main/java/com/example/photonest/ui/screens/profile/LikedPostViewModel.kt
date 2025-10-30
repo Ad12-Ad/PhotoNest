@@ -9,10 +9,12 @@ import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -30,16 +32,19 @@ class LikedPostsViewModel @Inject constructor(
     }
 
     private fun loadLikedPosts() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
             val likedPostIds = userRepository.getLikedPostIdsByUserId(currentUserId)
-            if (likedPostIds.isNotEmpty()) {
-                val postsResource = postRepository.getPostsByIds(likedPostIds)
-                if (postsResource is Resource.Success) {
-                    _likedPosts.value = postsResource.data ?: emptyList()
+
+            withContext(Dispatchers.Main) {
+                if (likedPostIds.isNotEmpty()) {
+                    val postsResource = postRepository.getPostsByIds(likedPostIds)
+                    if (postsResource is Resource.Success) {
+                        _likedPosts.value = postsResource.data ?: emptyList()
+                    }
+                } else {
+                    _likedPosts.value = emptyList()
                 }
-            } else {
-                _likedPosts.value = emptyList()
             }
         }
     }

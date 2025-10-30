@@ -64,6 +64,9 @@ interface PostDao {
     @Query("SELECT COUNT(*) FROM posts WHERE userId = :userId")
     suspend fun getPostCountByUser(userId: String): Int
 
+    @Query("DELETE FROM posts WHERE userId = :userId")
+    suspend fun deletePostsByUser(userId: String)
+
     @Query("DELETE FROM posts")
     suspend fun clearAllPosts()
 

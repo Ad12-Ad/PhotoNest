@@ -17,6 +17,7 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source.*
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -40,22 +41,19 @@ class PostRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val currentUserId = firebaseAuth.currentUser?.uid
+                ?: run { emit(Resource.Error("Not authenticated")); return@flow }
 
-            if (currentUserId == null) {
-                emit(Resource.Error("Not authenticated"))
-                return@flow
-            }
+            postDao.clearAllPosts()
 
-            val followsQuery = firestore.collection("follows")
+            val followsSnapshot = firestore.collection("follows")
                 .whereEqualTo("followerId", currentUserId)
-                .get()
+                .get(com.google.firebase.firestore.Source.SERVER)
                 .await()
 
-            val followedUserIds = followsQuery.documents
+            val followedUserIds = followsSnapshot.documents
                 .mapNotNull { it.getString("followingId") }
                 .toMutableList()
-
-            followedUserIds.add(currentUserId)
+                .apply { add(currentUserId) } // include your own posts
 
             if (followedUserIds.isEmpty()) {
                 emit(Resource.Success(emptyList()))
@@ -65,15 +63,14 @@ class PostRepositoryImpl @Inject constructor(
             val allPosts = mutableListOf<Post>()
             val batches = followedUserIds.chunked(10)
 
-
             for (batch in batches) {
-                val postsQuery = firestore.collection(Constants.POSTS_COLLECTION)
+                val postsSnapshot = firestore.collection(Constants.POSTS_COLLECTION)
                     .whereIn("userId", batch)
                     .limit(50)
-                    .get()
+                    .get(com.google.firebase.firestore.Source.SERVER)
                     .await()
 
-                val batchPosts = postsQuery.documents.mapNotNull { doc ->
+                val batchPosts = postsSnapshot.documents.mapNotNull { doc ->
                     doc.toObject(Post::class.java)?.copy(id = doc.id)
                 }
 
@@ -82,42 +79,36 @@ class PostRepositoryImpl @Inject constructor(
 
             val sortedPosts = allPosts.sortedByDescending { it.timestamp }
 
-            val enrichedPosts = if (sortedPosts.isNotEmpty()) {
-                // Get bookmarks
-                val bookmarksQuery = firestore.collection("bookmarks")
-                    .whereEqualTo("userId", currentUserId)
-                    .get()
-                    .await()
+            val bookmarksSnapshot = firestore.collection("bookmarks")
+                .whereEqualTo("userId", currentUserId)
+                .get(com.google.firebase.firestore.Source.SERVER)
+                .await()
 
-                val bookmarkedPostIds = bookmarksQuery.documents
-                    .mapNotNull { it.getString("postId") }
-                    .toSet()
+            val bookmarkedPostIds = bookmarksSnapshot.documents
+                .mapNotNull { it.getString("postId") }
+                .toSet()
 
-                val followedUserIdsSet = followedUserIds.toSet()
+            val followedUserIdsSet = followedUserIds.toSet()
 
-                // Enrich posts
-                sortedPosts.map { post ->
-                    post.copy(
-                        isLiked = post.likedBy.contains(currentUserId),
-                        isBookmarked = bookmarkedPostIds.contains(post.id),
-                        isUserFollowed = followedUserIdsSet.contains(post.userId)
-                    )
-                }
-            } else {
-                sortedPosts
+            val enrichedPosts = sortedPosts.map { post ->
+                post.copy(
+                    isLiked = post.likedBy.contains(currentUserId),
+                    isBookmarked = bookmarkedPostIds.contains(post.id),
+                    isUserFollowed = followedUserIdsSet.contains(post.userId)
+                )
             }
 
-            // Save to local database
-            enrichedPosts.forEach { post ->
-                postDao.insertPost(post.toEntity())
+            val finalPosts = enrichedPosts.filter {
+                it.userId == currentUserId || followedUserIdsSet.contains(it.userId)
             }
 
-            emit(Resource.Success(enrichedPosts))
+            finalPosts.forEach { postDao.insertPost(it.toEntity()) }
+
+            emit(Resource.Success(finalPosts))
 
         } catch (e: Exception) {
-            Log.e("PostRepository", "Failed to get posts: ${e.message}")
-            val localPosts = postDao.getAllPosts().map { it.toPost() }
-            emit(Resource.Success(localPosts))
+            Log.e("PostRepository", "Failed to get posts: ${e.message}", e)
+            emit(Resource.Error(e.message ?: "Failed to load posts"))
         }
     }
 
@@ -289,32 +280,6 @@ class PostRepositoryImpl @Inject constructor(
                 // Return placeholder on error
                 "https://picsum.photos/400/400?random=${System.currentTimeMillis()}"
             }
-        }
-    }
-
-
-    override suspend fun deletePost(postId: String): Resource<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
-
-            // Delete from Firestore
-            firestore.collection(Constants.POSTS_COLLECTION)
-                .document(postId)
-                .delete()
-                .await()
-
-            // Delete from local database
-            postDao.deletePostById(postId)
-
-            // Update user's post count
-            firestore.collection(Constants.USERS_COLLECTION)
-                .document(currentUserId)
-                .update("postsCount", FieldValue.increment(-1))
-                .await()
-
-            Resource.Success(Unit)
-        } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to delete post")
         }
     }
 
@@ -617,6 +582,102 @@ class PostRepositoryImpl @Inject constructor(
             Resource.Success(posts)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to get posts by IDs")
+        }
+    }
+
+    override suspend fun getUsersWhoLikedPost(postId: String): Resource<List<User>> {
+        return try {
+            // Get post first to get likedBy list
+            val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
+                .document(postId)
+                .get()
+                .await()
+
+            val post = postDoc.toObject(Post::class.java)
+                ?: return Resource.Error("Post not found")
+
+            if (post.likedBy.isEmpty()) {
+                return Resource.Success(emptyList())
+            }
+
+            // Fetch user details for each userId in likedBy
+            val users = mutableListOf<User>()
+            post.likedBy.chunked(10).forEach { chunk ->
+                val usersSnapshot = firestore.collection(Constants.USERS_COLLECTION)
+                    .whereIn("id", chunk)
+                    .get()
+                    .await()
+
+                usersSnapshot.documents.forEach { doc ->
+                    doc.toObject(User::class.java)?.let { users.add(it) }
+                }
+            }
+
+            Resource.Success(users)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get users who liked post")
+        }
+    }
+
+    // Also update deletePost if it doesn't match this:
+    override suspend fun deletePost(postId: String): Resource<Unit> {
+        return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Resource.Error("Not authenticated")
+
+            // Get post to verify ownership and get image URL
+            val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
+                .document(postId)
+                .get()
+                .await()
+
+            val post = postDoc.toObject(Post::class.java)
+                ?: return Resource.Error("Post not found")
+
+            // Verify user owns the post
+            if (post.userId != currentUserId) {
+                return Resource.Error("You don't have permission to delete this post")
+            }
+
+            // Delete image from Firebase Storage
+            if (post.imageUrl.isNotEmpty()) {
+                try {
+                    val imageRef = firebaseStorage.getReferenceFromUrl(post.imageUrl)
+                    imageRef.delete().await()
+                } catch (e: Exception) {
+                    Log.e("PostRepository", "Failed to delete image: ${e.message}")
+                }
+            }
+
+            // Delete all comments associated with this post
+            val commentsSnapshot = firestore.collection(Constants.COMMENTS_COLLECTION)
+                .whereEqualTo("postId", postId)
+                .get()
+                .await()
+
+            val batch = firestore.batch()
+            commentsSnapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+
+            // Delete post document
+            batch.delete(firestore.collection(Constants.POSTS_COLLECTION).document(postId))
+
+            // Update user's posts count
+            batch.update(
+                firestore.collection(Constants.USERS_COLLECTION).document(currentUserId),
+                "postsCount",
+                FieldValue.increment(-1)
+            )
+
+            batch.commit().await()
+
+            // Delete from local database
+            postDao.deletePostById(postId)
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to delete post")
         }
     }
 

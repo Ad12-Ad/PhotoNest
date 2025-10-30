@@ -8,11 +8,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.BrokenImage
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,8 +28,10 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.data.model.Comment
+import com.example.photonest.data.model.User
 import com.example.photonest.ui.components.*
 import com.example.photonest.ui.screens.home.components.PostItem
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,14 +41,25 @@ fun PostDetailScreen(
     postId: String,
     onNavigateBack: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {},
     viewModel: PostDetailViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+    val likesSheetState = rememberModalBottomSheetState()
+    var showLikesSheet by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var likesList by remember { mutableStateOf<List<User>>(emptyList()) }
+    var isLoadingLikes by remember { mutableStateOf(false) }
+
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(postId) {
         viewModel.loadPostDetail(postId)
+        viewModel.loadUsersWhoLiked(postId) { users ->
+            likesList = users
+        }
     }
 
     MyAlertDialog(
@@ -72,15 +84,16 @@ fun PostDetailScreen(
                 navigationIcon = {
                     BackCircleButton(onClick = onNavigateBack)
                 },
-                actions = {
-                    IconButton(onClick = { /* TODO: Show more options */ }) {
-                        Icon(Icons.Outlined.MoreVert, contentDescription = "More options")
-                    }
-                }
+//                actions = {
+//                    if (uiState.postDetail?.post?.userId == currentUserId) {
+//                        IconButton(onClick = { showDeleteDialog = true }) {
+//                            Icon(Icons.Default.Delete, "Delete Post")
+//                        }
+//                    }
+//                }
             )
         },
         bottomBar = {
-            // Sticky comment input at bottom
             if (uiState.postDetail != null) {
                 CommentInputBar(
                     userImage = uiState.currentUserImage,
@@ -112,7 +125,6 @@ fun PostDetailScreen(
                         .padding(paddingValues),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    // Post Content
                     item {
                         PostItem(
                             post = uiState.postDetail!!.post,
@@ -123,10 +135,18 @@ fun PostDetailScreen(
                             onShareClick = { viewModel.sharePost(context) },
                             onUserClick = { onNavigateToProfile(uiState.postDetail!!.post.userId) },
                             onFollowClick = { viewModel.toggleFollow() },
+                            usersWhoLiked = likesList,
+                            onLikesInfoClick = {
+                                isLoadingLikes = true
+                                showLikesSheet = true
+                                viewModel.loadUsersWhoLiked(postId) { users ->
+                                    likesList = users
+                                    isLoadingLikes = false
+                                }
+                            },
                             shape = RoundedCornerShape(bottomEnd = 16.dp, bottomStart = 16.dp)
                         )
                     }
-
                     // Comments Section Header
                     item {
                         CommentsHeader(
@@ -148,7 +168,11 @@ fun PostDetailScreen(
                                 comment = comment,
                                 onUserClick = { onNavigateToProfile(comment.userId) },
                                 onLikeClick = { /* TODO: Implement comment like */ },
-                                onReplyClick = { /* TODO: Implement reply */ }
+                                onReplyClick = { /* TODO: Implement reply */ },
+                                currentUserId = currentUserId,
+                                onDeleteClick = if (comment.userId == currentUserId) {
+                                    { viewModel.deleteComment(comment.id) }
+                                } else null
                             )
                             Divider(
                                 modifier = Modifier.padding(start = 72.dp),
@@ -164,6 +188,58 @@ fun PostDetailScreen(
                 }
             }
         }
+    }
+
+    if (showLikesSheet) {
+        currentUserId?.let {
+            UserListBottomSheet(
+                sheetState = likesSheetState,
+                userList = likesList,
+                listType = UserListType.LIKES,
+                isLoading = isLoadingLikes,
+                onDismiss = { showLikesSheet = false },
+                onUserClick = { userId ->
+                    showLikesSheet = false
+                    onNavigateToUserProfile(userId)
+                },
+                onFollowClick = { userId, isFollowing ->
+                    viewModel.onFollowClickFromSheet(userId, isFollowing)
+                },
+                currentUserId = it
+            )
+        }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Post") },
+            text = {
+                Text("Are you sure you want to delete this post? This action cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deletePost(postId) { success ->
+                            if (success) {
+                                onNavigateBack()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -224,10 +300,13 @@ private fun EmptyCommentsState() {
 private fun EnhancedCommentItem(
     comment: Comment,
     onUserClick: () -> Unit,
+    currentUserId: String?,
     onLikeClick: () -> Unit,
+    onDeleteClick: (() -> Unit)? = null,
     onReplyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -299,6 +378,24 @@ private fun EnhancedCommentItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (currentUserId == comment.userId) {
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    if (onDeleteClick != null) {
+                        IconButton(
+                            onClick = onDeleteClick,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete comment",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))

@@ -5,13 +5,17 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
+import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.model.Post
+import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class HomeUiState(
@@ -24,6 +28,7 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
+    private val postDao: PostDao,
     private val postRepository: IPostRepository,
     private val userRepository: IUserRepository,
     private val firebaseAuth: FirebaseAuth
@@ -37,38 +42,73 @@ class HomeScreenViewModel @Inject constructor(
     }
 
     fun loadPosts() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             postRepository.getPosts().collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                isLoading = false,
-                                posts = result.data ?: emptyList(),
-                                error = null,
-                                isRefreshing = false
-                            )
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    posts = result.data ?: emptyList(),
+                                    error = null,
+                                    isRefreshing = false
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                isLoading = false,
-                                error = result.message ?: "Failed to load posts",
-                                showErrorDialog = true,
-                                isRefreshing = false
-                            )
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = result.message ?: "Failed to load posts",
+                                    showErrorDialog = true,
+                                    isRefreshing = false
+                                )
+                            }
                         }
-                    }
-                    is Resource.Loading -> {
-                        _uiState.update { currentState ->
-                            currentState.copy(isLoading = true)
+                        is Resource.Loading -> {
+                            _uiState.update { it.copy(isLoading = true) }
                         }
                     }
                 }
             }
         }
     }
+//    fun loadPosts() {
+//        viewModelScope.launch(Dispatchers.IO) {
+//            postRepository.getPosts().collect { result ->
+//                withContext(Dispatchers.Main) {
+//                    when (result) {
+//                        is Resource.Success -> {
+//                            _uiState.update {
+//                                it.copy(
+//                                    isLoading = false,
+//                                    posts = result.data ?: emptyList(),
+//                                    error = null,
+//                                    isRefreshing = false
+//                                )
+//                            }
+//                        }
+//                        is Resource.Error -> {
+//                            _uiState.update {
+//                                it.copy(
+//                                    isLoading = false,
+//                                    error = result.message ?: "Failed to load posts",
+//                                    showErrorDialog = true,
+//                                    isRefreshing = false
+//                                )
+//                            }
+//                        }
+//                        is Resource.Loading -> {
+//                            _uiState.update { currentState ->
+//                                currentState.copy(isLoading = true)
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     fun refreshPosts() {
         _uiState.update { it.copy(isRefreshing = true) }
@@ -76,22 +116,24 @@ class HomeScreenViewModel @Inject constructor(
     }
 
     fun toggleFollow(userId: String, postId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
-
             if (currentUserId == userId) return@launch
 
             val post = _uiState.value.posts.find { it.id == postId } ?: return@launch
             val isCurrentlyFollowing = post.isUserFollowed
 
-            _uiState.update { currentState ->
-                currentState.copy(
-                    posts = currentState.posts.map { p ->
-                        if (p.userId == userId) {
-                            p.copy(isUserFollowed = !isCurrentlyFollowing)
-                        } else p
-                    }
-                )
+            // Optimistic UI update
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        posts = currentState.posts.map { p ->
+                            if (p.userId == userId) {
+                                p.copy(isUserFollowed = !isCurrentlyFollowing)
+                            } else p
+                        }
+                    )
+                }
             }
 
             val result = if (isCurrentlyFollowing) {
@@ -100,43 +142,63 @@ class HomeScreenViewModel @Inject constructor(
                 userRepository.followUser(userId)
             }
 
-            when (result) {
-                is Resource.Error -> {
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            posts = currentState.posts.map { p ->
-                                if (p.userId == userId) {
-                                    p.copy(isUserFollowed = isCurrentlyFollowing)
-                                } else p
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        if (isCurrentlyFollowing) {
+                            // User unfollowed - IMMEDIATELY remove their posts
+                            _uiState.update { currentState ->
+                                currentState.copy(
+                                    posts = currentState.posts.filter { it.userId != userId }
+                                )
                             }
-                        )
+                            // Also clear from Room database
+                            withContext(Dispatchers.IO) {
+                                postDao.deletePostsByUser(userId)
+                            }
+                        }
                     }
+                    is Resource.Error -> {
+                        // Revert optimistic update on error
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                posts = currentState.posts.map { p ->
+                                    if (p.userId == userId) {
+                                        p.copy(isUserFollowed = isCurrentlyFollowing)
+                                    } else p
+                                }
+                            )
+                        }
 
-                    if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
-                        !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
-                        showError(result.message ?: "Failed to update follow status")
+                        // Only show error if it's a real error (not "already following" messages)
+                        if (!result.message.orEmpty().contains("Already", ignoreCase = true) &&
+                            !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
+                            showError(result.message ?: "Failed to update follow status")
+                        }
                     }
+                    else -> {}
                 }
-                else -> {}
             }
         }
     }
 
     fun toggleLike(postId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val post = _uiState.value.posts.find { it.id == postId } ?: return@launch
 
-            _uiState.update { currentState ->
-                currentState.copy(
-                    posts = currentState.posts.map {
-                        if (it.id == postId) {
-                            it.copy(
-                                isLiked = !it.isLiked,
-                                likeCount = if (it.isLiked) it.likeCount - 1 else it.likeCount + 1
-                            )
-                        } else it
-                    }
-                )
+            withContext(Dispatchers.Main){
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        posts = currentState.posts.map {
+                            if (it.id == postId) {
+                                it.copy(
+                                    isLiked = !it.isLiked,
+                                    likeCount = if (it.isLiked) it.likeCount - 1 else it.likeCount + 1
+                                )
+                            } else it
+                        }
+                    )
+                }
             }
 
             val result = if (post.isLiked) {
@@ -145,40 +207,44 @@ class HomeScreenViewModel @Inject constructor(
                 postRepository.likePost(postId)
             }
 
-            when (result) {
-                is Resource.Error -> {
-                    // Revert on error
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            posts = currentState.posts.map {
-                                if (it.id == postId) {
-                                    it.copy(
-                                        isLiked = post.isLiked,
-                                        likeCount = post.likeCount
-                                    )
-                                } else it
-                            }
-                        )
+            withContext(Dispatchers.Main){
+                when (result) {
+                    is Resource.Error -> {
+                        // Revert on error
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                posts = currentState.posts.map {
+                                    if (it.id == postId) {
+                                        it.copy(
+                                            isLiked = post.isLiked,
+                                            likeCount = post.likeCount
+                                        )
+                                    } else it
+                                }
+                            )
+                        }
+                        showError(result.message ?: "Failed to toggle like")
                     }
-                    showError(result.message ?: "Failed to toggle like")
+                    else -> {}
                 }
-                else -> {}
             }
         }
     }
 
     fun toggleBookmark(postId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val post = _uiState.value.posts.find { it.id == postId } ?: return@launch
 
-            _uiState.update { currentState ->
-                currentState.copy(
-                    posts = currentState.posts.map {
-                        if (it.id == postId) {
-                            it.copy(isBookmarked = !it.isBookmarked)
-                        } else it
-                    }
-                )
+            withContext(Dispatchers.Main){
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        posts = currentState.posts.map {
+                            if (it.id == postId) {
+                                it.copy(isBookmarked = !it.isBookmarked)
+                            } else it
+                        }
+                    )
+                }
             }
 
             val result = if (post.isBookmarked) {
@@ -187,21 +253,23 @@ class HomeScreenViewModel @Inject constructor(
                 postRepository.bookmarkPost(postId)
             }
 
-            when (result) {
-                is Resource.Error -> {
-                    // Revert on error
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            posts = currentState.posts.map {
-                                if (it.id == postId) {
-                                    it.copy(isBookmarked = post.isBookmarked)
-                                } else it
-                            }
-                        )
+            withContext(Dispatchers.Main){
+                when (result) {
+                    is Resource.Error -> {
+                        // Revert on error
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                posts = currentState.posts.map {
+                                    if (it.id == postId) {
+                                        it.copy(isBookmarked = post.isBookmarked)
+                                    } else it
+                                }
+                            )
+                        }
+                        showError(result.message ?: "Failed to toggle bookmark")
                     }
-                    showError(result.message ?: "Failed to toggle bookmark")
+                    else -> {}
                 }
-                else -> {}
             }
         }
     }
@@ -226,6 +294,72 @@ class HomeScreenViewModel @Inject constructor(
 
         context.startActivity(Intent.createChooser(shareIntent, "Share Post"))
     }
+
+    fun loadUsersWhoLiked(postId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = postRepository.getUsersWhoLikedPost(postId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+    fun followUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.followUser(userId)
+        }
+    }
+
+    fun unfollowUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.unfollowUser(userId)
+        }
+    }
+
+    fun toggleFollowFromBottomSheet(userId: String, isCurrentlyFollowing: Boolean, postId: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
+            if (currentUserId == userId) return@launch
+
+            val result = if (isCurrentlyFollowing) {
+                userRepository.unfollowUser(userId)
+            } else {
+                userRepository.followUser(userId)
+            }
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        postId?.let { id ->
+                            loadUsersWhoLiked(id) { /* callback updates automatically */ }
+                        }
+                    }
+                    is Resource.Error -> {
+                        if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
+                            !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
+                            showError(result.message ?: "Failed to update follow status")
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
 
     fun dismissErrorDialog() {
         _uiState.update {

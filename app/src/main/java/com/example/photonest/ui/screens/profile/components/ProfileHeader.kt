@@ -33,7 +33,11 @@ import com.example.photonest.ui.components.ShimmerEffect
 import com.example.photonest.ui.screens.profile.StatIconLabel
 
 @Composable
-fun ProfileHeader(user: User) {
+fun ProfileHeader(
+    user: User,
+    onFollowersClick: () -> Unit = {},
+    onFollowingClick: () -> Unit = {}
+) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 6.dp,
@@ -89,8 +93,8 @@ fun ProfileHeader(user: User) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     StatIconLabel(user.postsCount, "Posts")
-                    StatIconLabel(user.followersCount, "Followers")
-                    StatIconLabel(user.followingCount, "Following")
+                    StatIconLabel(user.followersCount, "Followers", onClick = onFollowersClick)
+                    StatIconLabel(user.followingCount, "Following", onClick = onFollowingClick)
                 }
             }
         }

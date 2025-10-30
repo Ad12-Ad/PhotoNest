@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Post
+import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,80 +25,181 @@ class UserProfileViewModel @Inject constructor(
     val uiState: StateFlow<UserProfileUiState> = _uiState.asStateFlow()
 
     fun loadUserProfile(userId: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             try {
-                // Load user profile
                 val userResult = userRepository.getUserProfile(userId)
-                when (userResult) {
-                    is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                userProfile = userResult.data,
-                                error = null
-                            )
-                        }
 
-                        // Load user's posts
-                        loadUserPosts(userId)
-                    }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = userResult.message ?: "Failed to load profile",
-                                showErrorDialog = true
-                            )
+                withContext(Dispatchers.Main) {
+                    when (userResult) {
+                        is Resource.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    userProfile = userResult.data,
+                                    error = null
+                                )
+                            }
+                            loadUserPosts(userId)
                         }
-                    }
-                    is Resource.Loading -> {
-                        _uiState.update { it.copy(isLoading = true) }
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = userResult.message ?: "Failed to load profile",
+                                    showErrorDialog = true
+                                )
+                            }
+                        }
+                        is Resource.Loading -> {
+                            _uiState.update { it.copy(isLoading = true) }
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message ?: "An error occurred",
+                            showErrorDialog = true
+                        )
+                    }
                 }
             }
         }
     }
 
-    private fun loadUserPosts(userId: String) {
-        viewModelScope.launch {
+    // ADD THESE NEW METHODS to UserProfileViewModel:
+
+    fun loadFollowers(userId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                val postsResult = postRepository.getUserPosts(userId)
-                when (postsResult) {
-                    is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(posts = postsResult.data ?: emptyList())
+                val result = userRepository.getFollowers(userId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
                         }
-                    }
-                    is Resource.Error -> {
-                        // Don't show error for posts, just keep empty list
-                        _uiState.update { it.copy(posts = emptyList()) }
-                    }
-                    is Resource.Loading -> {
-                        // Keep current state
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                        }
+                        is Resource.Loading -> {}
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(posts = emptyList()) }
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+    fun loadFollowing(userId: String, onResult: (List<User>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = userRepository.getFollowing(userId)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            onResult(result.data ?: emptyList())
+                        }
+                        is Resource.Error -> {
+                            onResult(emptyList())
+                        }
+                        is Resource.Loading -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onResult(emptyList())
+                }
+            }
+        }
+    }
+
+
+    fun onFollowClickFromSheet(userId: String, currentProfileUserId: String, listType: String, isCurrentlyFollowing: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = if (isCurrentlyFollowing) {
+                userRepository.unfollowUser(userId)
+            } else {
+                userRepository.followUser(userId)
+            }
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        when (listType) {
+                            "FOLLOWERS" -> {
+                                loadFollowers(currentProfileUserId) { /* callback updates automatically */ }
+                            }
+                            "FOLLOWING" -> {
+                                loadFollowing(currentProfileUserId) { /* callback updates automatically */ }
+                            }
+                        }
+                        // Also refresh the profile to update counts
+                        loadUserProfile(currentProfileUserId)
+                    }
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to update follow status",
+                                showErrorDialog = true
+                            )
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun followUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.followUser(userId)
+        }
+    }
+
+    fun unfollowUser(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.unfollowUser(userId)
+        }
+    }
+
+    private fun loadUserPosts(userId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val postsResult = postRepository.getUserPosts(userId)
+
+                withContext(Dispatchers.Main) {
+                    when (postsResult) {
+                        is Resource.Success -> {
+                            _uiState.update {
+                                it.copy(posts = postsResult.data ?: emptyList())
+                            }
+                        }
+                        is Resource.Error -> {
+                            _uiState.update { it.copy(posts = emptyList()) }
+                        }
+                        is Resource.Loading -> { }
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(posts = emptyList()) }
+                }
             }
         }
     }
 
     fun toggleFollow(userId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val currentUserProfile = _uiState.value.userProfile ?: return@launch
-
             try {
-                // Optimistic update
                 val wasFollowing = currentUserProfile.isFollowing
                 val updatedProfile = currentUserProfile.copy(
                     isFollowing = !wasFollowing,
@@ -106,41 +210,41 @@ class UserProfileViewModel @Inject constructor(
                             currentUserProfile.user.followersCount + 1
                     )
                 )
-                _uiState.update { it.copy(userProfile = updatedProfile) }
 
-                // Make actual request
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(userProfile = updatedProfile) }
+                }
+
                 val result = if (wasFollowing) {
                     userRepository.unfollowUser(userId)
                 } else {
                     userRepository.followUser(userId)
                 }
 
-                when (result) {
-                    is Resource.Success -> {
-                        // Success - optimistic update was correct
-                    }
-                    is Resource.Error -> {
-                        // Revert optimistic update
-                        _uiState.update { it.copy(userProfile = currentUserProfile) }
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to update follow status",
-                                showErrorDialog = true
-                            )
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> { }
+                        is Resource.Error -> {
+                            _uiState.update { it.copy(userProfile = currentUserProfile) }
+                            _uiState.update {
+                                it.copy(
+                                    error = result.message ?: "Failed to update follow status",
+                                    showErrorDialog = true
+                                )
+                            }
                         }
-                    }
-                    is Resource.Loading -> {
-                        // Handle loading if needed
+                        is Resource.Loading -> { }
                     }
                 }
             } catch (e: Exception) {
-                // Revert optimistic update
-                _uiState.update { it.copy(userProfile = currentUserProfile) }
-                _uiState.update {
-                    it.copy(
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
-                    )
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(userProfile = currentUserProfile) }
+                    _uiState.update {
+                        it.copy(
+                            error = e.message ?: "An error occurred",
+                            showErrorDialog = true
+                        )
+                    }
                 }
             }
         }

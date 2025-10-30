@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.domain.repository.IAuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -37,95 +39,113 @@ class SignInViewModel @Inject constructor(
 
     fun signIn() {
         val currentState = _uiState.value
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             val result = authRepository.signInWithEmailAndPassword(
-                email = currentState.email,
-                password = currentState.password
+                currentState.email,
+                currentState.password
             )
 
             when (result) {
                 is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isSignInSuccessful = true,
-                            error = null
-                        )
+                    withContext(Dispatchers.Main) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isSignInSuccessful = true,  // CHANGED: Go directly to home, NO OTP
+                                error = null
+                            )
+                        }
                     }
                 }
                 is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message ?: "Sign in failed",
-                            showErrorDialog = true
-                        )
+                    withContext(Dispatchers.Main) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = result.message ?: "Sign in failed",
+                                showErrorDialog = true
+                            )
+                        }
                     }
                 }
                 is Resource.Loading -> {
-                    // Already handled above
+                    // Already handled
                 }
             }
         }
     }
 
+    fun resetSignInSuccess() {
+        _uiState.update { it.copy(isSignInSuccessful = false) }
+    }
+
+
     fun signInWithGoogle() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             val result = authRepository.signInWithGoogle()
 
-            when (result) {
-                is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isSignInSuccessful = true,
-                            error = null
-                        )
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isSignInSuccessful = true,
+                                error = null
+                            )
+                        }
                     }
-                }
-                is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message ?: "Google sign in failed",
-                            showErrorDialog = true
-                        )
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = result.message ?: "Google sign in failed",
+                                showErrorDialog = true
+                            )
+                        }
                     }
-                }
-                is Resource.Loading -> {
-                    // Already handled above
+                    is Resource.Loading -> {
+                        // Already handled above
+                    }
                 }
             }
         }
     }
 
     fun sendPasswordResetEmail(email: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val result = authRepository.sendPasswordResetEmail(email)
 
-            when (result) {
-                is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            error = null,
-                            showPasswordResetDialog = true
-                        )
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                error = null,
+                                showPasswordResetDialog = true
+                            )
+                        }
                     }
-                }
-                is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            error = result.message ?: "Failed to send password reset email",
-                            showErrorDialog = true
-                        )
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to send password reset email",
+                                showErrorDialog = true
+                            )
+                        }
                     }
-                }
-                is Resource.Loading -> {
-                    // Handle loading if needed
+                    is Resource.Loading -> {
+                        // Handle loading if needed
+                    }
                 }
             }
         }

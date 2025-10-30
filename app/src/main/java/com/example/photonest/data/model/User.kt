@@ -21,4 +21,8 @@ data class User(
     val fcmToken: String = "",
     val lastSeen: Long = System.currentTimeMillis(),
     val isOnline: Boolean = false
-)
+){
+    fun isFollowedBy(userId: String?): Boolean {
+        return userId != null && userId in followers
+    }
+}

@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -39,15 +38,13 @@ import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
 import com.example.photonest.ui.components.ShowHidePasswordTextField
 import com.example.photonest.ui.components.SignSocialButtons
-import com.example.photonest.ui.screens.signup.SignUpViewModel
-import com.example.photonest.ui.theme.PhotoNestTheme
 import com.example.photonest.ui.theme.bodyFontFamily
 
 @Composable
 fun SignInScreen(
     modifier: Modifier = Modifier,
     viewModel: SignInViewModel = viewModel(),
-    onSignInSuccess: () -> Unit,
+    onSignInSuccess: (String) -> Unit,
     onSignUpTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
 ) {
@@ -56,8 +53,8 @@ fun SignInScreen(
 
     LaunchedEffect(uiState.isSignInSuccessful) {
         if (uiState.isSignInSuccessful) {
-            onSignInSuccess()
-            viewModel.resetError()
+            onSignInSuccess(uiState.email)
+            viewModel.resetSignInSuccess()
         }
     }
 
@@ -68,6 +65,7 @@ fun SignInScreen(
         onSignInTxtClick = onSignUpTxtClick,
         onSignInClick = viewModel::signIn,
         onBackClick = onBackClick,
+        onClearEmail = {viewModel.updateEmail("")},
         modifier = modifier
     )
 
@@ -90,6 +88,7 @@ fun SignInContent(
     onSignInClick: () -> Unit = {},
     onSignInTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
+    onClearEmail: () -> Unit,
     onSignInSuccess: () -> Unit = {},
 ) {
     LazyColumn(
@@ -134,7 +133,8 @@ fun SignInContent(
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )
-                    }
+                    },
+                    onClearSearch = onClearEmail
                 )
                 ShowHidePasswordTextField(
                     label = "Password",

@@ -26,11 +26,20 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = file(project.properties["KEYSTORE_FILE"] as String? ?: "")
+            storePassword = project.properties["KEYSTORE_PASSWORD"] as String?
+            keyAlias = project.properties["KEY_ALIAS"] as String?
+            keyPassword = project.properties["KEY_PASSWORD"] as String?
         }
     }
     compileOptions {
@@ -94,9 +103,6 @@ dependencies {
 
     implementation(libs.gms.play.services.auth)
 
-//    implementation(libs.play.services.bom)
-//    implementation(libs.play.services.auth)
-
     // Room Database
     implementation (libs.androidx.room.runtime)
     implementation (libs.androidx.room.ktx)
@@ -137,11 +143,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Pull-to-refresh
-//    implementation(libs.material3)
-//    implementation(libs.androidx.material3.android)
-    // For Material3 pull-to-refresh
-//    implementation("androidx.compose.material3:material3:1.4.0")
+    implementation("com.google.firebase:firebase-auth-ktx:22.3.0")
+
     implementation(libs.material3) // or latest version
 
 }

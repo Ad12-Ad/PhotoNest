@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.domain.repository.IAuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -60,6 +62,36 @@ class SignUpViewModel @Inject constructor(
     fun signUp() {
         val currentState = _uiState.value
 
+        if (currentState.name.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    error = "Name is required",
+                    showErrorDialog = true
+                )
+            }
+            return
+        }
+
+        if (currentState.username.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    error = "Username is required",
+                    showErrorDialog = true
+                )
+            }
+            return
+        }
+
+        if (currentState.email.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    error = "Email is required",
+                    showErrorDialog = true
+                )
+            }
+            return
+        }
+
         if (currentState.password != currentState.confirmPassword) {
             _uiState.update {
                 it.copy(
@@ -70,77 +102,68 @@ class SignUpViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
-            val result = authRepository.signUpWithEmailAndPassword(
-                email = currentState.email,
-                password = currentState.password,
-                name = currentState.name,
-                username = currentState.username
-            )
-
-            when (result) {
-                is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isSignUpSuccessful = true,
-                            error = null
-                        )
-                    }
-                }
-                is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message ?: "Sign up failed",
-                            showErrorDialog = true
-                        )
-                    }
-                }
-                is Resource.Loading -> {
-                    // Already handled above
+            withContext(Dispatchers.Main) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isSignUpSuccessful = true,  // This triggers navigation
+                        error = null
+                    )
                 }
             }
         }
     }
 
     fun signUpWithGoogle() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
 
             val result = authRepository.signInWithGoogle()
 
-            when (result) {
-                is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isSignUpSuccessful = true,
-                            error = null
-                        )
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isSignUpSuccessful = true,
+                                error = null
+                            )
+                        }
                     }
-                }
-                is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message ?: "Google sign up failed",
-                            showErrorDialog = true
-                        )
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = result.message ?: "Google sign up failed",
+                                showErrorDialog = true
+                            )
+                        }
                     }
-                }
-                is Resource.Loading -> {
-                    // Already handled above
+                    is Resource.Loading -> {
+                        // Already handled above
+                    }
                 }
             }
+
         }
     }
 
     fun dismissErrorDialog() {
         _uiState.update { it.copy(showErrorDialog = false) }
     }
+
+    fun resetSignUpSuccess() {
+        _uiState.update { it.copy(isSignUpSuccessful = false) }
+    }
+
 
     fun resetError() {
         _uiState.update { it.copy(error = null) }

@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.domain.repository.IAuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,16 +26,16 @@ class SplashViewModel @Inject constructor(
     }
 
     private fun checkAuthenticationState() {
-        viewModelScope.launch {
-            // Show splash screen for at least 2 seconds
+        viewModelScope.launch(Dispatchers.IO) {
             delay(2000)
-
             authRepository.isUserLoggedIn()
                 .collect { isLoggedIn ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isUserLoggedIn = isLoggedIn
-                    )
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            isUserLoggedIn = isLoggedIn
+                        )
+                    }
                 }
         }
     }

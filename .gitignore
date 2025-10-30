@@ -13,3 +13,15 @@
 .externalNativeBuild
 .cxx
 local.properties
+google-services.json
+firebase-debug.log
+gradle.properties
+
+
+# Build outputs
+*.apk
+*.aab
+
+# Keystore files
+*.jks
+*.keystore

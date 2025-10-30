@@ -7,11 +7,13 @@ import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.Notification
 import com.example.photonest.domain.repository.INotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,80 +24,159 @@ class NotificationViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NotificationUiState())
     val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
 
+    init {
+        loadNotifications()
+    }
+
     fun loadNotifications() {
-        viewModelScope.launch {
-            Log.d("NotificationVM", "====== VM: Loading notifications ======")
+        viewModelScope.launch(Dispatchers.IO) {
+            Log.d("NotificationVM", "Loading notifications...")
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true) }
+            }
 
             notificationRepository.getUserNotifications().collect { result ->
-                Log.d("NotificationVM", "VM received result: ${result::class.simpleName}")
-
-                when (result) {
-                    is Resource.Success -> {
-                        val notifications = result.data ?: emptyList()
-                        Log.d("NotificationVM", "✅ VM: Success with ${notifications.size} notifications")
-                        notifications.forEachIndexed { index, notif ->
-                            Log.d("NotificationVM", "  [$index] ${notif.fromUsername}: ${notif.message}")
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is Resource.Success -> {
+                            Log.d("NotificationVM", "Loaded ${result.data?.size ?: 0} notifications")
+                            _uiState.update {
+                                it.copy(
+                                    notifications = result.data ?: emptyList(),
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
                         }
-
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                notifications = notifications,
-                                error = null
-                            )
+                        is Resource.Error -> {
+                            Log.e("NotificationVM", "Error loading notifications: ${result.message}")
+                            _uiState.update {
+                                it.copy(
+                                    error = result.message,
+                                    isLoading = false
+                                )
+                            }
                         }
-                        Log.d("NotificationVM", "UI State updated - notifications count: ${_uiState.value.notifications.size}")
-                    }
-
-                    is Resource.Error -> {
-                        Log.e("NotificationVM", "VM: Error - ${result.message}")
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                notifications = emptyList(),
-                                error = result.message
-                            )
+                        is Resource.Loading -> {
+                            _uiState.update { it.copy(isLoading = true) }
                         }
-                    }
-
-                    is Resource.Loading -> {
-                        Log.d("NotificationVM", "⏳ VM: Loading...")
-                        _uiState.update { it.copy(isLoading = true) }
                     }
                 }
             }
         }
     }
 
-
     fun markAsRead(notificationId: String) {
-        viewModelScope.launch {
-            notificationRepository.markNotificationAsRead(notificationId)
-            // Update local state
-            _uiState.update { state ->
-                state.copy(
-                    notifications = state.notifications.map { notification ->
-                        if (notification.id == notificationId) {
-                            notification.copy(isRead = true)
-                        } else {
-                            notification
+        viewModelScope.launch(Dispatchers.IO) {
+            Log.d("NotificationVM", "Marking notification $notificationId as read")
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        notifications = currentState.notifications.map { notification ->
+                            if (notification.id == notificationId) {
+                                notification.copy(isRead = true)
+                            } else {
+                                notification
+                            }
+                        }
+                    )
+                }
+            }
+
+            val result = notificationRepository.markNotificationAsRead(notificationId)
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        Log.d("NotificationVM", "Successfully marked as read")
+                    }
+                    is Resource.Error -> {
+                        Log.e("NotificationVM", "Failed to mark as read: ${result.message}")
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                notifications = currentState.notifications.map { notification ->
+                                    if (notification.id == notificationId) {
+                                        notification.copy(isRead = false)
+                                    } else {
+                                        notification
+                                    }
+                                },
+                                error = result.message
+                            )
                         }
                     }
-                )
+                    is Resource.Loading -> {}
+                }
             }
         }
     }
 
     fun markAllAsRead() {
-        viewModelScope.launch {
-            notificationRepository.markAllNotificationsAsRead()
-            // Update local state
-            _uiState.update { state ->
-                state.copy(
-                    notifications = state.notifications.map { notification ->
-                        notification.copy(isRead = true)
+        viewModelScope.launch(Dispatchers.IO) {
+            Log.d("NotificationVM", "Marking all notifications as read")
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        notifications = currentState.notifications.map { it.copy(isRead = true) }
+                    )
+                }
+            }
+
+            val result = notificationRepository.markAllNotificationsAsRead()
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        Log.d("NotificationVM", "Successfully marked all as read")
                     }
-                )
+                    is Resource.Error -> {
+                        Log.e("NotificationVM", "Failed to mark all as read: ${result.message}")
+                        _uiState.update {
+                            it.copy(error = result.message)
+                        }
+                        loadNotifications()
+                    }
+                    is Resource.Loading -> {}
+                }
+            }
+        }
+    }
+
+    fun deleteNotification(notificationId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val deletedNotification = _uiState.value.notifications.find { it.id == notificationId }
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        notifications = currentState.notifications.filter { it.id != notificationId }
+                    )
+                }
+            }
+
+            val result = notificationRepository.deleteNotification(notificationId)
+
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is Resource.Success -> {
+                        Log.d("NotificationVM", "Notification deleted")
+                    }
+                    is Resource.Error -> {
+                        if (deletedNotification != null) {
+                            _uiState.update { currentState ->
+                                currentState.copy(
+                                    notifications = (currentState.notifications + deletedNotification)
+                                        .sortedByDescending { it.timestamp },
+                                    error = result.message
+                                )
+                            }
+                        }
+                    }
+                    is Resource.Loading -> {}
+                }
             }
         }
     }
@@ -104,15 +185,8 @@ class NotificationViewModel @Inject constructor(
         _uiState.update { it.copy(error = null, showErrorDialog = false) }
     }
 
-    fun deleteNotification(notificationId: String) {
-        viewModelScope.launch {
-            notificationRepository.deleteNotification(notificationId)
-            _uiState.update { state ->
-                state.copy(
-                    notifications = state.notifications.filter { it.id != notificationId }
-                )
-            }
-        }
+    fun getUnreadCount(): Int {
+        return _uiState.value.notifications.count { !it.isRead }
     }
 }
 
