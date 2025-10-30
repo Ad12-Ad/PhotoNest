@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -41,6 +42,7 @@ import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.annotatedText
 import com.example.photonest.ui.components.formatTimestamp
 import com.example.photonest.ui.theme.bodyFontFamily
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun PostItem(
@@ -55,6 +57,9 @@ fun PostItem(
     onFollowClick: () -> Unit = {},
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
 ) {
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+    val isOwnPost = currentUserId == post.userId
+
     val constraintSet = ConstraintSet {
         val userImage = createRefFor("userImage")
         val userName = createRefFor("userName")
@@ -135,10 +140,14 @@ fun PostItem(
             modifier = Modifier.layoutId("timeStamp")
         )
 
-        FollowTxtBtn(
-            onClick = {},
-            modifier = Modifier.layoutId("followButton")
-        )
+        if (!isOwnPost){
+            FollowTxtBtn(
+                onClick = onFollowClick,
+                isFollowing = post.isUserFollowed,
+                modifier = Modifier.layoutId("followButton")
+            )
+        }
+
         IconButton(
             onClick = onBookmarkClick,
             modifier = Modifier.layoutId("bookmarkIcon")

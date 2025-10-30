@@ -19,5 +19,6 @@ data class Post(
     val tags: List<String> = emptyList(),
     val aspectRatio: Float = 1f,
     val isEdited: Boolean = false,
-    val editedAt: Long? = null
+    val editedAt: Long? = null,
+    val isUserFollowed: Boolean = false
 )

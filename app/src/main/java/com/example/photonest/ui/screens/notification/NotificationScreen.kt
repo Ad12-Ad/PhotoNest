@@ -112,7 +112,7 @@ fun NotificationScreen(
                             notification = notification,
                             onNotificationClick = {
                                 viewModel.markAsRead(notification.id)
-                                when (notification.type) {
+                                when (notification.getNotificationType()) {
                                     NotificationType.LIKE, NotificationType.COMMENT -> {
                                         notification.postId?.let { postId ->
                                             onNavigateToPost(postId)
@@ -210,7 +210,7 @@ private fun NotificationItem(
             ) {
                 // Notification Icon
                 Icon(
-                    imageVector = when (notification.type) {
+                    imageVector = when (notification.getNotificationType()) {
                         NotificationType.LIKE -> Icons.Default.Favorite
                         NotificationType.COMMENT -> Icons.Default.Comment
                         NotificationType.FOLLOW -> Icons.Default.PersonAdd
@@ -218,7 +218,7 @@ private fun NotificationItem(
                     },
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = when (notification.type) {
+                    tint = when (notification.getNotificationType()) {
                         NotificationType.LIKE -> MaterialTheme.colorScheme.error
                         NotificationType.COMMENT -> MaterialTheme.colorScheme.primary
                         NotificationType.FOLLOW -> MaterialTheme.colorScheme.tertiary
@@ -263,7 +263,7 @@ private fun NotificationItem(
 }
 
 private fun buildNotificationText(notification: Notification): String {
-    return when (notification.type) {
+    return when (notification.getNotificationType()) {
         NotificationType.LIKE -> "${notification.fromUsername} liked your post"
         NotificationType.COMMENT -> "${notification.fromUsername} commented on your post"
         NotificationType.FOLLOW -> "${notification.fromUsername} started following you"

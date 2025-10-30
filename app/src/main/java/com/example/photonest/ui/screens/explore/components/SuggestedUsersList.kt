@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.photonest.R
 import com.example.photonest.data.model.User
+import com.google.firebase.auth.FirebaseAuth
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -60,6 +61,9 @@ private fun SuggestedUserItem(
     onFollowClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isFollowing = user.followers.contains(currentUserId)
+
     Card(
         modifier = modifier
             .width(160.dp)
@@ -147,7 +151,7 @@ private fun SuggestedUserItem(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = "Follow",
+                    text = if(isFollowing) "Following" else "Follow",
                     style = MaterialTheme.typography.labelMedium
                 )
             }

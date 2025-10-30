@@ -65,18 +65,25 @@ class CommentRepositoryImpl @Inject constructor(
     override suspend fun addComment(comment: Comment): Resource<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
-
             val commentId = UUID.randomUUID().toString()
-            val newComment = comment.copy(
-                id = commentId,
-                userId = currentUserId,
-                timestamp = System.currentTimeMillis()
+
+            // Create comment data as Map to ensure userId field exists
+            val commentData = hashMapOf(
+                "id" to commentId,
+                "postId" to comment.postId,
+                "userId" to currentUserId,
+                "userName" to comment.userName,
+                "userProfilePicture" to comment.userImage,
+                "text" to comment.text,
+                "timestamp" to System.currentTimeMillis(),
+                "likeCount" to 0,
+                "parentCommentId" to comment.parentCommentId
             )
 
             // Add to Firestore
             firestore.collection(Constants.COMMENTS_COLLECTION)
                 .document(commentId)
-                .set(newComment)
+                .set(commentData)
                 .await()
 
             // Update post comment count
@@ -85,7 +92,13 @@ class CommentRepositoryImpl @Inject constructor(
                 .update("commentCount", FieldValue.increment(1))
                 .await()
 
+            val newComment = comment.copy(
+                id = commentId,
+                userId = currentUserId,
+                timestamp = System.currentTimeMillis()
+            )
             commentDao.insertComment(newComment.toEntity())
+
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to add comment")
