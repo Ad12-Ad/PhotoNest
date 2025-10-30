@@ -223,103 +223,108 @@ fun OtpVerificationScreen(
         }
 
         item {
-            if (uiState.sendOtpError != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = uiState.sendOtpError!!,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(12.dp),
-                        textAlign = TextAlign.Center
-                    )
+            Column (
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (uiState.sendOtpError != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = uiState.sendOtpError!!,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(12.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
-            }
 
-            if (uiState.verifyOtpError != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = uiState.verifyOtpError!!,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(12.dp),
-                        textAlign = TextAlign.Center
-                    )
+                if (uiState.verifyOtpError != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = uiState.verifyOtpError!!,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(12.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
-            }
 
-            if (uiState.accountCreationError != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = uiState.accountCreationError!!,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(12.dp),
-                        textAlign = TextAlign.Center
-                    )
+                if (uiState.accountCreationError != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = uiState.accountCreationError!!,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(12.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
-            }
 
-            // Success message for OTP sent
-            if (uiState.otpSent && uiState.sendOtpError == null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
-                ) {
-                    Text(
-                        text = "✓ OTP sent successfully!",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(12.dp),
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Medium
-                    )
+                // Success message for OTP sent
+                if (uiState.otpSent && uiState.sendOtpError == null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Text(
+                            text = "✓ OTP sent successfully!",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(12.dp),
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
-            }
 
-            // Loading state for OTP sending
-            if (uiState.isSendingOtp) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Sending OTP...",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                // Loading state for OTP sending
+                if (uiState.isSendingOtp) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Sending OTP...",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 }
             }
         }
