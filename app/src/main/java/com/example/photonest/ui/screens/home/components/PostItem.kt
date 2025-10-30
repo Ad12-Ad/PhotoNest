@@ -26,8 +26,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -36,12 +36,11 @@ import androidx.constraintlayout.compose.Dimension
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
-import com.example.photonest.data.model.Follow
 import com.example.photonest.data.model.Post
-import com.example.photonest.ui.components.BackTxtBtn
 import com.example.photonest.ui.components.FollowTxtBtn
 import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.components.annotatedText
+import com.example.photonest.ui.components.formatPostTimestamp
 import com.example.photonest.ui.theme.bodyFontFamily
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -58,6 +57,7 @@ fun PostItem(
     onShareClick: () -> Unit = {},
     onUserClick: () -> Unit,
     onFollowClick: () -> Unit = {},
+    shape: RoundedCornerShape = RoundedCornerShape(16.dp),
 ) {
     val constraintSet = ConstraintSet {
         val userImage = createRefFor("userImage")
@@ -132,10 +132,8 @@ fun PostItem(
                 .clickable(onClick = onUserClick)
         )
 
-        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-        val dateString = sdf.format(Date(post.timestamp))
         NormalText(
-            text = dateString,
+            text = formatPostTimestamp(post.timestamp),
             fontSize = 12.sp,
             fontColor = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.layoutId("timeStamp")
@@ -173,6 +171,7 @@ fun PostItem(
             location = post.location,
             commentCount = post.commentCount,
             shareCount = post.shareCount,
+            shape = shape,
             modifier = Modifier.layoutId("postCard")
         )
     }
@@ -193,13 +192,14 @@ private fun PostContentCard(
     onCommentClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     caption: String,
+    shape: RoundedCornerShape,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onPostClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = shape,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),

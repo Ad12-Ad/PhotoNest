@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
@@ -172,12 +173,14 @@ fun OnboardingCircleBtn(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    shape: Shape = CircleShape,
     iconColors: IconButtonColors = IconButtonDefaults.iconButtonColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.4f)
     ),
 ) {
     IconButton(
+        shape = shape,
         modifier = modifier,
         onClick = onClick,
         enabled = enabled,

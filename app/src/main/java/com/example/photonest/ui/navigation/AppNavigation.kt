@@ -17,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.photonest.ui.screens.OtpScreen
 import com.example.photonest.ui.screens.home.HomeScreen
 import com.example.photonest.ui.screens.home.HomeScreenViewModel
@@ -31,6 +33,8 @@ import com.example.photonest.ui.screens.bookmarks.BookmarksScreen
 import com.example.photonest.ui.screens.bookmarks.BookmarksViewModel
 import com.example.photonest.ui.screens.explore.ExploreScreen
 import com.example.photonest.ui.screens.explore.ExploreViewModel
+import com.example.photonest.ui.screens.postdetail.PostDetailScreen
+import com.example.photonest.ui.screens.profile.EditProfileScreen
 import com.example.photonest.ui.screens.profile.ProfileScreen
 import com.example.photonest.ui.screens.profile.ProfileViewModel
 import com.example.photonest.ui.screens.signin.SignInScreen
@@ -57,6 +61,8 @@ fun AppNavigation(
             AppDestinations.SIGN_IN_ROUTE,
             AppDestinations.SIGN_UP_ROUTE,
             AppDestinations.OTP_ROUTE,
+            AppDestinations.EDIT_PROFILE_ROUTE,
+            AppDestinations.POST_DETAIL_ROUTE
         )
     }
 
@@ -185,8 +191,12 @@ private fun NavigationGraph(
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                onPostClick = {},
-                onUserClick = {}
+                onPostClick = { postId ->
+                    navController.navigate("post_detail/$postId")
+                },
+                onUserClick = { userId ->
+                    navController.navigate("${AppDestinations.PROFILE_ROUTE}/$userId")
+                }
             )
         }
 
@@ -224,28 +234,65 @@ private fun NavigationGraph(
 //
         composable(AppDestinations.PROFILE_ROUTE) {
             ProfileScreen(
-//                onEditProfile = {
-////                    navController.navigate("edit_profile")
-//                },
-//                onSettings = {
-////                    navController.navigate("settings")
-//                },
-//                onNavigateToFollowers = { userId ->
-////                    navController.navigate("followers/$userId")
-//                },
-//                onNavigateToFollowing = { userId ->
-////                    navController.navigate("following/$userId")
-//                },
-//                onNavigateToPostDetail = { postId ->
-////                    navController.navigate("post_detail/$postId")
-//                },
+                onNavToPersonalDetails = { navController.navigate(AppDestinations.EDIT_PROFILE_ROUTE) },
+                onNavToBookmarkCollection = { navController.navigate(AppDestinations.BOOKMARKS_ROUTE) },
+                onNavToLikedPosts = { /* Navigate to liked posts screen */ },
+                onNavToYourPosts = { /* Navigate to user's posts screen */ },
+                onNavToNotifications = { navController.navigate(AppDestinations.NOTIFICATION_ROUTE) },
+                onNavToTheme = { navController.navigate(AppDestinations.SETTINGS_ROUTE) },
+                onNavToPreferences = { navController.navigate(AppDestinations.SETTINGS_ROUTE) },
+                onLogOut = {
+                    navController.navigate(AppDestinations.SIGN_IN_ROUTE) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                viewModel = hiltViewModel<ProfileViewModel>()
+                viewModel = hiltViewModel()
             )
         }
+
+        // Post Detail Screen
+        composable(
+            route = "post_detail/{postId}",
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId") ?: ""
+            PostDetailScreen(
+                postId = postId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProfile = { userId ->
+                    navController.navigate("${AppDestinations.PROFILE_ROUTE}/$userId")
+                },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize()
+                    .safeContentPadding()
+            )
+        }
+
+// Edit Profile Screen
+        composable(AppDestinations.EDIT_PROFILE_ROUTE) {
+            EditProfileScreen(
+                onNavigateBack = { navController.popBackStack() },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize()
+            )
+        }
+
+// Notification Screen
+//        composable(AppDestinations.NOTIFICATION_ROUTE) {
+//            NotificationScreen(
+//                onNavigateBack = { navController.popBackStack() },
+//                modifier = Modifier
+//                    .background(MaterialTheme.colorScheme.background)
+//                    .fillMaxSize()
+//                    .padding(horizontal = 16.dp)
+//            )
+//        }
 
 //        To Implement
 //             - Post detail screen

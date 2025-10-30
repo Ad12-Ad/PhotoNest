@@ -26,6 +26,9 @@ import com.example.photonest.ui.theme.bodyFontFamily
 @Composable
 fun OnBoardingTextField(
     modifier: Modifier = Modifier,
+    readOnly: Boolean = false,
+    maxLines: Int = 1,
+    showClearIcon: Boolean = true,
     showLabel: Boolean = true,
     label: String = "",
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
@@ -59,9 +62,11 @@ fun OnBoardingTextField(
             value = value,
             onValueChange = onValueChange,
             shape = RoundedCornerShape(12.dp),
+            maxLines = maxLines,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 54.dp),
+            readOnly = readOnly,
             placeholder = {
                 Text(
                     text = label,
@@ -96,10 +101,10 @@ fun OnBoardingTextField(
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(0.4f)
             ),
             leadingIcon = prefix,
-            trailingIcon = {if(postfix != null){
-                postfix
-            }else{
-                if (value.isNotEmpty()) {
+            trailingIcon = {
+                if(postfix != null) {
+                    postfix
+                } else if (showClearIcon && value.isNotEmpty()) { // Only show if editing
                     IconButton(onClick = onClearSearch) {
                         Icon(
                             imageVector = Icons.Default.Clear,
@@ -108,7 +113,6 @@ fun OnBoardingTextField(
                         )
                     }
                 }
-            }
             }
         )
     }
