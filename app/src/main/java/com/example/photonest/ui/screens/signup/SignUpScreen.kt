@@ -44,7 +44,7 @@ import com.example.photonest.ui.theme.bodyFontFamily
 fun SignUpScreen(
     modifier: Modifier = Modifier,
     viewModel: SignUpViewModel = viewModel(),
-    onSignUpSuccess: () -> Unit,
+    onSignUpSuccess: (String, String, String, String) -> Unit,
     onSignInTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
 ) {
@@ -52,8 +52,13 @@ fun SignUpScreen(
 
     if (uiState.isSignUpSuccessful) {
         LaunchedEffect(Unit) {
-            onSignUpSuccess()
-            viewModel.resetError()
+            onSignUpSuccess(
+                uiState.email,
+                uiState.password,
+                uiState.name,
+                uiState.username
+            )
+            viewModel.resetSignUpSuccess()
         }
     }
     SignUpContent(
@@ -61,12 +66,16 @@ fun SignUpScreen(
         onEmailChange = viewModel::updateEmail,
         onUsernameChange = viewModel::updateUsername,
         onPasswordChange = viewModel::updatePassword,
+        onNameChange = viewModel::updateName,
         onConfirmPasswordChange = viewModel::updateConfirmPassword,
-        onSignUpClick = {viewModel.signUp()},
-        onSignInTxtClick = {onSignInTxtClick()},
+        onSignUpClick = { viewModel.signUp() },
+        onSignInTxtClick = { onSignInTxtClick() },
         onBackClick = onBackClick,
         onSignUpSuccess = onSignUpSuccess,
-        modifier = modifier
+        modifier = modifier,
+        onClearName = {viewModel.updateName("")},
+        onClearUserName = {viewModel.updateUsername("")},
+        onClearEmail = {viewModel.updateEmail("")}
     )
     MyAlertDialog(
         shouldShowDialog = uiState.showErrorDialog,
@@ -83,12 +92,16 @@ fun SignUpContent(
     uiState: SignUpUiState,
     onUsernameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
+    onNameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
     onSignUpClick: () -> Unit,
     onSignInTxtClick: () -> Unit,
     onBackClick: () -> Boolean,
-    onSignUpSuccess: () -> Unit,
+    onClearName: () -> Unit,
+    onClearUserName: () -> Unit,
+    onClearEmail: () -> Unit,
+    onSignUpSuccess: (String, String, String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -130,14 +143,15 @@ fun SignUpContent(
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
-                }
+                },
+                onClearSearch = onClearEmail
             )
         }
         item {
             OnBoardingTextField(
                 value = uiState.username,
                 onValueChange = onUsernameChange,
-                label = "Name",
+                label = "User Name",
                 isError = uiState.usernameError != null,
                 errorMessage = {
                     Text(
@@ -151,6 +165,29 @@ fun SignUpContent(
                         )
                     )
                 },
+                onClearSearch = onClearUserName
+            )
+        }
+
+        item {
+            OnBoardingTextField(
+                value = uiState.name,
+                onValueChange = onNameChange,
+                label = "Name",
+                isError = uiState.nameError != null,
+                errorMessage = {
+                    Text(
+                        text = uiState.nameError?: "",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontFamily = bodyFontFamily,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    )
+                },
+                onClearSearch = onClearName
             )
         }
 

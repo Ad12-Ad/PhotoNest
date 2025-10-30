@@ -5,7 +5,7 @@ object AppDestinations {
     const val SPLASH_ROUTE = "splash"
     const val SIGN_UP_ROUTE = "sign_up"
     const val SIGN_IN_ROUTE = "sign_in"
-    const val OTP_ROUTE = "otp"
+    const val OTP_ROUTE = "otp/{email}"
     const val HOME_ROUTE = "home"
 
     // New bottom navigation routes
@@ -24,6 +24,8 @@ object AppDestinations {
     const val NOTIFICATIONS_ROUTE = "notifications"
     const val LIKED_POSTS_ROUTE = "liked_posts"
     const val YOUR_POSTS_ROUTE = "your_posts"
+
+    fun otpRoute(email: String) = "otp/$email"
 
     const val USER_PROFILE_ROUTE = "user_profile"
     fun getUserProfileRoute(userId: String) = "$USER_PROFILE_ROUTE/$userId"

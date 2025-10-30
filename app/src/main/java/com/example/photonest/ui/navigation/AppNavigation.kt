@@ -26,7 +26,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.photonest.ui.screens.OtpScreen
+import com.example.photonest.ui.screens.otp.OtpVerificationScreen
 import com.example.photonest.ui.screens.home.HomeScreen
 import com.example.photonest.ui.screens.MainScaffold
 import com.example.photonest.ui.screens.addpost.AddPostScreen
@@ -63,7 +63,7 @@ fun AppNavigation(
             AppDestinations.SPLASH_ROUTE,
             AppDestinations.SIGN_IN_ROUTE,
             AppDestinations.SIGN_UP_ROUTE,
-            AppDestinations.OTP_ROUTE,
+            "otp/{email}",
             AppDestinations.EDIT_PROFILE_ROUTE,
             AppDestinations.ADD_POST_ROUTE,
             "post_detail/{postId}",
@@ -151,9 +151,9 @@ private fun NavigationGraph(
         // Authentication Screens
         composable(AppDestinations.SIGN_UP_ROUTE) {
             SignUpScreen(
-                onSignUpSuccess = {
-                    navController.navigate(AppDestinations.HOME_ROUTE) {
-                        popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = true }
+                onSignUpSuccess = { email, password, name, username ->
+                    navController.navigate("otp/$email/$password/$name/$username") {
+                        popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = false }
                     }
                 },
                 onBackClick = { navController.popBackStack() },
@@ -173,7 +173,7 @@ private fun NavigationGraph(
 
         composable(AppDestinations.SIGN_IN_ROUTE) {
             SignInScreen(
-                onSignInSuccess = {
+                onSignInSuccess = { email ->
                     navController.navigate(AppDestinations.HOME_ROUTE) {
                         popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
                     }
@@ -193,15 +193,93 @@ private fun NavigationGraph(
             )
         }
 
-        composable(AppDestinations.OTP_ROUTE) {
-            OtpScreen(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(horizontal = 16.dp)
-                    .fillMaxSize()
-                    .safeContentPadding()
+        // OTP VERIFICATION ROUTE
+        composable(
+            route = "otp/{email}/{password}/{name}/{username}",
+            arguments = listOf(
+                navArgument("email") { type = NavType.StringType },
+                navArgument("password") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            val password = backStackEntry.arguments?.getString("password") ?: ""
+            val name = backStackEntry.arguments?.getString("name") ?: ""
+            val username = backStackEntry.arguments?.getString("username") ?: ""
+
+            OtpVerificationScreen(
+                email = email,
+                password = password,
+                name = name,
+                username = username,
+                onVerificationSuccess = {
+                    // Navigate to home after successful verification
+                    navController.navigate(AppDestinations.HOME_ROUTE) {
+                        popUpTo(0) { inclusive = true } // Clear entire back stack
+                    }
+                },
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                viewModel = hiltViewModel()
             )
         }
+
+
+//        composable(
+//            route = "otp/{email}",
+//            arguments = listOf(
+//                navArgument("email") { type = NavType.StringType }
+//            )
+//        ) { backStackEntry ->
+//            val email = backStackEntry.arguments?.getString("email") ?: ""
+//
+//            OtpVerificationScreen(
+//                email = email,
+//                onBackClick = { navController.popBackStack() },
+//                onVerificationSuccess = {
+//                    navController.navigate(AppDestinations.HOME_ROUTE) {
+//                        popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = true }
+//                    }
+//                },
+//                modifier = Modifier
+//                    .background(MaterialTheme.colorScheme.background)
+//                    .padding(horizontal = 16.dp)
+//                    .fillMaxSize()
+//                    .safeContentPadding()
+//            )
+//        }
+
+
+        // Inside your NavHost, add this:
+//        composable(
+//            route = AppDestinations.OTP_SCREEN,
+//            arguments = listOf(
+//                navArgument("email") { type = NavType.StringType },
+//                navArgument("verificationId") { type = NavType.StringType },
+//                navArgument("password") { type = NavType.StringType },
+//                navArgument("name") { type = NavType.StringType; defaultValue = "" },
+//                navArgument("username") { type = NavType.StringType; defaultValue = "" },
+//                navArgument("isSignUp") { type = NavType.BoolType }
+//            )
+//        ) { backStackEntry ->
+//            OtpScreen(
+//                email = backStackEntry.arguments?.getString("email") ?: "",
+//                verificationId = backStackEntry.arguments?.getString("verificationId") ?: "",
+//                password = backStackEntry.arguments?.getString("password") ?: "",
+//                name = backStackEntry.arguments?.getString("name"),
+//                username = backStackEntry.arguments?.getString("username"),
+//                isSignUp = backStackEntry.arguments?.getBoolean("isSignUp") ?: false,
+//                onBackClick = { navController.popBackStack() },
+//                onVerificationSuccess = {
+//                    navController.navigate(AppDestinations.HOME_ROUTE) {
+//                        popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
+//                    }
+//                }
+//            )
+//        }
+
 
         // Main App Screens (with bottom navigation)
         composable(AppDestinations.HOME_ROUTE) {

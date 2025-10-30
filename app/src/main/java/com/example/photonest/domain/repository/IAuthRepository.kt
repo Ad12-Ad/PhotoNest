@@ -14,4 +14,7 @@ interface IAuthRepository {
     suspend fun getCurrentUser(): Resource<User?>
     fun isUserLoggedIn(): Flow<Boolean>
     suspend fun deleteAccount(): Resource<Unit>
+    suspend fun sendOtpToEmail(email: String): Resource<String> // Returns verification ID
+    suspend fun verifyOtp(verificationId: String, otp: String, email: String, password: String, name: String? = null, username: String? = null, isSignUp: Boolean): Resource<AuthResult>
+    suspend fun resendOtp(email: String): Resource<String>
 }

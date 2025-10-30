@@ -62,6 +62,36 @@ class SignUpViewModel @Inject constructor(
     fun signUp() {
         val currentState = _uiState.value
 
+        if (currentState.name.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    error = "Name is required",
+                    showErrorDialog = true
+                )
+            }
+            return
+        }
+
+        if (currentState.username.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    error = "Username is required",
+                    showErrorDialog = true
+                )
+            }
+            return
+        }
+
+        if (currentState.email.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    error = "Email is required",
+                    showErrorDialog = true
+                )
+            }
+            return
+        }
+
         if (currentState.password != currentState.confirmPassword) {
             _uiState.update {
                 it.copy(
@@ -77,36 +107,13 @@ class SignUpViewModel @Inject constructor(
                 _uiState.update { it.copy(isLoading = true, error = null) }
             }
 
-            val result = authRepository.signUpWithEmailAndPassword(
-                email = currentState.email,
-                password = currentState.password,
-                name = currentState.name,
-                username = currentState.username
-            )
-
             withContext(Dispatchers.Main) {
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSignUpSuccessful = true,
-                                error = null
-                            )
-                        }
-                    }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message ?: "Sign up failed",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                    is Resource.Loading -> {
-                        // Already handled above
-                    }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isSignUpSuccessful = true,  // This triggers navigation
+                        error = null
+                    )
                 }
             }
         }
@@ -152,6 +159,11 @@ class SignUpViewModel @Inject constructor(
     fun dismissErrorDialog() {
         _uiState.update { it.copy(showErrorDialog = false) }
     }
+
+    fun resetSignUpSuccess() {
+        _uiState.update { it.copy(isSignUpSuccessful = false) }
+    }
+
 
     fun resetError() {
         _uiState.update { it.copy(error = null) }

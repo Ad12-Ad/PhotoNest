@@ -8,6 +8,7 @@ import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.model.AuthResult
 import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IAuthRepository
+import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.random.Random
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
@@ -23,6 +25,89 @@ class AuthRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val preferencesManager: PreferencesManager
 ) : IAuthRepository {
+
+    private val pendingOtps = mutableMapOf<String, PendingOtpData>()
+
+    data class PendingOtpData(
+        val otp: String,
+        val email: String,
+        val password: String,
+        val name: String? = null,
+        val username: String? = null,
+        val isSignUp: Boolean,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+
+    override suspend fun sendOtpToEmail(email: String): Resource<String> {
+        return try {
+            val otp = Random.nextInt(100000, 999999).toString()
+
+            val verificationId = "${email}_${System.currentTimeMillis()}"
+
+            val actionCodeSettings = ActionCodeSettings.newBuilder()
+                .setUrl("https://photonest.page.link/verify")
+                .setHandleCodeInApp(true)
+                .setAndroidPackageName("com.example.photonest", true, null)
+                .build()
+
+            android.util.Log.d("OTP_DEBUG", "OTP for $email: $otp")
+
+            pendingOtps[verificationId] = PendingOtpData(
+                otp = otp,
+                email = email,
+                password = "",
+                isSignUp = false
+            )
+
+            Resource.Success(verificationId)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to send OTP")
+        }
+    }
+
+    override suspend fun verifyOtp(
+        verificationId: String,
+        otp: String,
+        email: String,
+        password: String,
+        name: String?,
+        username: String?,
+        isSignUp: Boolean
+    ): Resource<AuthResult> {
+        return try {
+            val pendingData = pendingOtps[verificationId]
+
+            if (pendingData == null) {
+                return Resource.Error("OTP expired or invalid")
+            }
+
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - pendingData.timestamp > 5 * 60 * 1000) {
+                pendingOtps.remove(verificationId)
+                return Resource.Error("OTP expired. Please request a new one")
+            }
+
+            if (pendingData.otp != otp) {
+                return Resource.Error("Invalid OTP. Please try again")
+            }
+
+            pendingOtps.remove(verificationId)
+
+            return if (isSignUp) {
+                signUpWithEmailAndPassword(email, password, name ?: "", username ?: "")
+            } else {
+                signInWithEmailAndPassword(email, password)
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Verification failed")
+        }
+    }
+
+    override suspend fun resendOtp(email: String): Resource<String> {
+        pendingOtps.entries.removeIf { it.value.email == email }
+
+        return sendOtpToEmail(email)
+    }
 
     override suspend fun signInWithEmailAndPassword(email: String, password: String): Resource<AuthResult> {
         return try {
@@ -65,28 +150,25 @@ class AuthRepositoryImpl @Inject constructor(
         username: String
     ): Resource<AuthResult> {
         return try {
-            // Check if username is already taken
-            val usernameQuery = firestore.collection(Constants.USERS_COLLECTION)
-                .whereEqualTo("username", username)
-                .get()
-                .await()
-
-            if (!usernameQuery.isEmpty) {
-                return Resource.Error("Username is already taken")
-            }
-
-            // Create Firebase auth account
             val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
             val firebaseUser = result.user
 
             if (firebaseUser != null) {
-                // Update Firebase auth profile
+                val usernameQuery = firestore.collection(Constants.USERS_COLLECTION)
+                    .whereEqualTo("username", username)
+                    .get()
+                    .await()
+
+                if (!usernameQuery.isEmpty) {
+                    firebaseUser.delete().await()
+                    return Resource.Error("Username is already taken")
+                }
+
                 val profileUpdates = UserProfileChangeRequest.Builder()
                     .setDisplayName(name)
                     .build()
                 firebaseUser.updateProfile(profileUpdates).await()
 
-                // Create user document in Firestore
                 val user = User(
                     id = firebaseUser.uid,
                     email = email,
@@ -100,10 +182,8 @@ class AuthRepositoryImpl @Inject constructor(
                     .set(user)
                     .await()
 
-                // Save to local database
                 userDao.insertUser(user.toEntity())
 
-                // Update preferences
                 preferencesManager.setLoggedIn(true)
                 preferencesManager.setUserId(user.id)
 
@@ -112,14 +192,14 @@ class AuthRepositoryImpl @Inject constructor(
                 Resource.Error("Account creation failed")
             }
         } catch (e: Exception) {
+            android.util.Log.e("AUTH_ERROR", "Sign up failed: ${e.message}", e)
             Resource.Error(e.message ?: "Sign up failed")
         }
     }
 
+
     override suspend fun signInWithGoogle(): Resource<AuthResult> {
         return try {
-            // This would require Google Sign-In implementation
-            // For now, return a placeholder
             Resource.Error("Google Sign-In not implemented yet")
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Google sign in failed")
@@ -130,7 +210,6 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             firebaseAuth.signOut()
 
-            // Clear local data
             userDao.clearAllUsers()
             preferencesManager.clearUserData()
 

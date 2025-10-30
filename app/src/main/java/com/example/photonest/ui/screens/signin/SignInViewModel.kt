@@ -39,28 +39,31 @@ class SignInViewModel @Inject constructor(
 
     fun signIn() {
         val currentState = _uiState.value
+
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
                 _uiState.update { it.copy(isLoading = true, error = null) }
             }
 
             val result = authRepository.signInWithEmailAndPassword(
-                email = currentState.email,
-                password = currentState.password
+                currentState.email,
+                currentState.password
             )
 
-            withContext(Dispatchers.Main) {
-                when (result) {
-                    is Resource.Success -> {
+            when (result) {
+                is Resource.Success -> {
+                    withContext(Dispatchers.Main) {
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                isSignInSuccessful = true,
+                                isSignInSuccessful = true,  // CHANGED: Go directly to home, NO OTP
                                 error = null
                             )
                         }
                     }
-                    is Resource.Error -> {
+                }
+                is Resource.Error -> {
+                    withContext(Dispatchers.Main) {
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -69,13 +72,18 @@ class SignInViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Loading -> {
-                        // Already handled above
-                    }
+                }
+                is Resource.Loading -> {
+                    // Already handled
                 }
             }
         }
     }
+
+    fun resetSignInSuccess() {
+        _uiState.update { it.copy(isSignInSuccessful = false) }
+    }
+
 
     fun signInWithGoogle() {
         viewModelScope.launch(Dispatchers.IO) {
