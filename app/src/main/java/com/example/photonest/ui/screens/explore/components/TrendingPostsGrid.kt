@@ -1,5 +1,6 @@
 package com.example.photonest.ui.screens.explore.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,9 +24,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.example.photonest.R
 import com.example.photonest.data.model.Post
+import com.example.photonest.ui.components.ShimmerEffect
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -76,7 +79,7 @@ fun TrendingPostItem(
         elevation = CardDefaults.elevatedCardElevation(10.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = post.imageUrl,
                 contentDescription = post.caption,
                 modifier = Modifier
@@ -93,8 +96,25 @@ fun TrendingPostItem(
                         )
                     },
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.p1),
-                error = painterResource(id = R.drawable.p1)
+                loading = {
+                    ShimmerEffect(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
 
             Card(
@@ -142,15 +162,32 @@ fun TrendingPostItem(
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
+                SubcomposeAsyncImage(
                     model = post.userImage,
                     contentDescription = post.userName,
                     modifier = Modifier
                         .size(20.dp)
                         .clip(RoundedCornerShape(50)),
                     contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = R.drawable.profile_photo),
-                    error = painterResource(id = R.drawable.profile_photo)
+                    loading = {
+                        ShimmerEffect(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    },
+                    error = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.BrokenImage,
+                                contentDescription = "Failed to load",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.width(4.dp))

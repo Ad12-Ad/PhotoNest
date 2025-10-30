@@ -1,6 +1,7 @@
 package com.example.photonest.ui.screens.postdetail
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
@@ -40,7 +41,12 @@ class PostDetailViewModel @Inject constructor(
 
             userRepository.getCurrentUser().collect { result ->
                 if (result is Resource.Success && result.data != null) {
-                    _uiState.update { it.copy(currentUserImage = result.data.profilePicture) }
+                    _uiState.update {
+                        it.copy(
+                            currentUserImage = result.data.profilePicture,
+                            currentUserName = result.data.name
+                        )
+                    }
                 }
             }
         }
@@ -113,6 +119,22 @@ class PostDetailViewModel @Inject constructor(
     fun toggleLike() {
         val currentPost = _uiState.value.postDetail?.post ?: return
         viewModelScope.launch {
+            _uiState.update { state ->
+                state.postDetail?.let { postDetail ->
+                    state.copy(
+                        postDetail = postDetail.copy(
+                            post = postDetail.post.copy(
+                                isLiked = !currentPost.isLiked,
+                                likeCount = if (currentPost.isLiked)
+                                    currentPost.likeCount - 1
+                                else
+                                    currentPost.likeCount + 1
+                            )
+                        )
+                    )
+                } ?: state
+            }
+
             try {
                 val result = if (currentPost.isLiked) {
                     postRepository.unlikePost(currentPost.id)
@@ -121,10 +143,19 @@ class PostDetailViewModel @Inject constructor(
                 }
 
                 when (result) {
-                    is Resource.Success -> {
-                        loadPostDetail(currentPostId)
-                    }
                     is Resource.Error -> {
+                        _uiState.update { state ->
+                            state.postDetail?.let { postDetail ->
+                                state.copy(
+                                    postDetail = postDetail.copy(
+                                        post = postDetail.post.copy(
+                                            isLiked = currentPost.isLiked,
+                                            likeCount = currentPost.likeCount
+                                        )
+                                    )
+                                )
+                            } ?: state
+                        }
                         _uiState.update {
                             it.copy(
                                 error = result.message ?: "Failed to update like status",
@@ -135,11 +166,17 @@ class PostDetailViewModel @Inject constructor(
                     else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
-                    )
+                _uiState.update { state ->
+                    state.postDetail?.let { postDetail ->
+                        state.copy(
+                            postDetail = postDetail.copy(
+                                post = postDetail.post.copy(
+                                    isLiked = currentPost.isLiked,
+                                    likeCount = currentPost.likeCount
+                                )
+                            )
+                        )
+                    } ?: state
                 }
             }
         }
@@ -148,6 +185,18 @@ class PostDetailViewModel @Inject constructor(
     fun toggleBookmark() {
         val currentPost = _uiState.value.postDetail?.post ?: return
         viewModelScope.launch {
+            _uiState.update { state ->
+                state.postDetail?.let { postDetail ->
+                    state.copy(
+                        postDetail = postDetail.copy(
+                            post = postDetail.post.copy(
+                                isBookmarked = !currentPost.isBookmarked
+                            )
+                        )
+                    )
+                } ?: state
+            }
+
             try {
                 val result = if (currentPost.isBookmarked) {
                     postRepository.unbookmarkPost(currentPost.id)
@@ -156,32 +205,113 @@ class PostDetailViewModel @Inject constructor(
                 }
 
                 when (result) {
-                    is Resource.Success -> {
-                        loadPostDetail(currentPostId)
-                    }
                     is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to update bookmark status",
-                                showErrorDialog = true
-                            )
+                        _uiState.update { state ->
+                            state.postDetail?.let { postDetail ->
+                                state.copy(
+                                    postDetail = postDetail.copy(
+                                        post = postDetail.post.copy(
+                                            isBookmarked = currentPost.isBookmarked
+                                        )
+                                    )
+                                )
+                            } ?: state
                         }
                     }
                     else -> Unit
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        error = e.message ?: "An error occurred",
-                        showErrorDialog = true
+                _uiState.update { state ->
+                    state.postDetail?.let { postDetail ->
+                        state.copy(
+                            postDetail = postDetail.copy(
+                                post = postDetail.post.copy(
+                                    isBookmarked = currentPost.isBookmarked
+                                )
+                            )
+                        )
+                    } ?: state
+                }
+            }
+        }
+    }
+
+    fun toggleFollow() {
+        val currentPost = _uiState.value.postDetail?.post ?: return
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.postDetail?.let { postDetail ->
+                    state.copy(
+                        postDetail = postDetail.copy(
+                            post = postDetail.post.copy(
+                                isUserFollowed = !currentPost.isUserFollowed
+                            )
+                        )
                     )
+                } ?: state
+            }
+
+            try {
+                val result = if (currentPost.isUserFollowed) {
+                    userRepository.unfollowUser(currentPost.userId)
+                } else {
+                    userRepository.followUser(currentPost.userId)
+                }
+
+                when (result) {
+                    is Resource.Error -> {
+                        _uiState.update { state ->
+                            state.postDetail?.let { postDetail ->
+                                state.copy(
+                                    postDetail = postDetail.copy(
+                                        post = postDetail.post.copy(
+                                            isUserFollowed = currentPost.isUserFollowed
+                                        )
+                                    )
+                                )
+                            } ?: state
+                        }
+                    }
+                    else -> Unit
+                }
+            } catch (e: Exception) {
+                _uiState.update { state ->
+                    state.postDetail?.let { postDetail ->
+                        state.copy(
+                            postDetail = postDetail.copy(
+                                post = postDetail.post.copy(
+                                    isUserFollowed = currentPost.isUserFollowed
+                                )
+                            )
+                        )
+                    } ?: state
                 }
             }
         }
     }
 
     fun sharePost(context: Context) {
-        // TODO: Implement share functionality with Android ShareSheet
+        val post = _uiState.value.postDetail?.post
+        val shareText = buildString {
+            if (post != null){
+                appendLine("Check out this post on PhotoNest!")
+                appendLine()
+                appendLine(post.caption)
+                if (post.location.isNotEmpty()) {
+                    appendLine("📍 ${post.location}")
+                }
+                appendLine()
+                appendLine("by @${post.userName}")
+            }
+        }
+
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+
+        context.startActivity(Intent.createChooser(shareIntent, "Share Post"))
     }
 
     fun updateComment(comment: String) {
@@ -194,7 +324,6 @@ class PostDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isAddingComment = true) }
-
             try {
                 val currentUser = FirebaseAuth.getInstance().currentUser
                 if (currentUser == null) {
@@ -208,26 +337,45 @@ class PostDetailViewModel @Inject constructor(
                     return@launch
                 }
 
+                val userName = _uiState.value.currentUserName ?: "Anonymous"
+                val userImage = _uiState.value.currentUserImage ?: ""
+
                 val newComment = Comment(
-                    id = "",
+                    id = "", // Will be set by repository
                     postId = currentPostId,
                     userId = currentUser.uid,
-                    userName = currentUser.displayName ?: "Anonymous",
-                    userImage = _uiState.value.currentUserImage ?: "",
+                    userName = userName,
+                    userImage = userImage,
                     text = comment,
                     timestamp = System.currentTimeMillis()
                 )
 
                 val result = commentRepository.addComment(newComment)
+
                 when (result) {
                     is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                isAddingComment = false,
-                                newComment = ""
-                            )
+                        _uiState.update { state ->
+                            val currentPostDetail = state.postDetail
+                            if (currentPostDetail != null) {
+                                val updatedComments = listOf(newComment) + currentPostDetail.comments
+                                val updatedPost = currentPostDetail.post.copy(
+                                    commentCount = currentPostDetail.post.commentCount + 1
+                                )
+                                state.copy(
+                                    isAddingComment = false,
+                                    newComment = "",
+                                    postDetail = currentPostDetail.copy(
+                                        comments = updatedComments,
+                                        post = updatedPost
+                                    )
+                                )
+                            } else {
+                                state.copy(
+                                    isAddingComment = false,
+                                    newComment = ""
+                                )
+                            }
                         }
-                        loadPostDetail(currentPostId)
                     }
                     is Resource.Error -> {
                         _uiState.update {
@@ -266,5 +414,6 @@ data class PostDetailUiState(
     val showErrorDialog: Boolean = false,
     val newComment: String = "",
     val isAddingComment: Boolean = false,
-    val currentUserImage: String? = null  // ✨ NEW: Current user's profile picture
+    val currentUserImage: String? = null,
+    val currentUserName: String? = null
 )

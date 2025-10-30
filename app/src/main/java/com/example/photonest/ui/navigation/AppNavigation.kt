@@ -27,7 +27,7 @@ import androidx.navigation.navArgument
 import com.example.photonest.ui.screens.OtpScreen
 import com.example.photonest.ui.screens.home.HomeScreen
 import com.example.photonest.ui.screens.MainScaffold
-import com.example.photonest.ui.screens.addpost.AddPostBottomSheet
+import com.example.photonest.ui.screens.addpost.AddPostScreen
 import com.example.photonest.ui.screens.bookmarks.BookmarksScreen
 import com.example.photonest.ui.screens.explore.ExploreScreen
 import com.example.photonest.ui.screens.profile.ProfileScreen
@@ -52,7 +52,6 @@ fun AppNavigation(
     val systemTheme = isSystemInDarkTheme()
     // For the theme switching functionality
     var isDarkTheme by rememberSaveable { mutableStateOf(systemTheme) }
-    var showAddPostSheet by rememberSaveable { mutableStateOf(false) }
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     // Navigation routes which do not have scaffolding
@@ -63,6 +62,7 @@ fun AppNavigation(
             AppDestinations.SIGN_UP_ROUTE,
             AppDestinations.OTP_ROUTE,
             AppDestinations.EDIT_PROFILE_ROUTE,
+            AppDestinations.ADD_POST_ROUTE,
             "post_detail/{postId}",
             AppDestinations.POST_DETAIL_ROUTE,
             AppDestinations.NOTIFICATIONS_ROUTE,
@@ -83,7 +83,9 @@ fun AppNavigation(
                 isDarkTheme = isDarkTheme,
                 onThemeToggle = { isDarkTheme = !isDarkTheme },
                 navController = navController,
-                onAddPostClick = { showAddPostSheet = true },
+                onAddPostClick = {
+                    navController.navigate(AppDestinations.ADD_POST_ROUTE)
+                },
                 onNotificationClick = {
                     navController.navigate(AppDestinations.NOTIFICATIONS_ROUTE)
                 }
@@ -92,13 +94,6 @@ fun AppNavigation(
                     navController = navController,
                     startDestination = startDestination,
                     paddingValues = paddingValues
-                )
-            }
-
-            if (showAddPostSheet) {
-                AddPostBottomSheet(
-                    viewModel = hiltViewModel(),
-                    onDismiss = { showAddPostSheet = false }
                 )
             }
         } else {
@@ -245,6 +240,23 @@ private fun NavigationGraph(
                 }
             )
         }
+
+        // Add this inside the NavigationGraph NavHost
+        composable(AppDestinations.ADD_POST_ROUTE) {
+            AddPostScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onPostCreated = {
+                    navController.navigate(AppDestinations.HOME_ROUTE) {
+                        popUpTo(AppDestinations.ADD_POST_ROUTE) { inclusive = true }
+                    }
+                },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize(),
+                viewModel = hiltViewModel()
+            )
+        }
+
 
         composable(AppDestinations.PROFILE_ROUTE) {
             ProfileScreen(

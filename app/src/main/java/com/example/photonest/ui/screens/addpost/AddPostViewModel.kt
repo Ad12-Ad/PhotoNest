@@ -23,6 +23,7 @@ class AddPostViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AddPostState())
     val uiState: StateFlow<AddPostState> = _uiState
+    private val _customCategories = mutableSetOf<String>()
 
     companion object {
         const val MAX_CATEGORIES = 3
@@ -80,7 +81,6 @@ class AddPostViewModel @Inject constructor(
         )
     }
 
-    // ✅ FIXED: Single image URI handling
     private fun updateImage(uri: Uri?) {
         _uiState.update { it.copy(selectedImageUri = uri) }
     }
@@ -93,17 +93,26 @@ class AddPostViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(location = location)
     }
 
+
     private fun toggleCategory(category: String) {
         val currentCategories = _uiState.value.selectedCategories
         val newCategories = if (currentCategories.contains(category)) {
             currentCategories - category
         } else if (currentCategories.size < MAX_CATEGORIES) {
+            // Track if it's a custom category (not in predefined list)
+            if (!categories.contains(category)) {
+                _customCategories.add(category)
+            }
             currentCategories + category
         } else {
             currentCategories
         }
+
         _uiState.value = _uiState.value.copy(selectedCategories = newCategories)
     }
+
+    fun getCustomCategories(): Set<String> = _customCategories.toSet()
+
 
     private fun clearCategories() {
         _uiState.value = _uiState.value.copy(selectedCategories = emptySet())
@@ -113,7 +122,6 @@ class AddPostViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(searchQuery = query)
     }
 
-    // ✅ FIXED: Proper createPost implementation
     private fun createPost() {
         val currentState = _uiState.value
         val currentUser = currentState.currentUser
@@ -157,7 +165,6 @@ class AddPostViewModel @Inject constructor(
                     timestamp = System.currentTimeMillis()
                 )
 
-                // ✅ FIXED: Pass URI correctly as string
                 val imageUriString = currentState.selectedImageUri?.toString() ?: ""
                 val result = postRepository.createPost(
                     post = post,

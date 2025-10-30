@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.AddComment
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.data.model.Comment
@@ -120,7 +122,7 @@ fun PostDetailScreen(
                             onCommentClick = { /* Already in comments view */ },
                             onShareClick = { viewModel.sharePost(context) },
                             onUserClick = { onNavigateToProfile(uiState.postDetail!!.post.userId) },
-                            onFollowClick = { /* Implement follow logic */ },
+                            onFollowClick = { viewModel.toggleFollow() },
                             shape = RoundedCornerShape(bottomEnd = 16.dp, bottomStart = 16.dp)
                         )
                     }
@@ -233,11 +235,9 @@ private fun EnhancedCommentItem(
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // User Avatar
-        AsyncImage(
+        SubcomposeAsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(comment.userImage)
-                .crossfade(true)
-                .placeholder(R.drawable.profile_photo)
                 .error(R.drawable.icon_profile_filled)
                 .build(),
             contentDescription = "User avatar",
@@ -245,7 +245,26 @@ private fun EnhancedCommentItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .clickable(onClick = onUserClick)
+                .clickable(onClick = onUserClick),
+            loading = {
+                ShimmerEffect(
+                    modifier = Modifier.fillMaxSize()
+                )
+            },
+            error = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.BrokenImage,
+                        contentDescription = "Failed to load",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         )
 
         Spacer(modifier = Modifier.width(12.dp))
