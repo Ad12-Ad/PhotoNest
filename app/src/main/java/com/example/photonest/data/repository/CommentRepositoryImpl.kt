@@ -108,22 +108,17 @@ class CommentRepositoryImpl @Inject constructor(
 
     override suspend fun deleteComment(commentId: String): Resource<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Error("Not authenticated")
-
-            // Get comment to verify ownership
             val commentDoc = firestore.collection(Constants.COMMENTS_COLLECTION)
                 .document(commentId)
                 .get()
                 .await()
 
-            val comment = commentDoc.toObject(Comment::class.java)
-                ?: return Resource.Error("Comment not found")
-
-            // Verify user owns the comment
-            if (comment.userId != currentUserId) {
-                return Resource.Error("You don't have permission to delete this comment")
+            if (!commentDoc.exists()) {
+                commentDao.deleteCommentById(commentId)
+                return Resource.Success(Unit)
             }
+
+            val comment = commentDoc.toObject(Comment::class.java) ?: return Resource.Error("Comment not found")
 
             // Delete comment
             firestore.collection(Constants.COMMENTS_COLLECTION)
@@ -131,19 +126,18 @@ class CommentRepositoryImpl @Inject constructor(
                 .delete()
                 .await()
 
-            // Update post's comment count
+            // Update post comment count
             firestore.collection(Constants.POSTS_COLLECTION)
                 .document(comment.postId)
                 .update("commentCount", FieldValue.increment(-1))
                 .await()
 
-            // Delete from local database
+            // Delete from local
             commentDao.deleteCommentById(commentId)
 
             Resource.Success(Unit)
         } catch (e: Exception) {
-            Log.e("CommentRepository", "Failed to delete comment: ${e.message}", e)
-            Resource.Error(e.message ?: "Failed to delete comment")
+            Resource.Error("Failed to delete")
         }
     }
 

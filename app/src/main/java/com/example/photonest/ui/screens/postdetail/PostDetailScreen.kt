@@ -84,13 +84,13 @@ fun PostDetailScreen(
                 navigationIcon = {
                     BackCircleButton(onClick = onNavigateBack)
                 },
-//                actions = {
-//                    if (uiState.postDetail?.post?.userId == currentUserId) {
-//                        IconButton(onClick = { showDeleteDialog = true }) {
-//                            Icon(Icons.Default.Delete, "Delete Post")
-//                        }
-//                    }
-//                }
+                actions = {
+                    if (uiState.postDetail?.post?.userId == currentUserId) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(Icons.Default.Delete, "Delete Post")
+                        }
+                    }
+                }
             )
         },
         bottomBar = {

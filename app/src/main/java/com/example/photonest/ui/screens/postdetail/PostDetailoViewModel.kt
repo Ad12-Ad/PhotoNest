@@ -114,36 +114,27 @@ class PostDetailViewModel @Inject constructor(
 
     fun deleteComment(commentId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            val result = commentRepository.deleteComment(commentId)
-
+            // Update UI instantly (optimistic update)
             withContext(Dispatchers.Main) {
-                when (result) {
-                    is Resource.Success -> {
-                        // Remove comment from UI state
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                postDetail = currentState.postDetail?.copy(
-                                    comments = currentState.postDetail.comments.filter {
-                                        it.id != commentId
-                                    }
-                                )
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        postDetail = currentState.postDetail?.copy(
+                            comments = currentState.postDetail.comments.filter {
+                                it.id != commentId
+                            },
+                            post = currentState.postDetail.post.copy(
+                                commentCount = maxOf(0, currentState.postDetail.post.commentCount - 1)
                             )
-                        }
-                    }
-                    is Resource.Error -> {
-                        // Show error message
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to delete comment",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                    else -> {}
+                        )
+                    )
                 }
             }
+
+            // Delete in background - ignore result
+            commentRepository.deleteComment(commentId)
         }
     }
+
 
     fun toggleLike() {
         val currentPost = _uiState.value.postDetail?.post ?: return
