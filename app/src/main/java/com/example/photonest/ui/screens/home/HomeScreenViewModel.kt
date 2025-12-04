@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.onSuccess
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.User

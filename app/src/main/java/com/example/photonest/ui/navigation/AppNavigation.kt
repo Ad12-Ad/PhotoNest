@@ -83,7 +83,6 @@ fun AppNavigation(
     val badgeVm: NotificationBadgeViewModel = hiltViewModel()
     val unreadCount by badgeVm.unreadCount.collectAsState(initial = 0)
 
-    // Optional: prime local cache once on app start
     LaunchedEffect(Unit) {
         badgeVm.refreshOnce()
     }
@@ -225,60 +224,6 @@ private fun NavigationGraph(
                 viewModel = hiltViewModel()
             )
         }
-
-
-//        composable(
-//            route = "otp/{email}",
-//            arguments = listOf(
-//                navArgument("email") { type = NavType.StringType }
-//            )
-//        ) { backStackEntry ->
-//            val email = backStackEntry.arguments?.getString("email") ?: ""
-//
-//            OtpVerificationScreen(
-//                email = email,
-//                onBackClick = { navController.popBackStack() },
-//                onVerificationSuccess = {
-//                    navController.navigate(AppDestinations.HOME_ROUTE) {
-//                        popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = true }
-//                    }
-//                },
-//                modifier = Modifier
-//                    .background(MaterialTheme.colorScheme.background)
-//                    .padding(horizontal = 16.dp)
-//                    .fillMaxSize()
-//                    .safeContentPadding()
-//            )
-//        }
-
-
-        // Inside your NavHost, add this:
-//        composable(
-//            route = AppDestinations.OTP_SCREEN,
-//            arguments = listOf(
-//                navArgument("email") { type = NavType.StringType },
-//                navArgument("verificationId") { type = NavType.StringType },
-//                navArgument("password") { type = NavType.StringType },
-//                navArgument("name") { type = NavType.StringType; defaultValue = "" },
-//                navArgument("username") { type = NavType.StringType; defaultValue = "" },
-//                navArgument("isSignUp") { type = NavType.BoolType }
-//            )
-//        ) { backStackEntry ->
-//            OtpScreen(
-//                email = backStackEntry.arguments?.getString("email") ?: "",
-//                verificationId = backStackEntry.arguments?.getString("verificationId") ?: "",
-//                password = backStackEntry.arguments?.getString("password") ?: "",
-//                name = backStackEntry.arguments?.getString("name"),
-//                username = backStackEntry.arguments?.getString("username"),
-//                isSignUp = backStackEntry.arguments?.getBoolean("isSignUp") ?: false,
-//                onBackClick = { navController.popBackStack() },
-//                onVerificationSuccess = {
-//                    navController.navigate(AppDestinations.HOME_ROUTE) {
-//                        popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
-//                    }
-//                }
-//            )
-//        }
 
 
         // Main App Screens (with bottom navigation)

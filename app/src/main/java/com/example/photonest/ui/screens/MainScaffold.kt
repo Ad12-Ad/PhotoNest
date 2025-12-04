@@ -52,6 +52,7 @@ import com.example.photonest.ui.components.NormalText
 import com.example.photonest.ui.navigation.AppDestinations
 import com.example.photonest.ui.navigation.BottomNavItem
 import com.example.photonest.ui.theme.PhotoNestTheme
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -100,21 +101,18 @@ fun MainScaffold(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Notifications Icon
                                 NotificationIconButton(
                                     hasUnread = hasUnreadNotifications,
                                     onClick = onNotificationClick
                                 )
 
-                                // Enhanced Theme Toggle
                                 ThemeToggleButton(
                                     isDarkTheme = isDarkTheme,
                                     isChanging = isThemeChanging,
                                     onToggle = {
                                         isThemeChanging = true
                                         onThemeToggle()
-                                        // Reset animation after delay
-                                        kotlinx.coroutines.GlobalScope.launch {
+                                        GlobalScope.launch {
                                             delay(300)
                                             isThemeChanging = false
                                         }
