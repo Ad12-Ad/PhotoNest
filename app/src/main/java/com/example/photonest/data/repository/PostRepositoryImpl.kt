@@ -214,7 +214,7 @@ class PostRepositoryImpl @Inject constructor(
             Log.d("PostRepository", "Creating post with imageUri: $imageUri")
 
             // Upload image to Firebase Storage if imageUri is provided
-            val imageUrl = if (imageUri.isNotEmpty() && imageUri.startsWith("content://")) {
+            val imageUrl = if (imageUri.isNotEmpty() && imageUri.startsWith("content://") || imageUri.startsWith("file://")) {
                 Log.d("PostRepository", "Uploading image to Firebase Storage")
                 uploadImageToStorage(imageUri)
             } else {

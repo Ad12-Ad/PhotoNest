@@ -1,13 +1,18 @@
 package com.example.photonest.ui.screens.profile
 
+import android.content.Context
 import android.net.Uri
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Constants
+import com.example.photonest.core.utils.ImageCompressionUtils
 import com.example.photonest.core.utils.Resource
 import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IUserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +24,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class EditProfileViewModel @Inject constructor(
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditProfileUiState())
@@ -122,9 +128,43 @@ class EditProfileViewModel @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     fun updateProfilePicture(uri: Uri) {
-        _uiState.update { it.copy(profilePictureUri = uri) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Compress the image
+                val compressedFile = ImageCompressionUtils.compressImage(
+                    context = context,
+                    uri = uri,
+                    maxLongEdge = 1800,
+                    quality = 80
+                )
+
+                // Convert to URI - DON'T delete the file yet!
+                val compressedUri = Uri.fromFile(compressedFile)
+
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(
+                            profilePictureUri = compressedUri,
+                            // Store file reference for cleanup later
+                            compressedFile = compressedFile
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(
+                            error = "Failed to process image: ${e.message}",
+                            showErrorDialog = true
+                        )
+                    }
+                }
+            }
+        }
     }
+
 
     fun saveProfile() {
         val currentState = _uiState.value
@@ -136,20 +176,28 @@ class EditProfileViewModel @Inject constructor(
 
             try {
                 val profilePictureUrl = if (currentState.profilePictureUri != null) {
-                    when (val result = userRepository.uploadProfilePicture(currentState.profilePictureUri.toString())) {
-                        is Resource.Success -> result.data ?: currentUser.profilePicture
+                    when (val result =
+                        userRepository.uploadProfilePicture(currentState.profilePictureUri.toString())) {
+                        is Resource.Success -> {
+                            currentState.compressedFile?.delete()
+                            result.data ?: currentUser.profilePicture
+                        }
+
                         is Resource.Error -> {
+                            currentState.compressedFile?.delete()
                             withContext(Dispatchers.Main) {
                                 _uiState.update {
                                     it.copy(
                                         isLoading = false,
-                                        error = result.message ?: "Failed to upload profile picture",
+                                        error = result.message
+                                            ?: "Failed to upload profile picture",
                                         showErrorDialog = true
                                     )
                                 }
                             }
                             return@launch
                         }
+
                         else -> currentUser.profilePicture
                     }
                 } else {
@@ -171,7 +219,8 @@ class EditProfileViewModel @Inject constructor(
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    isUpdateSuccessful = true
+                                    isUpdateSuccessful = true,
+                                    compressedFile = null
                                 )
                             }
                         }
@@ -188,12 +237,13 @@ class EditProfileViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
+                currentState.compressedFile?.delete()
                 withContext(Dispatchers.Main) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             error = e.message ?: "An error occurred",
-                            showErrorDialog = true
+                            showErrorDialog = true,
                         )
                     }
                 }
@@ -276,6 +326,7 @@ data class EditProfileUiState(
     val website: String = "",
     val location: String = "",
     val profilePictureUri: Uri? = null,
+    val compressedFile: java.io.File? = null, // ADD THIS
     val nameError: String? = null,
     val usernameError: String? = null,
     val bioError: String? = null,

@@ -3,6 +3,9 @@ accompanistPermissions = "0.37.3"
 agp = "8.11.2"
 animation = "1.9.3"
 cameraCamera2 = "1.5.0"
+cameraCore = "1.5.2"
+cameraCamera2Version = "1.5.2"
+cameraView = "1.5.2"
 coilCompose = "2.5.0"
 constraintlayoutCompose = "1.0.1"
 converterGson = "3.0.0"
@@ -50,8 +53,11 @@ accompanist-permissions = { module = "com.google.accompanist:accompanist-permiss
 androidx-animation = { module = "androidx.compose.animation:animation", version.ref = "animation" }
 androidx-animation-core = { module = "androidx.compose.animation:animation-core", version.ref = "animation" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCamera2" }
+androidx-camera-camera2-v152 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCamera2Version" }
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCamera2" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCamera2" }
+androidx-camera-view-v152 = { module = "androidx.camera:camera-view", version.ref = "cameraView" }
 androidx-constraintlayout-compose = { module = "androidx.constraintlayout:constraintlayout-compose", version.ref = "constraintlayoutCompose" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }

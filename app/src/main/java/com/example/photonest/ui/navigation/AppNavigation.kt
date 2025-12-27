@@ -1,6 +1,8 @@
 package com.example.photonest.ui.navigation
 
 import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
@@ -47,6 +49,7 @@ import com.example.photonest.ui.screens.profile.userprofile.UserProfileViewModel
 import com.example.photonest.ui.screens.settings.SettingsScreen
 import com.example.photonest.ui.theme.PhotoNestTheme
 
+@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
@@ -117,6 +120,7 @@ fun AppNavigation(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.R)
 @SuppressLint("UnrememberedMutableState")
 @Composable
 private fun NavigationGraph(

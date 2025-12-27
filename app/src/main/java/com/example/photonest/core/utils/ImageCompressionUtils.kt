@@ -1,4 +1,4 @@
-package com.example.photonest.utils
+package com.example.photonest.core.utils
 
 import android.content.Context
 import android.graphics.Bitmap

@@ -682,7 +682,6 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    // Replace this function in UserRepositoryImpl.kt:
     override suspend fun uploadProfilePicture(imageUri: String): Resource<String> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
@@ -692,18 +691,25 @@ class UserRepositoryImpl @Inject constructor(
                 .child(Constants.PROFILE_IMAGES_PATH)
                 .child("$currentUserId.jpg")
 
-            // Upload image directly from URI
-            val uploadTask = imageRef.putFile(Uri.parse(imageUri)).await()
+            val uri = Uri.parse(imageUri)
 
-            // Get download URL
+            Log.d("UserRepository", "Uploading profile picture from: $imageUri")
+
+            val uploadTask = imageRef.putFile(uri).await()
+
+            Log.d("UserRepository", "Upload successful, getting download URL")
+
             val downloadUrl = imageRef.downloadUrl.await()
+
+            Log.d("UserRepository", "Download URL: ${downloadUrl.toString()}")
 
             Resource.Success(downloadUrl.toString())
         } catch (e: Exception) {
-            Log.e("UserRepository", "Profile picture upload failed: ${e.message}")
+            Log.e("UserRepository", "Profile picture upload failed: ${e.message}", e)
             Resource.Error(e.message ?: "Failed to upload profile picture")
         }
     }
+
 
 
     override suspend fun getPopularUsers(): Resource<List<User>> {

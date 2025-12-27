@@ -1,8 +1,10 @@
 package com.example.photonest.ui.screens.addpost
 
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +28,7 @@ import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.screens.addpost.model.AddPostEvent
 import com.example.photonest.ui.screens.addpost.model.AddPostState
 
+@RequiresApi(Build.VERSION_CODES.R)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddPostScreen(
