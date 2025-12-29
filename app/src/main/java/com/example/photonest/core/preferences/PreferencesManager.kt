@@ -27,7 +27,6 @@ class PreferencesManager @Inject constructor(
         val THEME_MODE_KEY = stringPreferencesKey(Constants.PreferenceKeys.THEME_MODE)
         val NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey(Constants.PreferenceKeys.NOTIFICATIONS_ENABLED)
 
-        // ✅ ADDED: Missing key declarations
         val PUSH_NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey(Constants.PreferenceKeys.PUSH_NOTIFICATIONS_ENABLED)
         val LIKE_NOTIFICATIONS_KEY = booleanPreferencesKey("like_notifications_enabled")
         val COMMENT_NOTIFICATIONS_KEY = booleanPreferencesKey("comment_notifications_enabled")
@@ -43,7 +42,6 @@ class PreferencesManager @Inject constructor(
         preferences[USER_ID_KEY] ?: ""
     }
 
-    // ✅ FIXED: Changed from val to fun for consistency with ViewModel
     fun getThemeMode(): Flow<String> = dataStore.data.map { preferences ->
         preferences[THEME_MODE_KEY] ?: "system"
     }
@@ -52,7 +50,6 @@ class PreferencesManager @Inject constructor(
         preferences[NOTIFICATIONS_ENABLED_KEY] ?: true
     }
 
-    // ✅ ADDED: All the getter functions
     fun getPushNotificationsEnabled(): Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[PUSH_NOTIFICATIONS_ENABLED_KEY] ?: true
     }

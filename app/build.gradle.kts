@@ -143,6 +143,12 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2.v152)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view.v152)
+    implementation(libs.guava)
+
     implementation("com.google.firebase:firebase-auth-ktx:22.3.0")
 
     implementation(libs.material3) // or latest version

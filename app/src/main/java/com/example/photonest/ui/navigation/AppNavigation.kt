@@ -1,6 +1,10 @@
 package com.example.photonest.ui.navigation
 
 import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.photonest.ui.components.camera.CameraScreen
 import com.example.photonest.ui.screens.otp.OtpVerificationScreen
 import com.example.photonest.ui.screens.home.HomeScreen
 import com.example.photonest.ui.screens.MainScaffold
@@ -47,6 +52,7 @@ import com.example.photonest.ui.screens.profile.userprofile.UserProfileViewModel
 import com.example.photonest.ui.screens.settings.SettingsScreen
 import com.example.photonest.ui.theme.PhotoNestTheme
 
+@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
@@ -72,7 +78,8 @@ fun AppNavigation(
             AppDestinations.SETTINGS_ROUTE,
             AppDestinations.LIKED_POSTS_ROUTE,
             AppDestinations.YOUR_POSTS_ROUTE,
-            "${AppDestinations.USER_PROFILE_ROUTE}/{userId}"
+            "${AppDestinations.USER_PROFILE_ROUTE}/{userId}",
+            AppDestinations.CAMERA_ROUTE
         )
     }
 
@@ -83,7 +90,6 @@ fun AppNavigation(
     val badgeVm: NotificationBadgeViewModel = hiltViewModel()
     val unreadCount by badgeVm.unreadCount.collectAsState(initial = 0)
 
-    // Optional: prime local cache once on app start
     LaunchedEffect(Unit) {
         badgeVm.refreshOnce()
     }
@@ -118,6 +124,7 @@ fun AppNavigation(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.R)
 @SuppressLint("UnrememberedMutableState")
 @Composable
 private fun NavigationGraph(
@@ -227,60 +234,6 @@ private fun NavigationGraph(
         }
 
 
-//        composable(
-//            route = "otp/{email}",
-//            arguments = listOf(
-//                navArgument("email") { type = NavType.StringType }
-//            )
-//        ) { backStackEntry ->
-//            val email = backStackEntry.arguments?.getString("email") ?: ""
-//
-//            OtpVerificationScreen(
-//                email = email,
-//                onBackClick = { navController.popBackStack() },
-//                onVerificationSuccess = {
-//                    navController.navigate(AppDestinations.HOME_ROUTE) {
-//                        popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = true }
-//                    }
-//                },
-//                modifier = Modifier
-//                    .background(MaterialTheme.colorScheme.background)
-//                    .padding(horizontal = 16.dp)
-//                    .fillMaxSize()
-//                    .safeContentPadding()
-//            )
-//        }
-
-
-        // Inside your NavHost, add this:
-//        composable(
-//            route = AppDestinations.OTP_SCREEN,
-//            arguments = listOf(
-//                navArgument("email") { type = NavType.StringType },
-//                navArgument("verificationId") { type = NavType.StringType },
-//                navArgument("password") { type = NavType.StringType },
-//                navArgument("name") { type = NavType.StringType; defaultValue = "" },
-//                navArgument("username") { type = NavType.StringType; defaultValue = "" },
-//                navArgument("isSignUp") { type = NavType.BoolType }
-//            )
-//        ) { backStackEntry ->
-//            OtpScreen(
-//                email = backStackEntry.arguments?.getString("email") ?: "",
-//                verificationId = backStackEntry.arguments?.getString("verificationId") ?: "",
-//                password = backStackEntry.arguments?.getString("password") ?: "",
-//                name = backStackEntry.arguments?.getString("name"),
-//                username = backStackEntry.arguments?.getString("username"),
-//                isSignUp = backStackEntry.arguments?.getBoolean("isSignUp") ?: false,
-//                onBackClick = { navController.popBackStack() },
-//                onVerificationSuccess = {
-//                    navController.navigate(AppDestinations.HOME_ROUTE) {
-//                        popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
-//                    }
-//                }
-//            )
-//        }
-
-
         // Main App Screens (with bottom navigation)
         composable(AppDestinations.HOME_ROUTE) {
             HomeScreen(
@@ -333,6 +286,7 @@ private fun NavigationGraph(
 
         // Add this inside the NavigationGraph NavHost
         composable(AppDestinations.ADD_POST_ROUTE) {
+            val savedStateHandle = it.savedStateHandle
             AddPostScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onPostCreated = {
@@ -340,10 +294,34 @@ private fun NavigationGraph(
                         popUpTo(AppDestinations.ADD_POST_ROUTE) { inclusive = true }
                     }
                 },
+                onNavigateToCamera = {
+                    navController.navigate(AppDestinations.CAMERA_ROUTE)
+                },
+                navController = navController,
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize(),
                 viewModel = hiltViewModel()
+            )
+        }
+
+        composable(AppDestinations.CAMERA_ROUTE) {
+            CameraScreen(
+                onImageCaptured = { uri ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("captured_image", uri.toString())
+                    navController.popBackStack()
+                },
+                onImageSelectedFromGallery = { uri ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("captured_image", uri.toString())
+                    navController.popBackStack()
+                },
+                onClose = {
+                    navController.popBackStack()
+                }
             )
         }
 
