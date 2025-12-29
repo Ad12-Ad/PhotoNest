@@ -1,18 +1,23 @@
 package com.example.photonest.ui.screens.addpost
 
 import android.net.Uri
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -21,18 +26,25 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.photonest.R
+import com.example.photonest.ui.animations.bouncyClick
+import com.example.photonest.ui.components.ElevatedUploadContainer
 import com.example.photonest.ui.components.OnBoardingTextField
+import com.example.photonest.ui.components.OuterShadowContainer
 
 @Composable
 fun CategorySection(
@@ -240,37 +252,107 @@ fun CategorySection(
 @Composable
 fun ImagePickerSection(
     selectedImageUri: Uri?,
+    reset: () -> Unit,
     onPickImage: () -> Unit,
+    onCameraClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
-        onClick = onPickImage,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 200.dp, max = 350.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
-    ) {
-        if (selectedImageUri != null) {
-            AsyncImage(
-                model = selectedImageUri,
-                contentDescription = "Selected Image",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
-            )
-        } else {
+    if (selectedImageUri != null) {
+        ElevatedCard(
+            onClick = onPickImage,
+            modifier = modifier
+                .fillMaxWidth()
+                .heightIn(min = 200.dp, max = 350.dp),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
+        ) {
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.add_image_icon),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(40.dp)
-                        .fillMaxWidth(),
-                    alpha = 0.6f
+                Modifier.fillMaxSize(),
+            ){
+                IconButton(
+                    shape = CircleShape,
+                    onClick = reset,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(0.6f)
+                    ),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(25.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.icon_close),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+                AsyncImage(
+                    model = selectedImageUri,
+                    contentDescription = "Selected Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
                 )
             }
         }
+    }
+    else{
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ImagePicker(
+                supportingText = "Gallery",
+                onPickImage = onPickImage,
+                modifier = Modifier
+                    .height(200.dp)
+                    .fillMaxWidth(0.5f)
+                    .bouncyClick { },
+                iconId = R.drawable.add_image_icon
+            )
+            ImagePicker(
+                supportingText = "Camera",
+                onPickImage = onCameraClick,
+                modifier = Modifier
+                    .height(200.dp)
+                    .fillMaxWidth(1f)
+                    .bouncyClick { },
+                iconId = R.drawable.icon_camera
+            )
+        }
+    }
+}
+
+@Composable
+fun ImagePicker(
+    modifier: Modifier = Modifier,
+    supportingText: String,
+    shape: Shape = RoundedCornerShape(20.dp),
+    onPickImage: () -> Unit,
+    @DrawableRes iconId: Int,
+) {
+    ElevatedUploadContainer(
+        shape = shape,
+        showDottedBorder = true,
+        onClick = onPickImage,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 240.dp, max = 400.dp)
+    ) {
+        OuterShadowContainer(
+            backgroundColor = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Icon(
+                painter = painterResource(iconId),
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Text(
+            text = "Upload from $supportingText",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
     }
 }

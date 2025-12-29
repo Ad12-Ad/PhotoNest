@@ -17,11 +17,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.photonest.ui.components.ButtonOnboarding
 import com.example.photonest.ui.components.MyAlertDialog
 import com.example.photonest.ui.components.OnBoardingTextField
@@ -34,11 +37,25 @@ import com.example.photonest.ui.screens.addpost.model.AddPostState
 fun AddPostScreen(
     onNavigateBack: () -> Unit,
     onPostCreated: () -> Unit,
+    onNavigateToCamera: () -> Unit,
+    navController: NavController,
     modifier: Modifier = Modifier,
     viewModel: AddPostViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val capturedImageUri by savedStateHandle
+        ?.getStateFlow<String?>("captured_image", null)
+        ?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(capturedImageUri) {
+        capturedImageUri?.let { uriString ->
+            viewModel.handleEvent(AddPostEvent.ImageSelected(Uri.parse(uriString)))
+            savedStateHandle?.remove<String>("captured_image")
+        }
+    }
 
     // Handle successful post creation
     LaunchedEffect(state.isPostCreated) {
@@ -99,8 +116,8 @@ fun AddPostScreen(
                 AddPostContent(
                     viewModel = viewModel,
                     state = state,
-                    onEvent = viewModel::handleEvent
-                )
+                    onEvent = viewModel::handleEvent,
+                    onNavigateToCamera = onNavigateToCamera                )
             }
         }
     }
@@ -110,7 +127,8 @@ fun AddPostScreen(
 private fun AddPostContent(
     viewModel: AddPostViewModel,
     state: AddPostState,
-    onEvent: (AddPostEvent) -> Unit
+    onEvent: (AddPostEvent) -> Unit,
+    onNavigateToCamera: () -> Unit
 ) {
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -121,7 +139,9 @@ private fun AddPostContent(
     // Image Section
     ImagePickerSection(
         selectedImageUri = state.selectedImageUri,
-        onPickImage = { imagePickerLauncher.launch("image/*") }
+        onPickImage = { imagePickerLauncher.launch("image/*") },
+        onCameraClick = { onNavigateToCamera() },
+        reset = {viewModel.resetPostCreated()}
     )
 
     // Caption TextField

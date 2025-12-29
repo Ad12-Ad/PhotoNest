@@ -237,6 +237,6 @@ class AddPostViewModel @Inject constructor(
     }
 
     fun resetPostCreated() {
-        _uiState.value = _uiState.value.copy(isPostCreated = false)
+        _uiState.value = _uiState.value.copy(isPostCreated = false, selectedImageUri = null)
     }
 }

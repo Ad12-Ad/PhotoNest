@@ -3,6 +3,8 @@ package com.example.photonest.ui.navigation
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.photonest.ui.components.camera.CameraScreen
 import com.example.photonest.ui.screens.otp.OtpVerificationScreen
 import com.example.photonest.ui.screens.home.HomeScreen
 import com.example.photonest.ui.screens.MainScaffold
@@ -75,7 +78,8 @@ fun AppNavigation(
             AppDestinations.SETTINGS_ROUTE,
             AppDestinations.LIKED_POSTS_ROUTE,
             AppDestinations.YOUR_POSTS_ROUTE,
-            "${AppDestinations.USER_PROFILE_ROUTE}/{userId}"
+            "${AppDestinations.USER_PROFILE_ROUTE}/{userId}",
+            AppDestinations.CAMERA_ROUTE
         )
     }
 
@@ -282,6 +286,7 @@ private fun NavigationGraph(
 
         // Add this inside the NavigationGraph NavHost
         composable(AppDestinations.ADD_POST_ROUTE) {
+            val savedStateHandle = it.savedStateHandle
             AddPostScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onPostCreated = {
@@ -289,10 +294,34 @@ private fun NavigationGraph(
                         popUpTo(AppDestinations.ADD_POST_ROUTE) { inclusive = true }
                     }
                 },
+                onNavigateToCamera = {
+                    navController.navigate(AppDestinations.CAMERA_ROUTE)
+                },
+                navController = navController,
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize(),
                 viewModel = hiltViewModel()
+            )
+        }
+
+        composable(AppDestinations.CAMERA_ROUTE) {
+            CameraScreen(
+                onImageCaptured = { uri ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("captured_image", uri.toString())
+                    navController.popBackStack()
+                },
+                onImageSelectedFromGallery = { uri ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("captured_image", uri.toString())
+                    navController.popBackStack()
+                },
+                onClose = {
+                    navController.popBackStack()
+                }
             )
         }
 
