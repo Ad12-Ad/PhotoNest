@@ -170,22 +170,12 @@ private fun NavigationGraph(
 
         composable(AppDestinations.SIGN_IN_ROUTE) {
             SignInScreen(
-                onSignInSuccess = { email ->
-                    navController.navigate(AppDestinations.HOME_ROUTE) {
-                        popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
-                    }
-                },
-                onBackClick = { navController.popBackStack() },
-                onSignUpTxtClick = {
-                    navController.navigate(AppDestinations.SIGN_UP_ROUTE) {
-                        popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
-                    }
-                },
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 16.dp)
                     .fillMaxSize()
                     .safeContentPadding(),
+                navController = navController,
                 viewModel = hiltViewModel()
             )
         }

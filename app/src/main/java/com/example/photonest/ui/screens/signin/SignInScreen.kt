@@ -1,5 +1,6 @@
 package com.example.photonest.ui.screens.signin
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,11 +15,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -26,7 +32,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.example.photonest.R
 import com.example.photonest.ui.components.AnnotatedText
 import com.example.photonest.ui.components.BackTxtBtn
@@ -38,58 +47,70 @@ import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
 import com.example.photonest.ui.components.ShowHidePasswordTextField
 import com.example.photonest.ui.components.SignSocialButtons
+import com.example.photonest.ui.navigation.AppDestinations
+import com.example.photonest.ui.screens.signin.state.SignInEffects
+import com.example.photonest.ui.screens.signin.state.SignInEvents
+import com.example.photonest.ui.screens.signin.state.SignInState
+import com.example.photonest.ui.screens.signup.ErrorTxt
+import com.example.photonest.ui.screens.signup.PrefixIcon
 import com.example.photonest.ui.theme.bodyFontFamily
+import com.example.photonest.utils.ObserveAsEvents
+import kotlinx.coroutines.launch
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun SignInScreen(
     modifier: Modifier = Modifier,
-    viewModel: SignInViewModel = viewModel(),
-    onSignInSuccess: (String) -> Unit,
-    onSignUpTxtClick: () -> Unit,
-    onBackClick: () -> Boolean,
+    viewModel: SignInViewModel = hiltViewModel(),
+    navController: NavHostController
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-
-    LaunchedEffect(uiState.isSignInSuccessful) {
-        if (uiState.isSignInSuccessful) {
-            onSignInSuccess(uiState.email)
-            viewModel.resetSignInSuccess()
+    ObserveAsEvents(flow = viewModel.effects) { effects ->
+        when(effects){
+            SignInEffects.NavigateBack -> {
+                navController.popBackStack()
+            }
+            SignInEffects.NavigateToHome -> {
+                navController.navigate(AppDestinations.HOME_ROUTE) {
+                    popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
+                }
+            }
+            SignInEffects.NavigateToSignUp -> {
+                navController.navigate(AppDestinations.SIGN_UP_ROUTE) {
+                    popUpTo(AppDestinations.SIGN_IN_ROUTE) { inclusive = true }
+                }
+            }
+            is SignInEffects.ShowSnackBar -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = effects.message
+                    )
+                }
+            }
         }
     }
 
-    SignInContent(
-        uiState = uiState,
-        onEmailChange = viewModel::updateEmail,
-        onPasswordChange = viewModel::updatePassword,
-        onSignInTxtClick = onSignUpTxtClick,
-        onSignInClick = viewModel::signIn,
-        onBackClick = onBackClick,
-        onClearEmail = {viewModel.updateEmail("")},
-        modifier = modifier
-    )
-
-    MyAlertDialog(
-        shouldShowDialog = uiState.showErrorDialog,
-        onDismissRequest = viewModel::dismissErrorDialog,
-        title = "Sign In Failed",
-        text = uiState.error ?: "An unknown error occurred",
-        confirmButtonText = "OK",
-        onConfirmClick = viewModel::dismissErrorDialog
-    )
+    Scaffold (
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+    ){
+        SignInContent(
+            uiState = uiState,
+            onEvent = viewModel::onEvent,
+            modifier = modifier
+        )
+    }
 }
 
 @Composable
 fun SignInContent(
     modifier: Modifier = Modifier,
-    uiState: SignInUiState,
-    onEmailChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onSignInClick: () -> Unit = {},
-    onSignInTxtClick: () -> Unit,
-    onBackClick: () -> Boolean,
-    onClearEmail: () -> Unit,
-    onSignInSuccess: () -> Unit = {},
+    uiState: SignInState,
+    onEvent: (SignInEvents) -> Unit
 ) {
     LazyColumn(
         modifier = modifier,
@@ -103,7 +124,7 @@ fun SignInContent(
                 modifier = Modifier.fillMaxWidth()
             ){
                 Heading1(text = "Let's sign in", fontColor = MaterialTheme.colorScheme.primary)
-                BackTxtBtn(onClick = { onBackClick() }, modifier = Modifier.padding(top = 12.dp))
+                BackTxtBtn(onClick = { onEvent(SignInEvents.BackClick) }, modifier = Modifier.padding(top = 12.dp))
             }
         }
         item {
@@ -112,47 +133,19 @@ fun SignInContent(
             ){
                 OnBoardingTextField(
                     value = uiState.email,
-                    onValueChange = onEmailChange,
+                    onValueChange = {onEvent(SignInEvents.EmailChanged(it))},
                     label = "Email",
                     isError = uiState.emailError != null,
-                    errorMessage = {
-                        Text(
-                            text = uiState.emailError?: "",
-                            style = TextStyle(
-                                fontSize = 14.sp,
-                                fontFamily = bodyFontFamily,
-                                lineHeight = 22.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        )
-                    },
-                    prefix = {
-                        Icon(
-                            painter = painterResource(id = R.drawable.icon_profile_outlined),
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    onClearSearch = onClearEmail
+                    errorMessage = { ErrorTxt(error = uiState.emailError) },
+                    prefix = { PrefixIcon(icon = R.drawable.icon_profile_outlined) },
+                    onClearSearch = { onEvent(SignInEvents.EmailChanged("")) }
                 )
                 ShowHidePasswordTextField(
                     label = "Password",
                     value = uiState.password,
-                    onValueChange = onPasswordChange,
+                    onValueChange = { onEvent(SignInEvents.PasswordChanged(it)) },
                     isError = uiState.passwordError != null,
-                    errorMessage = {
-                        Text(
-                            text = uiState.passwordError?: "",
-                            style = TextStyle(
-                                fontSize = 14.sp,
-                                fontFamily = bodyFontFamily,
-                                lineHeight = 22.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        )
-                    },
+                    errorMessage = { ErrorTxt(uiState.passwordError)},
                 )
                 Row (
                     modifier = Modifier.fillMaxWidth(),
@@ -160,7 +153,7 @@ fun SignInContent(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ){
                     AnnotatedText(
-                        text1 = "Don't have an account.", text2 = "Sign Up", onClickTxt2 = {onSignInTxtClick()},
+                        text1 = "Don't have an account.", text2 = "Sign Up", onClickTxt2 = {onEvent(SignInEvents.SignUpTxtClick)},
                         modifier = Modifier.height(24.dp)
                     )
                     AnnotatedText(
@@ -179,7 +172,7 @@ fun SignInContent(
             ){
                 Heading2(text = "Continue", fontColor = MaterialTheme.colorScheme.onBackground)
                 OnboardingCircleBtn(
-                    onClick = { onSignInClick() },
+                    onClick = { onEvent(SignInEvents.SignInClick)},
                     enabled = uiState.isInputValid && !uiState.isLoading
                 )
             }
