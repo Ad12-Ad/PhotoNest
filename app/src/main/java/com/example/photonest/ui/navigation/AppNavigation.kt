@@ -158,17 +158,7 @@ private fun NavigationGraph(
         // Authentication Screens
         composable(AppDestinations.SIGN_UP_ROUTE) {
             SignUpScreen(
-                onSignUpSuccess = { email, password, name, username ->
-                    navController.navigate("otp/$email/$password/$name/$username") {
-                        popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = false }
-                    }
-                },
-                onBackClick = { navController.popBackStack() },
-                onSignInTxtClick = {
-                    navController.navigate(AppDestinations.SIGN_IN_ROUTE) {
-                        popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = true }
-                    }
-                },
+                navController = navController,
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 16.dp)
