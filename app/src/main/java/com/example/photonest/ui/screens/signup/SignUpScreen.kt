@@ -1,5 +1,6 @@
 package com.example.photonest.ui.screens.signup
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,19 +15,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.example.photonest.R
 import com.example.photonest.ui.components.AnnotatedText
 import com.example.photonest.ui.components.BackTxtBtn
@@ -38,70 +47,70 @@ import com.example.photonest.ui.components.OnBoardingTextField
 import com.example.photonest.ui.components.OnboardingCircleBtn
 import com.example.photonest.ui.components.ShowHidePasswordTextField
 import com.example.photonest.ui.components.SignSocialButtons
+import com.example.photonest.ui.navigation.AppDestinations
+import com.example.photonest.ui.screens.signup.state.SignUpEffect
+import com.example.photonest.ui.screens.signup.state.SignUpEvent
+import com.example.photonest.ui.screens.signup.state.SignUpUiState
+import com.example.photonest.ui.theme.PhotoNestTheme
 import com.example.photonest.ui.theme.bodyFontFamily
+import com.example.photonest.utils.ObserveAsEvents
+import kotlinx.coroutines.launch
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun SignUpScreen(
+    navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: SignUpViewModel = viewModel(),
-    onSignUpSuccess: (String, String, String, String) -> Unit,
-    onSignInTxtClick: () -> Unit,
-    onBackClick: () -> Boolean,
+    viewModel: SignUpViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    if (uiState.isSignUpSuccessful) {
-        LaunchedEffect(Unit) {
-            onSignUpSuccess(
-                uiState.email,
-                uiState.password,
-                uiState.name,
-                uiState.username
-            )
-            viewModel.resetSignUpSuccess()
+    ObserveAsEvents(flow = viewModel.effect) { effects ->
+        when(effects){
+            SignUpEffect.NavigateToOtp -> {
+                navController.navigate("otp/${uiState.email}/${uiState.password}/${uiState.name}/${uiState.username}") {
+                    popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = false }
+                }
+            }
+            is SignUpEffect.ShowSnackbar -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = effects.message
+                    )
+                }
+            }
+
+            SignUpEffect.NavigateBack -> {
+                navController.popBackStack()
+            }
+
+            SignUpEffect.NavigateSignIn -> {
+                navController.navigate(AppDestinations.SIGN_IN_ROUTE) {
+                    popUpTo(AppDestinations.SIGN_UP_ROUTE) { inclusive = true }
+                }
+            }
         }
     }
-    SignUpContent(
-        uiState = uiState,
-        onEmailChange = viewModel::updateEmail,
-        onUsernameChange = viewModel::updateUsername,
-        onPasswordChange = viewModel::updatePassword,
-        onNameChange = viewModel::updateName,
-        onConfirmPasswordChange = viewModel::updateConfirmPassword,
-        onSignUpClick = { viewModel.signUp() },
-        onSignInTxtClick = { onSignInTxtClick() },
-        onBackClick = onBackClick,
-        onSignUpSuccess = onSignUpSuccess,
-        modifier = modifier,
-        onClearName = {viewModel.updateName("")},
-        onClearUserName = {viewModel.updateUsername("")},
-        onClearEmail = {viewModel.updateEmail("")}
-    )
-    MyAlertDialog(
-        shouldShowDialog = uiState.showErrorDialog,
-        onDismissRequest = viewModel::dismissErrorDialog,
-        title = "Sign Up Failed",
-        text = uiState.error ?: "An unknown error occurred",
-        confirmButtonText = "OK",
-        onConfirmClick = viewModel::dismissErrorDialog
-    )
+
+    Scaffold (
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+    ){
+        SignUpContent(
+            uiState = uiState,
+            onEvent = viewModel::onEvent,
+            modifier = modifier
+        )
+    }
 }
 
 @Composable
 fun SignUpContent(
     uiState: SignUpUiState,
-    onUsernameChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
-    onNameChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onConfirmPasswordChange: (String) -> Unit,
-    onSignUpClick: () -> Unit,
-    onSignInTxtClick: () -> Unit,
-    onBackClick: () -> Boolean,
-    onClearName: () -> Unit,
-    onClearUserName: () -> Unit,
-    onClearEmail: () -> Unit,
-    onSignUpSuccess: (String, String, String, String) -> Unit,
+    onEvent: (SignUpEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -116,78 +125,39 @@ fun SignUpContent(
                 modifier = Modifier.fillMaxWidth()
             ){
                 Heading1(text = "Create an \naccount", fontColor = MaterialTheme.colorScheme.primary)
-                BackTxtBtn(onClick = { onBackClick() }, modifier = Modifier.padding(top = 12.dp))
+                BackTxtBtn(onClick = {onEvent(SignUpEvent.BackClicked)}, modifier = Modifier.padding(top = 12.dp))
             }
         }
         item {
             OnBoardingTextField(
                 value = uiState.email,
-                onValueChange = onEmailChange,
+                onValueChange = { onEvent(SignUpEvent.EmailChanged(it)) },
                 label = "Email",
                 isError = uiState.emailError != null,
-                errorMessage = {
-                    Text(
-                        text = uiState.emailError?: "",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontFamily = bodyFontFamily,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    )
-                },
-                prefix = {
-                    Icon(
-                        painter = painterResource(id = R.drawable.icon_profile_outlined),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                onClearSearch = onClearEmail
+                errorMessage = { ErrorTxt(error = uiState.emailError) },
+                prefix = { PrefixIcon(icon = R.drawable.icon_profile_outlined)},
+                onClearSearch = { onEvent(SignUpEvent.EmailChanged("")) }
             )
         }
         item {
             OnBoardingTextField(
                 value = uiState.username,
-                onValueChange = onUsernameChange,
+                onValueChange = { onEvent(SignUpEvent.UsernameChanged(it)) },
                 label = "User Name",
                 isError = uiState.usernameError != null,
-                errorMessage = {
-                    Text(
-                        text = uiState.usernameError?: "",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontFamily = bodyFontFamily,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    )
-                },
-                onClearSearch = onClearUserName
+                errorMessage = { ErrorTxt(uiState.usernameError) },
+                onClearSearch = { onEvent(SignUpEvent.UsernameChanged("")) }
             )
         }
 
         item {
             OnBoardingTextField(
                 value = uiState.name,
-                onValueChange = onNameChange,
+                onValueChange = { onEvent(SignUpEvent.NameChanged(it)) },
                 label = "Name",
                 isError = uiState.nameError != null,
-                errorMessage = {
-                    Text(
-                        text = uiState.nameError?: "",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontFamily = bodyFontFamily,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    )
-                },
-                onClearSearch = onClearName
+                errorMessage = {uiState.nameError},
+                onClearSearch = { onEvent(SignUpEvent.NameChanged("")) }
             )
         }
 
@@ -196,19 +166,8 @@ fun SignUpContent(
                 label = "Password",
                 value = uiState.password,
                 isError = uiState.passwordError != null,
-                errorMessage = {
-                    Text(
-                        text = uiState.passwordError?: "",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontFamily = bodyFontFamily,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    )
-                },
-                onValueChange = onPasswordChange,
+                errorMessage = { ErrorTxt(uiState.passwordError) },
+                onValueChange = { onEvent(SignUpEvent.PasswordChanged(it)) },
             )
         }
         item {
@@ -216,24 +175,14 @@ fun SignUpContent(
                 label = "Confirm Password",
                 value = uiState.confirmPassword,
                 isError = uiState.confirmPasswordError != null,
-                errorMessage = {
-                    Text(
-                        text = uiState.confirmPasswordError?: "",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontFamily = bodyFontFamily,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    )
-                },
-                onValueChange = onConfirmPasswordChange
+                errorMessage = { ErrorTxt(uiState.confirmPasswordError) },
+                onValueChange = {onEvent(SignUpEvent.ConfirmPasswordChanged(it)) }
             )
         }
         item {
             AnnotatedText(
-                text1 = "If already have an account.", text2 = "Sign In", onClickTxt2 = {onSignInTxtClick()},
+                text1 = "If already have an account.", text2 = "Sign In",
+                onClickTxt2 = {onEvent(SignUpEvent.SignInTxtClicked)},
                 modifier = Modifier.height(24.dp)
             )
         }
@@ -245,7 +194,7 @@ fun SignUpContent(
             ){
                 Heading2(text = "Register", fontColor = MaterialTheme.colorScheme.onBackground)
                 OnboardingCircleBtn(
-                    onClick = { onSignUpClick() },
+                    onClick = { onEvent(SignUpEvent.Submit) },
                     enabled = uiState.isInputValid && !uiState.isLoading
                 )
             }
@@ -272,15 +221,45 @@ fun SignUpContent(
     }
 }
 
-//@Preview(showBackground = true, showSystemUi = true)
-//@Composable
-//private fun SignUpPrev() {
-//    PhotoNestTheme {
-//        val uiState by viewModel.uiState.collectAsState()
-//
-//        SignUpContent(
-//            uiState = uiState,
-//            modifier = Modifier.padding(16.dp)
-//        )
-//    }
-//}
+@Composable
+fun ErrorTxt(error: String?, modifier: Modifier = Modifier) {
+    error?.let {
+        Text(
+            text = it,
+            style = TextStyle(
+                fontSize = 14.sp,
+                fontFamily = bodyFontFamily,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.error
+            ),
+            modifier = modifier
+        )
+    }
+}
+
+
+@Composable
+fun PrefixIcon(icon: Int) {
+    Icon(
+        painter = painterResource(id = icon),
+        contentDescription = null,
+        modifier = Modifier.size(20.dp)
+    )
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun SignUpPrev() {
+    PhotoNestTheme {
+        SignUpContent(
+            uiState = SignUpUiState(
+                name = "Ashok Dewasi",
+                username = "ashok_26",
+                email = "ashok34r98@gmail.com",
+            ),
+            onEvent = {},
+            modifier = Modifier.padding(16.dp)
+        )
+    }
+}
