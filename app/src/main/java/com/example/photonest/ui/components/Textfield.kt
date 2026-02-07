@@ -28,6 +28,7 @@ fun OnBoardingTextField(
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
     maxLines: Int = 1,
+    singleLine: Boolean = true,
     showClearIcon: Boolean = true,
     showLabel: Boolean = true,
     label: String = "",
@@ -63,6 +64,7 @@ fun OnBoardingTextField(
             onValueChange = onValueChange,
             shape = RoundedCornerShape(12.dp),
             maxLines = maxLines,
+            singleLine = singleLine,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 54.dp),
