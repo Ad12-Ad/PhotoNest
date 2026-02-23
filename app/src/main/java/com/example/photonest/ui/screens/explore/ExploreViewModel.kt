@@ -6,7 +6,7 @@ import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.*
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
-import com.google.firebase.auth.FirebaseAuth
+import com.example.photonest.domain.usecase.FollowUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,436 +20,135 @@ import javax.inject.Inject
 class ExploreViewModel @Inject constructor(
     private val postRepository: IPostRepository,
     private val userRepository: IUserRepository,
-    private val firebaseAuth: FirebaseAuth
+    private val followUserUseCase: FollowUserUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
-
     private var searchJob: Job? = null
 
-    init {
-        loadExploreContent()
-    }
+    init { loadExploreContent() }
 
     fun updateSearchQuery(query: String) {
-        _uiState.update {
-            it.copy(
-                searchQuery = query,
-                isSearchActive = query.isNotEmpty()
-            )
-        }
-
-        if (query.isNotEmpty()) {
-            performSearchWithDelay(query)
-        } else {
-            clearSearch()
-        }
+        _uiState.update { it.copy(searchQuery = query, isSearchActive = query.isNotEmpty()) }
+        if (query.isNotEmpty()) performSearchWithDelay(query)
+        else clearSearch()
     }
 
     private fun performSearchWithDelay(query: String) {
         searchJob?.cancel()
-        searchJob = viewModelScope.launch(Dispatchers.IO) {
+        searchJob = viewModelScope.launch {
             delay(500)
             performSearchInternal(query)
         }
     }
 
     fun performSearch(query: String? = null) {
-        val searchQuery = query ?: _uiState.value.searchQuery
-        if (searchQuery.isNotEmpty()) {
-            performSearchInternal(searchQuery)
+        val q = query ?: _uiState.value.searchQuery
+        if (q.isNotEmpty()) viewModelScope.launch { performSearchInternal(q) }
+    }
+
+    private suspend fun performSearchInternal(query: String) {
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        try {
+            val users = withContext(Dispatchers.IO) {
+                when (val r = userRepository.searchUsers(query)) {
+                    is NetworkResult.Success -> r.data ?: emptyList()
+                    else -> emptyList()
+                }
+            }
+            val posts = withContext(Dispatchers.IO) {
+                when (val r = postRepository.searchPosts(query)) {
+                    is NetworkResult.Success -> r.data ?: emptyList()
+                    else -> emptyList()
+                }
+            }
+            val searchResults = SearchResult(
+                users = users, posts = posts, categories = emptyList(),
+                totalResults = users.size + posts.size, query = query
+            )
+            _uiState.update { it.copy(isLoading = false, searchResults = searchResults, error = null) }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(isLoading = false, error = e.message ?: "Search failed") }
         }
     }
 
-    private fun performSearchInternal(query: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main){
-                _uiState.update { it.copy(isLoading = true, error = null) }
-            }
-
-            try {
-                // Search users
-                val usersResult = userRepository.searchUsers(query)
-                val users = when (usersResult) {
-                    is NetworkResult.Success -> usersResult.data ?: emptyList()
-                    else -> emptyList()
-                }
-
-                // Search posts
-                val postsResult = postRepository.searchPosts(query)
-                val posts = when (postsResult) {
-                    is NetworkResult.Success -> postsResult.data ?: emptyList()
-                    else -> emptyList()
-                }
-
-                // Create dummy categories for search (in real app, would search categories)
-                val categories = getDummyCategories().filter {
-                    it.name.lowercase().contains(query.lowercase())
-                }
-
-                val searchResults = SearchResult(
-                    users = users,
-                    posts = posts,
-                    categories = categories,
-                    totalResults = users.size + posts.size + categories.size,
-                    query = query
-                )
-
-                withContext(Dispatchers.Main){
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            searchResults = searchResults,
-                            error = null
+    fun followUser(userId: String) {
+        // Optimistic UI update first
+        _uiState.update { state ->
+            state.copy(suggestedUsers = state.suggestedUsers.map { user ->
+                if (user.id == userId) {
+                    user.copy(followersCount = user.followersCount + 1)
+                } else user
+            })
+        }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { followUserUseCase(userId) }
+            when (result) {
+                is NetworkResult.Error -> {
+                    // Rollback optimistic update
+                    _uiState.update { state ->
+                        state.copy(
+                            suggestedUsers = state.suggestedUsers.map { user ->
+                                if (user.id == userId) user.copy(followersCount = user.followersCount - 1)
+                                else user
+                            },
+                            error = result.message ?: "Failed to update follow status"
                         )
                     }
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main){
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: "Search failed",
-                            showErrorDialog = true
-                        )
-                    }
-                }
+                else -> { /* optimistic update stays */ }
             }
         }
     }
 
     fun searchByCategory(categoryName: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main){
-                _uiState.update {
-                    it.copy(
-                        searchQuery = categoryName,
-                        isSearchActive = true,
-                        isLoading = true,
-                        error = null
-                    )
+        viewModelScope.launch {
+            _uiState.update { it.copy(searchQuery = categoryName, isSearchActive = true, isLoading = true) }
+            val result = withContext(Dispatchers.IO) { postRepository.getPostsByCategory(categoryName) }
+            when (result) {
+                is NetworkResult.Success -> {
+                    val sr = SearchResult(posts = result.data ?: emptyList(), totalResults = result.data?.size ?: 0, query = categoryName)
+                    _uiState.update { it.copy(isLoading = false, searchResults = sr) }
                 }
-            }
-
-            val result = postRepository.getPostsByCategory(categoryName)
-
-            withContext(Dispatchers.Main){
-                when (result) {
-                    is NetworkResult.Success -> {
-                        val searchResults = SearchResult(
-                            posts = result.data ?: emptyList(),
-                            users = emptyList(),
-                            categories = emptyList(),
-                            totalResults = result.data?.size ?: 0,
-                            query = categoryName
-                        )
-
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                searchResults = searchResults,
-                                error = null
-                            )
-                        }
-                    }
-                    is NetworkResult.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message ?: "Failed to load category posts",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                    is NetworkResult.Loading -> {
-                        _uiState.update { it.copy(isLoading = true) }
-                    }
-                }
+                is NetworkResult.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+                else -> {}
             }
         }
     }
 
     fun clearSearch() {
         searchJob?.cancel()
-        _uiState.update {
-            it.copy(
-                searchQuery = "",
-                isSearchActive = false,
-                searchResults = SearchResult(),
-                error = null
-            )
-        }
+        _uiState.update { it.copy(searchQuery = "", isSearchActive = false, searchResults = SearchResult()) }
     }
 
-    fun followUser(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return@launch
+    fun refreshContent() { loadExploreContent() }
 
-            if (currentUserId == userId) {
-                withContext(Dispatchers.Main){
-                    _uiState.update {
-                        it.copy(
-                            error = "Cannot follow yourself",
-                            showErrorDialog = true
-                        )
-                    }
-                }
-                return@launch
-            }
-
-            withContext(Dispatchers.Main){
-                _uiState.update { state ->
-                    state.copy(
-                        suggestedUsers = state.suggestedUsers.map { user ->
-                            if (user.id == userId) {
-                                val isCurrentlyFollowing = user.followers.contains(currentUserId)
-                                user.copy(
-                                    followers = if (isCurrentlyFollowing) {
-                                        user.followers - currentUserId
-                                    } else {
-                                        user.followers + currentUserId
-                                    },
-                                    followersCount = if (isCurrentlyFollowing) {
-                                        user.followersCount - 1
-                                    } else {
-                                        user.followersCount + 1
-                                    }
-                                )
-                            } else {
-                                user
-                            }
-                        }
-                    )
-                }
-            }
-
-            val isFollowingResult = userRepository.isFollowing(userId)
-            val isCurrentlyFollowing = when (isFollowingResult) {
-                is NetworkResult.Success -> isFollowingResult.data == true
-                else -> false
-            }
-
-            val result = if (isCurrentlyFollowing) {
-                userRepository.unfollowUser(userId)
-            } else {
-                userRepository.followUser(userId)
-            }
-
-            withContext(Dispatchers.Main){
-                when (result) {
-                    is NetworkResult.Error -> {
-                        if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
-                            !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
-
-                            // Rollback the optimistic update
-                            _uiState.update { state ->
-                                state.copy(
-                                    suggestedUsers = state.suggestedUsers.map { user ->
-                                        if (user.id == userId) {
-                                            // Revert the change
-                                            val wasFollowing = user.followers.contains(currentUserId)
-                                            user.copy(
-                                                followers = if (wasFollowing) {
-                                                    user.followers - currentUserId
-                                                } else {
-                                                    user.followers + currentUserId
-                                                },
-                                                followersCount = if (wasFollowing) {
-                                                    user.followersCount - 1
-                                                } else {
-                                                    user.followersCount + 1
-                                                }
-                                            )
-                                        } else {
-                                            user
-                                        }
-                                    },
-                                    error = result.message ?: "Failed to update follow status",
-                                    showErrorDialog = true
-                                )
-                            }
-                        }
-                    }
-                    is NetworkResult.Success -> {
-                        // Success! UI is already updated optimistically
-                        // No need to reload anything
-                    }
-                    is NetworkResult.Loading -> {}
-                }
-            }
-        }
-    }
-
-    fun refreshContent() {
-        loadExploreContent()
-    }
-
-    fun dismissError() {
-        _uiState.update {
-            it.copy(
-                error = null,
-                showErrorDialog = false
-            )
-        }
-    }
+    fun dismissError() { _uiState.update { it.copy(error = null, showErrorDialog = false) } }
 
     private fun loadExploreContent() {
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main){
-                _uiState.update { it.copy(isLoading = true, error = null) }
-            }
-
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                // Load trending posts
-                val trendingPostsResult = postRepository.getTrendingPosts()
-                val trendingPosts = when (trendingPostsResult) {
-                    is NetworkResult.Success -> trendingPostsResult.data ?: emptyList()
-                    else -> getDummyTrendingPosts() // Fallback to dummy data
-                }
-
-                // Load suggested users
-                val suggestedUsersResult = userRepository.getPopularUsers()
-                val suggestedUsers = when (suggestedUsersResult) {
-                    is NetworkResult.Success -> suggestedUsersResult.data ?: emptyList()
-                    else -> getDummySuggestedUsers() // Fallback to dummy data
-                }
-
-                // Load trending categories (dummy data for now)
-                val trendingCategories = getDummyCategories()
-
-                withContext(Dispatchers.Main){
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            trendingPosts = trendingPosts,
-                            suggestedUsers = suggestedUsers,
-                            trendingCategories = trendingCategories,
-                            error = null
-                        )
+                val trendingPosts = withContext(Dispatchers.IO) {
+                    when (val r = postRepository.getTrendingPosts()) {
+                        is NetworkResult.Success -> r.data ?: emptyList()
+                        else -> emptyList<Post>()
                     }
+                }
+                val suggestedUsers = withContext(Dispatchers.IO) {
+                    when (val r = userRepository.getPopularUsers()) {
+                        is NetworkResult.Success -> r.data ?: emptyList()
+                        else -> emptyList<User>()
+                    }
+                }
+                _uiState.update {
+                    it.copy(isLoading = false, trendingPosts = trendingPosts, suggestedUsers = suggestedUsers)
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main){
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: "Failed to load content",
-                            showErrorDialog = true
-                        )
-                    }
-                }
+                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load content") }
             }
         }
-    }
-
-    private fun getDummyTrendingPosts(): List<Post> {
-        return listOf(
-            Post(
-                id = "trending1",
-                userId = "user1",
-                userName = "Alex Johnson",
-                userImage = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-                imageUrl = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-                caption = "Mountain sunrise capturing the golden hour magic ✨ #nature #photography",
-                timestamp = System.currentTimeMillis() - 3600000, // 1 hour ago
-                category = listOf("Nature", "Photography", "Landscape"),
-                likeCount = 15420,
-                commentCount = 234,
-                shareCount = 89,
-                location = "Swiss Alps",
-                isLiked = false,
-                isBookmarked = false,
-                tags = listOf("sunrise", "mountains", "golden_hour"),
-                aspectRatio = 4f/3f
-            ),
-            Post(
-                id = "trending2",
-                userId = "user2",
-                userName = "Maya Chen",
-                userImage = "https://images.unsplash.com/photo-1494790108755-2616b612b429?w=150&h=150&fit=crop&crop=face",
-                imageUrl = "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=600&fit=crop",
-                caption = "Street art in Tokyo's vibrant neighborhoods 🎨 #streetart #tokyo #urban",
-                timestamp = System.currentTimeMillis() - 7200000, // 2 hours ago
-                category = listOf("Street", "Art", "Urban"),
-                likeCount = 8930,
-                commentCount = 156,
-                shareCount = 45,
-                location = "Shibuya, Tokyo",
-                isLiked = true,
-                isBookmarked = false,
-                tags = listOf("streetart", "tokyo", "shibuya"),
-                aspectRatio = 2f/3f
-            )
-        )
-    }
-
-    private fun getDummySuggestedUsers(): List<User> {
-        return listOf(
-            User(
-                id = "suggested1",
-                email = "david@example.com",
-                name = "David Rodriguez",
-                username = "davidphotos",
-                profilePicture = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-                bio = "Travel photographer capturing moments around the world 📸",
-                location = "Barcelona, Spain",
-                postsCount = 127,
-                followersCount = 3420,
-                followingCount = 892,
-                isVerified = true
-            ),
-            User(
-                id = "suggested2",
-                email = "sarah@example.com",
-                name = "Sarah Kim",
-                username = "sarahartist",
-                profilePicture = "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-                bio = "Digital artist & designer creating vibrant illustrations ✨",
-                location = "Seoul, South Korea",
-                postsCount = 89,
-                followersCount = 2150,
-                followingCount = 456,
-                isVerified = false
-            )
-        )
-    }
-
-    private fun getDummyCategories(): List<Category> {
-        return listOf(
-            Category(
-                id = "cat1",
-                name = "Nature",
-                imageUrl = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=150&fit=crop",
-                color = "#4CAF50",
-                postsCount = 15420,
-                isPopular = true
-            ),
-            Category(
-                id = "cat2",
-                name = "Photography",
-                imageUrl = "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=150&h=150&fit=crop",
-                color = "#2196F3",
-                postsCount = 12340,
-                isPopular = true
-            ),
-            Category(
-                id = "cat3",
-                name = "Art",
-                imageUrl = "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=150&h=150&fit=crop",
-                color = "#E91E63",
-                postsCount = 9876,
-                isPopular = true
-            ),
-            Category(
-                id = "cat4",
-                name = "Travel",
-                imageUrl = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=150&h=150&fit=crop",
-                color = "#FF9800",
-                postsCount = 8765,
-                isPopular = true
-            )
-        )
     }
 }
 

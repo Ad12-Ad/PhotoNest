@@ -65,6 +65,15 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getCurrentUserId(): String? {
+        return firebaseAuth.currentUser?.uid
+    }
+
+    override suspend fun getCurrentUserIdOrThrow(): String {
+        return firebaseAuth.currentUser?.uid
+            ?: throw IllegalStateException("User not authenticated")
+    }
+
     override suspend fun verifyOtp(
         verificationId: String,
         otp: String,

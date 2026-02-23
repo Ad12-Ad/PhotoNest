@@ -1,5 +1,6 @@
 package com.example.photonest.ui.screens.postdetail
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -45,7 +46,6 @@ fun PostDetailScreen(
     viewModel: PostDetailViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
     val likesSheetState = rememberModalBottomSheetState()
     var showLikesSheet by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -53,7 +53,23 @@ fun PostDetailScreen(
     var isLoadingLikes by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
+    val currentUserId = uiState.currentUserId
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is PostDetailEvent.SharePost -> {
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, event.shareText)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Post"))
+                }
+            }
+        }
+    }
 
     LaunchedEffect(postId) {
         viewModel.loadPostDetail(postId)
@@ -132,7 +148,7 @@ fun PostDetailScreen(
                             onLikeClick = { viewModel.toggleLike() },
                             onBookmarkClick = { viewModel.toggleBookmark() },
                             onCommentClick = { /* Already in comments view */ },
-                            onShareClick = { viewModel.sharePost(context) },
+                            onShareClick = { viewModel.sharePost() },
                             onUserClick = { onNavigateToProfile(uiState.postDetail!!.post.userId) },
                             onFollowClick = { viewModel.toggleFollow() },
                             usersWhoLiked = likesList,

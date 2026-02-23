@@ -8,29 +8,41 @@ import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Comment
 import com.example.photonest.data.model.PostDetail
 import com.example.photonest.data.model.User
+import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.domain.repository.ICommentRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+sealed class PostDetailEvent {
+    data class SharePost(val shareText: String) : PostDetailEvent()
+}
+
 @HiltViewModel
 class PostDetailViewModel @Inject constructor(
     private val postRepository: IPostRepository,
     private val commentRepository: ICommentRepository,
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val authRepository: IAuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PostDetailUiState())
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
+
+    private val _events = MutableSharedFlow<PostDetailEvent>(extraBufferCapacity = 1)
+    val events: SharedFlow<PostDetailEvent> = _events.asSharedFlow()
 
     private var currentPostId: String = ""
 
@@ -40,12 +52,12 @@ class PostDetailViewModel @Inject constructor(
 
     private fun loadCurrentUserImage() {
         viewModelScope.launch(Dispatchers.IO) {
-            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
             userRepository.getCurrentUser().collect { result ->
                 withContext(Dispatchers.Main) {
                     if (result is NetworkResult.Success && result.data != null) {
                         _uiState.update {
                             it.copy(
+                                currentUserId = authRepository.getCurrentUserId(),
                                 currentUserImage = result.data.profilePicture,
                                 currentUserName = result.data.name
                             )
@@ -332,7 +344,7 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
-    fun sharePost(context: Context) {
+    fun sharePost() {
         val post = _uiState.value.postDetail?.post
         val shareText = buildString {
             if (post != null){
@@ -347,13 +359,9 @@ class PostDetailViewModel @Inject constructor(
             }
         }
 
-        val shareIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, shareText)
+        viewModelScope.launch {
+            _events.emit(PostDetailEvent.SharePost(shareText))
         }
-
-        context.startActivity(Intent.createChooser(shareIntent, "Share Post"))
     }
 
     fun updateComment(comment: String) {
@@ -568,5 +576,6 @@ data class PostDetailUiState(
     val newComment: String = "",
     val isAddingComment: Boolean = false,
     val currentUserImage: String? = null,
-    val currentUserName: String? = null
+    val currentUserName: String? = null,
+    val currentUserId: String? = null
 )
