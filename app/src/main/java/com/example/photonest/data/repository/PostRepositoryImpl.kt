@@ -38,17 +38,22 @@ class PostRepositoryImpl @Inject constructor(
 
     override fun getPosts(): Flow<NetworkResult<List<Post>>> = flow {
         emit(NetworkResult.Loading())
+
         try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: run { emit(NetworkResult.Error("Not authenticated")); return@flow }
+                ?: run {
+                    emit(NetworkResult.Error("Not authenticated"))
+                    return@flow
+                }
 
-            // Emit local cache immediately so user sees something
+            // Emit cached posts first (offline-first)
             val localPosts = postDao.getAllPosts().map { it.toPost() }
             if (localPosts.isNotEmpty()) {
                 emit(NetworkResult.Success(localPosts))
             }
 
-            val followsSnapshot = firestore.collection("follows")
+            // Fetch followed users
+            val followsSnapshot = firestore.collection(Constants.FOLLOWS_COLLECTION)
                 .whereEqualTo("followerId", currentUserId)
                 .get()
                 .await()
@@ -63,65 +68,63 @@ class PostRepositoryImpl @Inject constructor(
                 return@flow
             }
 
+            // Fetch posts
             val allPosts = mutableListOf<Post>()
-            val batches = followedUserIds.chunked(10)
-            for (batch in batches) {
-                val postsSnapshot = firestore.collection(Constants.POSTS_COLLECTION)
+            followedUserIds.chunked(10).forEach { batch ->
+                val snapshot = firestore.collection(Constants.POSTS_COLLECTION)
                     .whereIn("userId", batch)
                     .limit(50)
                     .get()
                     .await()
-                allPosts.addAll(postsSnapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Post::class.java)?.copy(id = doc.id)
-                })
+
+                allPosts += snapshot.documents.mapNotNull {
+                    it.toObject(Post::class.java)?.copy(id = it.id)
+                }
             }
 
             val sortedPosts = allPosts.sortedByDescending { it.timestamp }
 
-            val bookmarksSnapshot = firestore.collection("bookmarks")
+            // Fetch likes of current user (ONE query)
+            val likedPostIds = firestore.collection(Constants.LIKES_COLLECTION)
                 .whereEqualTo("userId", currentUserId)
                 .get()
                 .await()
-            val bookmarkedPostIds = bookmarksSnapshot.documents
-                .mapNotNull { it.getString("postId") }.toSet()
-            val followedUserIdsSet = followedUserIds.toSet()
+                .documents
+                .mapNotNull { it.getString("postId") }
+                .toSet()
+
+            //  Fetch bookmarks (ONE query)
+            val bookmarkedPostIds = firestore.collection(Constants.BOOKMARKS_COLLECTION)
+                .whereEqualTo("userId", currentUserId)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { it.getString("postId") }
+                .toSet()
+
+            val followedUserSet = followedUserIds.toSet()
 
             val enrichedPosts = sortedPosts.map { post ->
                 post.copy(
-                    isLiked = post.likedBy.contains(currentUserId),
+                    isLiked = likedPostIds.contains(post.id),
                     isBookmarked = bookmarkedPostIds.contains(post.id),
-                    isUserFollowed = followedUserIdsSet.contains(post.userId)
+                    isUserFollowed = post.userId != currentUserId &&
+                            followedUserSet.contains(post.userId)
                 )
             }
 
             postDao.upsertPosts(enrichedPosts.map { it.toEntity() })
-
             emit(NetworkResult.Success(enrichedPosts))
+
         } catch (e: Exception) {
-            Log.e("PostRepository", "Failed to get posts: ${e.message}", e)
-            // Fallback: serve from Room cache
-            val cachedPosts = postDao.getAllPosts().map { it.toPost() }
-            if (cachedPosts.isNotEmpty()) {
-                emit(NetworkResult.Success(cachedPosts))
+            val cached = postDao.getAllPosts().map { it.toPost() }
+            if (cached.isNotEmpty()) {
+                emit(NetworkResult.Success(cached))
             } else {
                 emit(NetworkResult.Error(e.message ?: "Failed to load posts"))
             }
         }
     }
-
-    private suspend fun checkIfBookmarked(userId: String, postId: String): Boolean {
-        return try {
-            val bookmarkQuery = firestore.collection("bookmarks")
-                .whereEqualTo("userId", userId)
-                .whereEqualTo("postId", postId)
-                .get()
-                .await()
-            !bookmarkQuery.isEmpty
-        } catch (e: Exception) {
-            false
-        }
-    }
-
 
     override suspend fun getPostById(postId: String): NetworkResult<PostDetail?> {
         return try {
@@ -132,57 +135,51 @@ class PostRepositoryImpl @Inject constructor(
                 .get()
                 .await()
 
-            val post = postDoc.toObject(Post::class.java)?.copy(id = postDoc.id)
+            val post = postDoc.toObject(Post::class.java)?.copy(id = postId)
+                ?: return NetworkResult.Error("Post not found")
 
-            if (post != null) {
-                val user = userDao.getUserById(post.userId)?.toUser()
+            val user = userDao.getUserById(post.userId)?.toUser()
 
-                val enrichedPost = if (currentUserId != null) {
-                    val isLiked = post.likedBy.contains(currentUserId)
-
-                    val bookmarkId = "${currentUserId}_${postId}"
-                    val bookmarkDoc = firestore.collection("bookmarks")
-                        .document(bookmarkId)
+            val isLiked = currentUserId != null &&
+                    firestore.collection(Constants.LIKES_COLLECTION)
+                        .document("${currentUserId}_${postId}")
                         .get()
                         .await()
-                    val isBookmarked = bookmarkDoc.exists()
+                        .exists()
 
-                    val isFollowing = if (currentUserId != post.userId) {
-                        val followId = "${currentUserId}_${post.userId}"
-                        val followDoc = firestore.collection("follows")
-                            .document(followId)
-                            .get()
-                            .await()
-                        followDoc.exists()
-                    } else {
-                        false
-                    }
+            val isBookmarked = currentUserId != null &&
+                    firestore.collection(Constants.BOOKMARKS_COLLECTION)
+                        .document("${currentUserId}_${postId}")
+                        .get()
+                        .await()
+                        .exists()
 
-                    post.copy(
-                        isLiked = isLiked,
-                        isBookmarked = isBookmarked,
-                        isUserFollowed = isFollowing
-                    )
-                } else {
-                    post
-                }
+            val isFollowing = currentUserId != null &&
+                    currentUserId != post.userId &&
+                    firestore.collection(Constants.FOLLOWS_COLLECTION)
+                        .document("${currentUserId}_${post.userId}")
+                        .get()
+                        .await()
+                        .exists()
 
-                val postDetail = PostDetail(
+            val enrichedPost = post.copy(
+                isLiked = isLiked,
+                isBookmarked = isBookmarked,
+                isUserFollowed = isFollowing
+            )
+
+            NetworkResult.Success(
+                PostDetail(
                     post = enrichedPost,
                     user = user,
-                    isOwner = currentUserId == enrichedPost.userId
+                    isOwner = currentUserId == post.userId
                 )
+            )
 
-                NetworkResult.Success(postDetail)
-            } else {
-                NetworkResult.Error("Post not found")
-            }
         } catch (e: Exception) {
-            Log.e("PostRepository", "Failed to get post by ID: ${e.message}")
-            NetworkResult.Error(e.message ?: "Failed to get post")
+            NetworkResult.Error(e.message ?: "Failed to load post")
         }
     }
-
 
     override suspend fun getUserPosts(userId: String): NetworkResult<List<Post>> {
         return try {
@@ -282,80 +279,32 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun likePost(postId: String): NetworkResult<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return NetworkResult.Error("Not authenticated")
 
-            // Check if like already exists
-            val existingLikeQuery = firestore.collection(Constants.LIKES_COLLECTION)
-                .whereEqualTo("userId", currentUserId)
-                .whereEqualTo("postId", postId)
+            val likeDocId = "${currentUserId}_${postId}"
+
+            // Check if already liked (prevent double-like)
+            val existing = firestore.collection(Constants.LIKES_COLLECTION)
+                .document(likeDocId)
                 .get()
                 .await()
 
-            if (existingLikeQuery.isEmpty) {
-                // Create unique like ID
-                val likeId = "${currentUserId}_${postId}"
+            if (existing.exists()) {
+                return NetworkResult.Success(Unit)  // Already liked, silently succeed
+            }
 
-                val likeData = hashMapOf(
+            // Write like document + increment count atomically
+            firestore.runBatch { batch ->
+                val likeRef = firestore.collection(Constants.LIKES_COLLECTION).document(likeDocId)
+                batch.set(likeRef, mapOf(
                     "userId" to currentUserId,
                     "postId" to postId,
                     "timestamp" to System.currentTimeMillis()
-                )
-
-                // Use .set() with specific document ID instead of .add()
-                firestore.collection(Constants.LIKES_COLLECTION)
-                    .document(likeId)
-                    .set(likeData)
-                    .await()
-
-                // Update post like count
-                firestore.collection(Constants.POSTS_COLLECTION)
-                    .document(postId)
-                    .update(
-                        "likeCount", FieldValue.increment(1),
-                        "likedBy", FieldValue.arrayUnion(currentUserId)
-                    )
-                    .await()
-
-                try {
-                    val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
-                        .document(postId)
-                        .get()
-                        .await()
-
-                    val post = postDoc.toObject(Post::class.java)
-                    val postOwnerId = post?.userId
-
-                    if (postOwnerId != null && postOwnerId != currentUserId) {
-                        val currentUserDoc = firestore.collection(Constants.USERS_COLLECTION)
-                            .document(currentUserId)
-                            .get()
-                            .await()
-
-                        val currentUser = currentUserDoc.toObject(User::class.java)
-
-                        val notificationData = hashMapOf(
-                            "userId" to postOwnerId,
-                            "fromUserId" to currentUserId,
-                            "fromUsername" to (currentUser?.username ?: "Someone"),
-                            "fromUserImage" to (currentUser?.profilePicture ?: ""),
-                            "type" to "LIKE",
-                            "postId" to postId,
-                            "message" to "${currentUser?.username ?: "Someone"} liked your post",
-                            "timestamp" to System.currentTimeMillis(),
-                            "isRead" to false,
-                            "isClicked" to false
-                        )
-
-                        firestore.collection(Constants.NOTIFICATIONS_COLLECTION)
-                            .add(notificationData)
-                            .await()
-
-                        Log.d("PostRepository", "Notification created for like")
-                    }
-                } catch (e: Exception) {
-                    Log.e("PostRepository", "Failed to create notification: ${e.message}")
-                }
-            }
+                ))
+                val postRef = firestore.collection(Constants.POSTS_COLLECTION).document(postId)
+                batch.update(postRef, "likeCount", FieldValue.increment(1))
+            }.await()
 
             NetworkResult.Success(Unit)
         } catch (e: Exception) {
@@ -365,33 +314,46 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun unlikePost(postId: String): NetworkResult<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return NetworkResult.Error("Not authenticated")
 
-            // Remove like from Firestore
-            val likeQuery = firestore.collection(Constants.LIKES_COLLECTION)
-                .whereEqualTo("userId", currentUserId)
-                .whereEqualTo("postId", postId)
+            val likeDocId = "${currentUserId}_${postId}"
+
+            val existing = firestore.collection(Constants.LIKES_COLLECTION)
+                .document(likeDocId)
                 .get()
                 .await()
 
-            likeQuery.documents.forEach { doc ->
-                doc.reference.delete()
+            if (!existing.exists()) {
+                return NetworkResult.Success(Unit)  // Already unliked, silently succeed
             }
 
-            // Update post like count
-            firestore.collection(Constants.POSTS_COLLECTION)
-                .document(postId)
-                .update(
-                    "likeCount", FieldValue.increment(-1),
-                    "likedBy", FieldValue.arrayRemove(currentUserId)
-                )
-                .await()
+            firestore.runBatch { batch ->
+                val likeRef = firestore.collection(Constants.LIKES_COLLECTION).document(likeDocId)
+                batch.delete(likeRef)
+                val postRef = firestore.collection(Constants.POSTS_COLLECTION).document(postId)
+                batch.update(postRef, "likeCount", FieldValue.increment(-1))
+            }.await()
 
             NetworkResult.Success(Unit)
         } catch (e: Exception) {
             NetworkResult.Error(e.message ?: "Failed to unlike post")
         }
     }
+
+    // Helper: check if current user liked a post (O(1) point read)
+    private suspend fun isPostLikedByCurrentUser(userId: String, postId: String): Boolean {
+        return try {
+            val doc = firestore.collection(Constants.LIKES_COLLECTION)
+                .document("${userId}_${postId}")
+                .get()
+                .await()
+            doc.exists()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
 
     override suspend fun bookmarkPost(postId: String): NetworkResult<Unit> {
         return try {
@@ -584,35 +546,34 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun getUsersWhoLikedPost(postId: String): NetworkResult<List<User>> {
         return try {
-            // Get post first to get likedBy list
-            val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
-                .document(postId)
+            val likesSnapshot = firestore.collection(Constants.LIKES_COLLECTION)
+                .whereEqualTo("postId", postId)
                 .get()
                 .await()
 
-            val post = postDoc.toObject(Post::class.java)
-                ?: return NetworkResult.Error("Post not found")
+            val userIds = likesSnapshot.documents
+                .mapNotNull { it.getString("userId") }
 
-            if (post.likedBy.isEmpty()) {
+            if (userIds.isEmpty()) {
                 return NetworkResult.Success(emptyList())
             }
 
-            // Fetch user details for each userId in likedBy
             val users = mutableListOf<User>()
-            post.likedBy.chunked(10).forEach { chunk ->
+            userIds.chunked(10).forEach { batch ->
                 val usersSnapshot = firestore.collection(Constants.USERS_COLLECTION)
-                    .whereIn("id", chunk)
+                    .whereIn("id", batch)
                     .get()
                     .await()
 
-                usersSnapshot.documents.forEach { doc ->
-                    doc.toObject(User::class.java)?.let { users.add(it) }
+                users += usersSnapshot.documents.mapNotNull {
+                    it.toObject(User::class.java)?.copy(id = it.id)
                 }
             }
 
             NetworkResult.Success(users)
+
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to get users who liked post")
+            NetworkResult.Error(e.message ?: "Failed to load users who liked post")
         }
     }
 

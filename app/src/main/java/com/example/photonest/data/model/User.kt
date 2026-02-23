@@ -15,14 +15,7 @@ data class User(
     val followingCount: Int = 0,
     val isVerified: Boolean = false,
     val isPrivate: Boolean = false,
-    val bookmarks: List<String> = emptyList(),
-    val following: List<String> = emptyList(),
-    val followers: List<String> = emptyList(),
     val fcmToken: String = "",
     val lastSeen: Long = System.currentTimeMillis(),
     val isOnline: Boolean = false
-){
-    fun isFollowedBy(userId: String?): Boolean {
-        return userId != null && userId in followers
-    }
-}
+)

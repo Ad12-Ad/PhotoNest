@@ -65,8 +65,6 @@ private fun SuggestedUserItem(
     onFollowClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-    val isFollowing = user.followers.contains(currentUserId)
 
     Card(
         modifier = modifier
@@ -172,7 +170,7 @@ private fun SuggestedUserItem(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = if(isFollowing) "Following" else "Follow",
+                    text = "Follow",
                     style = MaterialTheme.typography.labelMedium
                 )
             }

@@ -15,7 +15,6 @@ data class Post(
     val location: String = "",
     val isLiked: Boolean = false,
     val isBookmarked: Boolean = false,
-    val likedBy: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
     val aspectRatio: Float = 1f,
     val isEdited: Boolean = false,

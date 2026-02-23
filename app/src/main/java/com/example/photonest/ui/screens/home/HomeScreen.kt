@@ -180,23 +180,9 @@ fun HomeScreen(
                     showLikesSheet = false
                     onUserClick(userId)
                 },
-                onFollowClick = { userId, wasFollowing ->
-                    currentPostIdForLikes?.let { postId ->
-                        viewModel.toggleFollowFromBottomSheet(
-                            userId = userId,
-                            isCurrentlyFollowing = wasFollowing,
-                            postId = postId
-                        )
+                onSearchPerform = {
 
-                        viewModel.loadUsersWhoLiked(postId) { refreshedList ->
-                            selectedLikesList = refreshedList
-                            likesMap = likesMap.toMutableMap().apply {
-                                put(postId, refreshedList)
-                            }
-                        }
-                    }
-                },
-                currentUserId = it
+                }
             )
         }
     }

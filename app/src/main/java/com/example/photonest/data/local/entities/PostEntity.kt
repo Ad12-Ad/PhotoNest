@@ -20,7 +20,6 @@ data class PostEntity(
     val location: String,
     val isLiked: Boolean,
     val isBookmarked: Boolean,
-    val likedBy: List<String>,
     val tags: List<String>,
     val aspectRatio: Float,
     val isEdited: Boolean,

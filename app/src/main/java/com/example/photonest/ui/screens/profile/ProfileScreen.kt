@@ -183,16 +183,7 @@ fun ProfileScreen(
                 onDismiss = { showFollowersSheet = false },
                 onUserClick = { userId ->
                     showFollowersSheet = false
-                    onNavigateToUserProfile(userId)},
-                onFollowClick = { userId, isFollowing ->
-                    viewModel.onFollowClickFromSheet(
-                        userId = userId,
-                        currentUserId = currentUserId,
-                        listType = UserListType.FOLLOWERS,  // or FOLLOWING based on which sheet
-                        isCurrentlyFollowing = isFollowing
-                    )
-                },
-                currentUserId = it
+                    onNavigateToUserProfile(userId)}
             )
         }
     }
@@ -207,20 +198,7 @@ fun ProfileScreen(
                 onUserClick = { userId ->
                     showFollowingSheet = false
                     onNavigateToUserProfile(userId)
-                },
-                onFollowClick = { userId, isFollowing ->
-                    if (isFollowing) {
-                        viewModel.unfollowUser(userId)
-                    } else {
-                        viewModel.followUser(userId)
-                    }
-                    isLoadingFollowing = true
-                    viewModel.loadFollowing(uiState.userProfile?.user?.id ?: "") { users ->
-                        followingList = users
-                        isLoadingFollowing = false
-                    }
-                },
-                currentUserId = it
+                }
             )
         }
     }

@@ -217,11 +217,7 @@ fun PostDetailScreen(
                 onUserClick = { userId ->
                     showLikesSheet = false
                     onNavigateToUserProfile(userId)
-                },
-                onFollowClick = { userId, isFollowing ->
-                    viewModel.onFollowClickFromSheet(userId, isFollowing)
-                },
-                currentUserId = it
+                }
             )
         }
     }

@@ -19,9 +19,6 @@ fun User.toEntity(): UserEntity {
         followingCount = followingCount,
         isVerified = isVerified,
         isPrivate = isPrivate,
-        bookmarks = bookmarks,
-        following = following,
-        followers = followers,
         fcmToken = fcmToken,
         lastSeen = lastSeen,
         isOnline = isOnline
@@ -44,9 +41,6 @@ fun UserEntity.toUser(): User {
         followingCount = followingCount,
         isVerified = isVerified,
         isPrivate = isPrivate,
-        bookmarks = bookmarks,
-        following = following,
-        followers = followers,
         fcmToken = fcmToken,
         lastSeen = lastSeen,
         isOnline = isOnline

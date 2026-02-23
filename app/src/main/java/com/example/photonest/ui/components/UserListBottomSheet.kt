@@ -41,11 +41,9 @@ fun UserListBottomSheet(
     userList: List<User>,
     listType: UserListType,
     isLoading: Boolean = false,
-    currentUserId: String,
     onDismiss: () -> Unit,
     onUserClick: (String) -> Unit,
     onSearchPerform: () -> Unit = {},
-    onFollowClick: (userId: String, isFollowing: Boolean) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -166,32 +164,10 @@ fun UserListBottomSheet(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filteredUsers, key = { it.id }) { user ->
-                            val isFollowing = user.isFollowedBy(currentUserId)
 
                             UserListItem(
                                 user = user,
-                                isFollowing = isFollowing,
-                                isCurrentUser = user.id == currentUserId,
-                                onUserClick = { onUserClick(user.id) },
-                                onFollowClick = {
-                                    localUserList = localUserList.map { u ->
-                                        if (u.id == user.id) {
-                                            if (isFollowing) {
-                                                u.copy(
-                                                    followers = u.followers - currentUserId,
-                                                    followersCount = maxOf(0, u.followersCount - 1)
-                                                )
-                                            } else {
-                                                u.copy(
-                                                    followers = u.followers + currentUserId,
-                                                    followersCount = u.followersCount + 1
-                                                )
-                                            }
-                                        } else u
-                                    }
-
-                                    onFollowClick(user.id, isFollowing)
-                                }
+                                onUserClick = { onUserClick(user.id) }
                             )
                         }
                     }
@@ -204,10 +180,7 @@ fun UserListBottomSheet(
 @Composable
 private fun UserListItem(
     user: User,
-    onUserClick: () -> Unit,
-    onFollowClick: () -> Unit,
-    isCurrentUser: Boolean,
-    isFollowing: Boolean
+    onUserClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
