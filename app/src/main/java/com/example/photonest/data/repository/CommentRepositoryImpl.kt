@@ -24,6 +24,7 @@ class CommentRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : ICommentRepository {
 
+
     override suspend fun getCommentsForPost(postId: String): NetworkResult<List<Comment>> {
         return try {
             val query = firestore.collection(Constants.COMMENTS_COLLECTION)
@@ -34,22 +35,8 @@ class CommentRepositoryImpl @Inject constructor(
                 .await()
 
             val comments = query.documents.mapNotNull { doc ->
-                val comment = doc.toObject(Comment::class.java)?.copy(id = doc.id)
+                val comment = doc.toObject(Comment::class.java)?.copy(id = doc.id) ?: return@mapNotNull null
                 comment
-            }.map { comment ->
-                // Fetch user info for each comment userId
-                val userSnapshot = firestore.collection(Constants.USERS_COLLECTION)
-                    .document(comment.userId)
-                    .get()
-                    .await()
-
-                val userName = userSnapshot.getString("name") ?: "Anonymous"
-                val userImage = userSnapshot.getString("profilePicture") ?: ""
-
-                comment.copy(
-                    userName = userName,
-                    userImage = userImage
-                )
             }
 
             // Cache locally
