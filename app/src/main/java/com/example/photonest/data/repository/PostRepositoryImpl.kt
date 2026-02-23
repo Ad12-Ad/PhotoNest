@@ -43,17 +43,21 @@ class PostRepositoryImpl @Inject constructor(
             val currentUserId = firebaseAuth.currentUser?.uid
                 ?: run { emit(Resource.Error("Not authenticated")); return@flow }
 
-            postDao.clearAllPosts()
+            // Emit local cache immediately so user sees something
+            val localPosts = postDao.getAllPosts().map { it.toPost() }
+            if (localPosts.isNotEmpty()) {
+                emit(Resource.Success(localPosts))
+            }
 
             val followsSnapshot = firestore.collection("follows")
                 .whereEqualTo("followerId", currentUserId)
-                .get(com.google.firebase.firestore.Source.SERVER)
+                .get()
                 .await()
 
             val followedUserIds = followsSnapshot.documents
                 .mapNotNull { it.getString("followingId") }
                 .toMutableList()
-                .apply { add(currentUserId) } // include your own posts
+                .apply { add(currentUserId) }
 
             if (followedUserIds.isEmpty()) {
                 emit(Resource.Success(emptyList()))
@@ -62,32 +66,25 @@ class PostRepositoryImpl @Inject constructor(
 
             val allPosts = mutableListOf<Post>()
             val batches = followedUserIds.chunked(10)
-
             for (batch in batches) {
                 val postsSnapshot = firestore.collection(Constants.POSTS_COLLECTION)
                     .whereIn("userId", batch)
                     .limit(50)
-                    .get(com.google.firebase.firestore.Source.SERVER)
+                    .get()
                     .await()
-
-                val batchPosts = postsSnapshot.documents.mapNotNull { doc ->
+                allPosts.addAll(postsSnapshot.documents.mapNotNull { doc ->
                     doc.toObject(Post::class.java)?.copy(id = doc.id)
-                }
-
-                allPosts.addAll(batchPosts)
+                })
             }
 
             val sortedPosts = allPosts.sortedByDescending { it.timestamp }
 
             val bookmarksSnapshot = firestore.collection("bookmarks")
                 .whereEqualTo("userId", currentUserId)
-                .get(com.google.firebase.firestore.Source.SERVER)
+                .get()
                 .await()
-
             val bookmarkedPostIds = bookmarksSnapshot.documents
-                .mapNotNull { it.getString("postId") }
-                .toSet()
-
+                .mapNotNull { it.getString("postId") }.toSet()
             val followedUserIdsSet = followedUserIds.toSet()
 
             val enrichedPosts = sortedPosts.map { post ->
@@ -98,17 +95,18 @@ class PostRepositoryImpl @Inject constructor(
                 )
             }
 
-            val finalPosts = enrichedPosts.filter {
-                it.userId == currentUserId || followedUserIdsSet.contains(it.userId)
-            }
+            postDao.upsertPosts(enrichedPosts.map { it.toEntity() })
 
-            finalPosts.forEach { postDao.insertPost(it.toEntity()) }
-
-            emit(Resource.Success(finalPosts))
-
+            emit(Resource.Success(enrichedPosts))
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to get posts: ${e.message}", e)
-            emit(Resource.Error(e.message ?: "Failed to load posts"))
+            // Fallback: serve from Room cache
+            val cachedPosts = postDao.getAllPosts().map { it.toPost() }
+            if (cachedPosts.isNotEmpty()) {
+                emit(Resource.Success(cachedPosts))
+            } else {
+                emit(Resource.Error(e.message ?: "Failed to load posts"))
+            }
         }
     }
 

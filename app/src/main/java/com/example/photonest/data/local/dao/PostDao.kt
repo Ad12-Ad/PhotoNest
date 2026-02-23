@@ -72,4 +72,10 @@ interface PostDao {
 
     @Query("SELECT * FROM posts ORDER BY timestamp DESC")
     suspend fun getAllPosts(): List<PostEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPost(post: PostEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPosts(posts: List<PostEntity>)
 }
