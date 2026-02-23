@@ -2,8 +2,7 @@ package com.example.photonest.ui.screens.bookmarks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.preferences.PreferencesManager
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Post
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
@@ -39,7 +38,7 @@ class LikedPostsViewModel @Inject constructor(
             withContext(Dispatchers.Main) {
                 if (likedPostIds.isNotEmpty()) {
                     val postsResource = postRepository.getPostsByIds(likedPostIds)
-                    if (postsResource is Resource.Success) {
+                    if (postsResource is NetworkResult.Success) {
                         _likedPosts.value = postsResource.data ?: emptyList()
                     }
                 } else {

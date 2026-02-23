@@ -2,7 +2,7 @@ package com.example.photonest.ui.screens.profile.userprofile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
@@ -35,7 +35,7 @@ class UserProfileViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main) {
                     when (userResult) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -45,7 +45,7 @@ class UserProfileViewModel @Inject constructor(
                             }
                             loadUserPosts(userId)
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -54,7 +54,7 @@ class UserProfileViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Loading -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
                     }
@@ -81,13 +81,13 @@ class UserProfileViewModel @Inject constructor(
                 val result = userRepository.getFollowers(userId)
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             onResult(result.data ?: emptyList())
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             onResult(emptyList())
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             } catch (e: Exception) {
@@ -104,13 +104,13 @@ class UserProfileViewModel @Inject constructor(
                 val result = userRepository.getFollowing(userId)
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             onResult(result.data ?: emptyList())
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             onResult(emptyList())
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             } catch (e: Exception) {
@@ -132,7 +132,7 @@ class UserProfileViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         when (listType) {
                             "FOLLOWERS" -> {
                                 loadFollowers(currentProfileUserId) { /* callback updates automatically */ }
@@ -144,7 +144,7 @@ class UserProfileViewModel @Inject constructor(
                         // Also refresh the profile to update counts
                         loadUserProfile(currentProfileUserId)
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         _uiState.update {
                             it.copy(
                                 error = result.message ?: "Failed to update follow status",
@@ -177,15 +177,15 @@ class UserProfileViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main) {
                     when (postsResult) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             _uiState.update {
                                 it.copy(posts = postsResult.data ?: emptyList())
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update { it.copy(posts = emptyList()) }
                         }
-                        is Resource.Loading -> { }
+                        is NetworkResult.Loading -> { }
                     }
                 }
             } catch (e: Exception) {
@@ -223,8 +223,8 @@ class UserProfileViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> { }
-                        is Resource.Error -> {
+                        is NetworkResult.Success -> { }
+                        is NetworkResult.Error -> {
                             _uiState.update { it.copy(userProfile = currentUserProfile) }
                             _uiState.update {
                                 it.copy(
@@ -233,7 +233,7 @@ class UserProfileViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Loading -> { }
+                        is NetworkResult.Loading -> { }
                     }
                 }
             } catch (e: Exception) {

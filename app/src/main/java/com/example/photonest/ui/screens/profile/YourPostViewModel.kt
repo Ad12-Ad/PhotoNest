@@ -2,7 +2,7 @@ package com.example.photonest.ui.screens.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Post
 import com.example.photonest.domain.repository.IPostRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -34,7 +34,7 @@ class YourPostsViewModel @Inject constructor(
             val postsResource = postRepository.getUserPosts(currentUserId)
 
             withContext(Dispatchers.Main) {
-                if (postsResource is Resource.Success) {
+                if (postsResource is NetworkResult.Success) {
                     _yourPosts.value = postsResource.data ?: emptyList()
                 } else {
                     _yourPosts.value = emptyList()

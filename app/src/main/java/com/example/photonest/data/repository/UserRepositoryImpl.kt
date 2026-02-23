@@ -3,14 +3,13 @@ package com.example.photonest.data.repository
 import android.net.Uri
 import android.util.Log
 import com.example.photonest.core.utils.Constants
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.local.dao.FollowDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
-import com.example.photonest.data.model.Follow
 import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
 import com.example.photonest.domain.repository.IUserRepository
@@ -21,7 +20,6 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,14 +33,14 @@ class UserRepositoryImpl @Inject constructor(
     private val firebaseStorage: FirebaseStorage
 ) : IUserRepository {
 
-    override fun getCurrentUser(): Flow<Resource<User?>> = flow {
-        emit(Resource.Loading())
+    override fun getCurrentUser(): Flow<NetworkResult<User?>> = flow {
+        emit(NetworkResult.Loading())
         try {
             val currentUserId = firebaseAuth.currentUser?.uid
             if (currentUserId != null) {
                 // Try to get from local database first
                 val localUser = userDao.getUserById(currentUserId)?.toUser()
-                emit(Resource.Success(localUser))
+                emit(NetworkResult.Success(localUser))
 
                 // Then sync with Firestore
                 val userDoc = firestore.collection(Constants.USERS_COLLECTION)
@@ -53,17 +51,17 @@ class UserRepositoryImpl @Inject constructor(
                 val firestoreUser = userDoc.toObject(User::class.java)?.copy(id = currentUserId)
                 if (firestoreUser != null) {
                     userDao.insertUser(firestoreUser.toEntity())
-                    emit(Resource.Success(firestoreUser))
+                    emit(NetworkResult.Success(firestoreUser))
                 }
             } else {
-                emit(Resource.Success(null))
+                emit(NetworkResult.Success(null))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to get current user"))
+            emit(NetworkResult.Error(e.message ?: "Failed to get current user"))
         }
     }
 
-    override suspend fun getUserById(userId: String): Resource<User?> {
+    override suspend fun getUserById(userId: String): NetworkResult<User?> {
         return try {
             // Try local database first
             val localUser = userDao.getUserById(userId)?.toUser()
@@ -77,22 +75,22 @@ class UserRepositoryImpl @Inject constructor(
             val firestoreUser = userDoc.toObject(User::class.java)?.copy(id = userId)
             if (firestoreUser != null) {
                 userDao.insertUser(firestoreUser.toEntity())
-                Resource.Success(firestoreUser)
+                NetworkResult.Success(firestoreUser)
             } else {
-                Resource.Success(localUser)
+                NetworkResult.Success(localUser)
             }
         } catch (e: Exception) {
             // Fallback to local data
             val localUser = userDao.getUserById(userId)?.toUser()
             if (localUser != null) {
-                Resource.Success(localUser)
+                NetworkResult.Success(localUser)
             } else {
-                Resource.Error(e.message ?: "User not found")
+                NetworkResult.Error(e.message ?: "User not found")
             }
         }
     }
 
-    override suspend fun getUserByUsername(username: String): Resource<User?> {
+    override suspend fun getUserByUsername(username: String): NetworkResult<User?> {
         return try {
             val query = firestore.collection(Constants.USERS_COLLECTION)
                 .whereEqualTo("username", username)
@@ -100,18 +98,18 @@ class UserRepositoryImpl @Inject constructor(
                 .await()
 
             val user = query.documents.firstOrNull()?.toObject(User::class.java)
-            Resource.Success(user)
+            NetworkResult.Success(user)
         } catch (e: Exception) {
             val localUser = userDao.getUserByUsername(username)?.toUser()
             if (localUser != null) {
-                Resource.Success(localUser)
+                NetworkResult.Success(localUser)
             } else {
-                Resource.Error(e.message ?: "User not found")
+                NetworkResult.Error(e.message ?: "User not found")
             }
         }
     }
 
-    override suspend fun updateUser(user: User): Resource<Unit> {
+    override suspend fun updateUser(user: User): NetworkResult<Unit> {
         return try {
             firestore.collection(Constants.USERS_COLLECTION)
                 .document(user.id)
@@ -119,13 +117,13 @@ class UserRepositoryImpl @Inject constructor(
                 .await()
 
             userDao.insertUser(user.toEntity())
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to update user")
+            NetworkResult.Error(e.message ?: "Failed to update user")
         }
     }
 
-    override suspend fun searchUsers(query: String): Resource<List<User>> {
+    override suspend fun searchUsers(query: String): NetworkResult<List<User>> {
         return try {
             val results = firestore.collection(Constants.USERS_COLLECTION)
                 .orderBy("followersCount", com.google.firebase.firestore.Query.Direction.DESCENDING)
@@ -140,20 +138,20 @@ class UserRepositoryImpl @Inject constructor(
                         user.name.contains(query, ignoreCase = true)
             }
 
-            Resource.Success(users)
+            NetworkResult.Success(users)
         } catch (e: Exception) {
             val localUsers = userDao.searchUsers(query, 20).map { it.toUser() }
-            Resource.Success(localUsers)
+            NetworkResult.Success(localUsers)
         }
     }
 
-    override suspend fun followUser(userId: String): Resource<Unit> {
+    override suspend fun followUser(userId: String): NetworkResult<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Error("Not authenticated")
+                ?: return NetworkResult.Error("Not authenticated")
 
             if (currentUserId == userId) {
-                return Resource.Error("Cannot follow yourself")
+                return NetworkResult.Error("Cannot follow yourself")
             }
 
             val followId = "${currentUserId}_${userId}"
@@ -165,7 +163,7 @@ class UserRepositoryImpl @Inject constructor(
                 .await()
 
             if (existingFollow.exists()) {
-                return Resource.Error("Already following this user")
+                return NetworkResult.Error("Already following this user")
             }
 
             val batch = firestore.batch()
@@ -226,17 +224,17 @@ class UserRepositoryImpl @Inject constructor(
                 userDao.insertUser(user.copy(followersCount = user.followersCount + 1))
             }
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("UserRepository", "Follow failed: ${e.message}", e)
-            Resource.Error(e.message ?: "Failed to follow user")
+            NetworkResult.Error(e.message ?: "Failed to follow user")
         }
     }
 
-    override suspend fun unfollowUser(userId: String): Resource<Unit> {
+    override suspend fun unfollowUser(userId: String): NetworkResult<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Error("Not authenticated")
+                ?: return NetworkResult.Error("Not authenticated")
 
             val followId = "${currentUserId}_${userId}"
 
@@ -266,10 +264,10 @@ class UserRepositoryImpl @Inject constructor(
                 userDao.insertUser(user.copy(followersCount = maxOf(0, user.followersCount - 1)))
             }
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("UserRepository", "Unfollow failed: ${e.message}", e)
-            Resource.Error(e.message ?: "Failed to unfollow user")
+            NetworkResult.Error(e.message ?: "Failed to unfollow user")
         }
     }
 
@@ -576,13 +574,13 @@ class UserRepositoryImpl @Inject constructor(
 //        }
 //    }
 
-    override suspend fun isFollowing(userId: String): Resource<Boolean> {
+    override suspend fun isFollowing(userId: String): NetworkResult<Boolean> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Success(false)
+                ?: return NetworkResult.Success(false)
 
             if (currentUserId == userId) {
-                return Resource.Success(false) // Can't follow yourself
+                return NetworkResult.Success(false) // Can't follow yourself
             }
 
             val followId = "${currentUserId}_${userId}"
@@ -591,14 +589,14 @@ class UserRepositoryImpl @Inject constructor(
                 .get()
                 .await()
 
-            Resource.Success(followDoc.exists())
+            NetworkResult.Success(followDoc.exists())
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to check follow status")
+            NetworkResult.Error(e.message ?: "Failed to check follow status")
         }
     }
 
 
-    override suspend fun getFollowers(userId: String): Resource<List<User>> {
+    override suspend fun getFollowers(userId: String): NetworkResult<List<User>> {
         return try {
             val followQuery = firestore.collection("follows")
                 .whereEqualTo("followingId", userId)
@@ -616,16 +614,16 @@ class UserRepositoryImpl @Inject constructor(
                 val users = usersQuery.documents.mapNotNull { doc ->
                     doc.toObject(User::class.java)?.copy(id = doc.id)
                 }
-                Resource.Success(users)
+                NetworkResult.Success(users)
             } else {
-                Resource.Success(emptyList())
+                NetworkResult.Success(emptyList())
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to get followers")
+            NetworkResult.Error(e.message ?: "Failed to get followers")
         }
     }
 
-    override suspend fun getFollowing(userId: String): Resource<List<User>> {
+    override suspend fun getFollowing(userId: String): NetworkResult<List<User>> {
         return try {
             val followQuery = firestore.collection("follows")
                 .whereEqualTo("followerId", userId)
@@ -643,19 +641,19 @@ class UserRepositoryImpl @Inject constructor(
                 val users = usersQuery.documents.mapNotNull { doc ->
                     doc.toObject(User::class.java)?.copy(id = doc.id)
                 }
-                Resource.Success(users)
+                NetworkResult.Success(users)
             } else {
-                Resource.Success(emptyList())
+                NetworkResult.Success(emptyList())
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to get following")
+            NetworkResult.Error(e.message ?: "Failed to get following")
         }
     }
 
-    override suspend fun getUserProfile(userId: String): Resource<UserProfile> {
+    override suspend fun getUserProfile(userId: String): NetworkResult<UserProfile> {
         return try {
             val user = getUserById(userId)
-            if (user is Resource.Success && user.data != null) {
+            if (user is NetworkResult.Success && user.data != null) {
                 val posts = postDao.getPostsByUser(userId).map { it.toPost() }
                 val currentUserId = firebaseAuth.currentUser?.uid
                 val isFollowing = if (currentUserId != null && currentUserId != userId) {
@@ -673,19 +671,19 @@ class UserRepositoryImpl @Inject constructor(
                     isFollowing = isFollowing,
                     isCurrentUser = currentUserId == userId
                 )
-                Resource.Success(userProfile)
+                NetworkResult.Success(userProfile)
             } else {
-                Resource.Error("User not found")
+                NetworkResult.Error("User not found")
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to get user profile")
+            NetworkResult.Error(e.message ?: "Failed to get user profile")
         }
     }
 
-    override suspend fun uploadProfilePicture(imageUri: String): Resource<String> {
+    override suspend fun uploadProfilePicture(imageUri: String): NetworkResult<String> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Error("Not authenticated")
+                ?: return NetworkResult.Error("Not authenticated")
 
             val imageRef = firebaseStorage.reference
                 .child(Constants.PROFILE_IMAGES_PATH)
@@ -703,16 +701,16 @@ class UserRepositoryImpl @Inject constructor(
 
             Log.d("UserRepository", "Download URL: ${downloadUrl.toString()}")
 
-            Resource.Success(downloadUrl.toString())
+            NetworkResult.Success(downloadUrl.toString())
         } catch (e: Exception) {
             Log.e("UserRepository", "Profile picture upload failed: ${e.message}", e)
-            Resource.Error(e.message ?: "Failed to upload profile picture")
+            NetworkResult.Error(e.message ?: "Failed to upload profile picture")
         }
     }
 
 
 
-    override suspend fun getPopularUsers(): Resource<List<User>> {
+    override suspend fun getPopularUsers(): NetworkResult<List<User>> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
 
@@ -743,28 +741,28 @@ class UserRepositoryImpl @Inject constructor(
                 }
             }.filter { it.id != currentUserId }
 
-            Resource.Success(enrichedUsers)
+            NetworkResult.Success(enrichedUsers)
         } catch (e: Exception) {
             val localUsers = userDao.getPopularUsers(20).map { it.toUser() }
-            Resource.Success(localUsers)
+            NetworkResult.Success(localUsers)
         }
     }
 
-    override suspend fun blockUser(userId: String): Resource<Unit> {
+    override suspend fun blockUser(userId: String): NetworkResult<Unit> {
         return try {
             // Implementation for blocking user
-            Resource.Error("Block user not implemented yet")
+            NetworkResult.Error("Block user not implemented yet")
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to block user")
+            NetworkResult.Error(e.message ?: "Failed to block user")
         }
     }
 
-    override suspend fun unblockUser(userId: String): Resource<Unit> {
+    override suspend fun unblockUser(userId: String): NetworkResult<Unit> {
         return try {
             // Implementation for unblocking user
-            Resource.Error("Unblock user not implemented yet")
+            NetworkResult.Error("Unblock user not implemented yet")
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to unblock user")
+            NetworkResult.Error(e.message ?: "Failed to unblock user")
         }
     }
 

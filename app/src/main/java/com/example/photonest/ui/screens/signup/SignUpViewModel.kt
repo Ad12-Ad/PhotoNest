@@ -3,14 +3,11 @@ package com.example.photonest.ui.screens.signup
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.photonest.core.utils.Resource
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.ui.screens.signup.state.SignUpEffect
 import com.example.photonest.ui.screens.signup.state.SignUpEvent
 import com.example.photonest.ui.screens.signup.state.SignUpUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +15,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel

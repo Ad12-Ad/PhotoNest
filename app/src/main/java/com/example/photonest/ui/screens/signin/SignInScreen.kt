@@ -145,7 +145,7 @@ fun SignInContent(
                     value = uiState.password,
                     onValueChange = { onEvent(SignInEvents.PasswordChanged(it)) },
                     isError = uiState.passwordError != null,
-                    errorMessage = { ErrorTxt(uiState.passwordError)},
+                    errorMessage = { ErrorTxt(uiState.passwordError) },
                 )
                 Row (
                     modifier = Modifier.fillMaxWidth(),
@@ -153,7 +153,8 @@ fun SignInContent(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ){
                     AnnotatedText(
-                        text1 = "Don't have an account.", text2 = "Sign Up", onClickTxt2 = {onEvent(SignInEvents.SignUpTxtClick)},
+                        text1 = "Don't have an account.", text2 = "Sign Up", onClickTxt2 = {onEvent(
+                            SignInEvents.SignUpTxtClick)},
                         modifier = Modifier.height(24.dp)
                     )
                     AnnotatedText(

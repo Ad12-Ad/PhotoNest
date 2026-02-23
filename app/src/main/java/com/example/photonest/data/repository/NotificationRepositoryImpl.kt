@@ -1,8 +1,7 @@
 package com.example.photonest.data.repository
 
-import android.util.Log
 import com.example.photonest.core.utils.Constants
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.local.dao.NotificationDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toNotification
@@ -24,12 +23,12 @@ class NotificationRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : INotificationRepository {
 
-    override fun getUserNotifications(): Flow<Resource<List<Notification>>> = flow {
-        emit(Resource.Loading())
+    override fun getUserNotifications(): Flow<NetworkResult<List<Notification>>> = flow {
+        emit(NetworkResult.Loading())
 
         val currentUserId = firebaseAuth.currentUser?.uid
         if (currentUserId == null) {
-            emit(Resource.Error("User not authenticated"))
+            emit(NetworkResult.Error("User not authenticated"))
             return@flow
         }
 
@@ -49,16 +48,16 @@ class NotificationRepositoryImpl @Inject constructor(
 
             notificationDao.insertNotifications(merged.map { it.toEntity() })
 
-            emit(Resource.Success(merged))
+            emit(NetworkResult.Success(merged))
         } catch (e: Exception) {
             val local = notificationDao.getNotificationsPaged(currentUserId, limit = 200, offset = 0)
                 .map { it.toNotification() }
-            emit(Resource.Success(local))
+            emit(NetworkResult.Success(local))
         }
     }
 
 
-    override suspend fun markNotificationAsRead(notificationId: String): Resource<Unit> {
+    override suspend fun markNotificationAsRead(notificationId: String): NetworkResult<Unit> {
         return try {
             firestore.collection(Constants.NOTIFICATIONS_COLLECTION)
                 .document(notificationId)
@@ -66,13 +65,13 @@ class NotificationRepositoryImpl @Inject constructor(
                 .await()
 
             notificationDao.markNotificationAsRead(notificationId)
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to mark notification as read")
+            NetworkResult.Error(e.message ?: "Failed to mark notification as read")
         }
     }
 
-    override suspend fun markAllNotificationsAsRead(): Resource<Unit> {
+    override suspend fun markAllNotificationsAsRead(): NetworkResult<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
                 ?: throw Exception("Not authenticated")
@@ -90,24 +89,24 @@ class NotificationRepositoryImpl @Inject constructor(
             batch.commit().await()
             notificationDao.markAllNotificationsAsRead(currentUserId)
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to mark all notifications as read")
+            NetworkResult.Error(e.message ?: "Failed to mark all notifications as read")
         }
     }
 
-    override suspend fun createNotification(notification: Notification): Resource<Unit> {
+    override suspend fun createNotification(notification: Notification): NetworkResult<Unit> {
         return try {
             firestore.collection(Constants.NOTIFICATIONS_COLLECTION)
                 .add(notification)
                 .await()
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to create notification")
+            NetworkResult.Error(e.message ?: "Failed to create notification")
         }
     }
 
-    override suspend fun deleteNotification(notificationId: String): Resource<Unit> {
+    override suspend fun deleteNotification(notificationId: String): NetworkResult<Unit> {
         return try {
             firestore.collection(Constants.NOTIFICATIONS_COLLECTION)
                 .document(notificationId)
@@ -115,13 +114,13 @@ class NotificationRepositoryImpl @Inject constructor(
                 .await()
 
             notificationDao.deleteNotificationById(notificationId)
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to delete notification")
+            NetworkResult.Error(e.message ?: "Failed to delete notification")
         }
     }
 
-    override suspend fun getUnreadNotificationCount(): Resource<Int> {
+    override suspend fun getUnreadNotificationCount(): NetworkResult<Int> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
                 ?: throw Exception("Not authenticated")
@@ -133,14 +132,14 @@ class NotificationRepositoryImpl @Inject constructor(
                 .await()
                 .size()
 
-            Resource.Success(count)
+            NetworkResult.Success(count)
         } catch (e: Exception) {
             val currentUserId = firebaseAuth.currentUser?.uid
             if (currentUserId != null) {
                 val localCount = notificationDao.getUnreadNotificationCount(currentUserId)
-                Resource.Success(localCount)
+                NetworkResult.Success(localCount)
             } else {
-                Resource.Error("Not authenticated: ${e.message}")
+                NetworkResult.Error("Not authenticated: ${e.message}")
             }
         }
     }

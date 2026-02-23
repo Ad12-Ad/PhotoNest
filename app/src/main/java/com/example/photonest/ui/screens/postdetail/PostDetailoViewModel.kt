@@ -4,14 +4,13 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Comment
 import com.example.photonest.data.model.PostDetail
 import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.ICommentRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
-import com.example.photonest.ui.components.UserListType
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +43,7 @@ class PostDetailViewModel @Inject constructor(
             val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
             userRepository.getCurrentUser().collect { result ->
                 withContext(Dispatchers.Main) {
-                    if (result is Resource.Success && result.data != null) {
+                    if (result is NetworkResult.Success && result.data != null) {
                         _uiState.update {
                             it.copy(
                                 currentUserImage = result.data.profilePicture,
@@ -69,18 +68,18 @@ class PostDetailViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main) {
                     when (postResult) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             val postDetail = postResult.data
                             if (postDetail != null) {
                                 val commentsResult = commentRepository.getCommentsForPost(postId)
                                 when (commentsResult) {
-                                    is Resource.Success -> {
+                                    is NetworkResult.Success -> {
                                         val updatedPostDetail = postDetail.copy(comments = commentsResult.data ?: emptyList())
                                         _uiState.update {
                                             it.copy(isLoading = false, postDetail = updatedPostDetail)
                                         }
                                     }
-                                    is Resource.Error -> {
+                                    is NetworkResult.Error -> {
                                         _uiState.update {
                                             it.copy(isLoading = false, postDetail = postDetail,
                                                 error = "Failed to load comments: ${commentsResult.message}")
@@ -94,7 +93,7 @@ class PostDetailViewModel @Inject constructor(
                                 }
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(isLoading = false, error = postResult.message ?: "Failed to load post")
                             }
@@ -118,7 +117,7 @@ class PostDetailViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         // Remove comment from UI state
                         _uiState.update { currentState ->
                             currentState.copy(
@@ -130,7 +129,7 @@ class PostDetailViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         // Show error message
                         _uiState.update {
                             it.copy(
@@ -173,7 +172,7 @@ class PostDetailViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update { state ->
                                 state.postDetail?.let { postDetail ->
                                     state.copy(
@@ -239,7 +238,7 @@ class PostDetailViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main){
                     when (result) {
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update { state ->
                                 state.postDetail?.let { postDetail ->
                                     state.copy(
@@ -299,7 +298,7 @@ class PostDetailViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main){
                     when (result) {
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update { state ->
                                 state.postDetail?.let { postDetail ->
                                     state.copy(
@@ -401,7 +400,7 @@ class PostDetailViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main){
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             _uiState.update { state ->
                                 val currentPostDetail = state.postDetail
                                 if (currentPostDetail != null) {
@@ -425,7 +424,7 @@ class PostDetailViewModel @Inject constructor(
                                 }
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isAddingComment = false,
@@ -457,13 +456,13 @@ class PostDetailViewModel @Inject constructor(
                 val result = postRepository.getUsersWhoLikedPost(postId)
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             onResult(result.data ?: emptyList())
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             onResult(emptyList())
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             } catch (e: Exception) {
@@ -482,10 +481,10 @@ class PostDetailViewModel @Inject constructor(
                 val result = postRepository.deletePost(postId)
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             onComplete(true)
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -495,7 +494,7 @@ class PostDetailViewModel @Inject constructor(
                             }
                             onComplete(false)
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             } catch (e: Exception) {
@@ -522,11 +521,11 @@ class PostDetailViewModel @Inject constructor(
             }
 
             when (result) {
-                is Resource.Success -> {
+                is NetworkResult.Success -> {
                     // Reload users who liked the post to reflect updated follow states
                     loadUsersWhoLiked(currentPostId) { /* updated automatically via callback */ }
                 }
-                is Resource.Error -> {
+                is NetworkResult.Error -> {
                     withContext(Dispatchers.Main) {
                         _uiState.update {
                             it.copy(

@@ -2,7 +2,7 @@ package com.example.photonest.data.repository
 
 import android.util.Log
 import com.example.photonest.core.utils.Constants
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
@@ -17,7 +17,6 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.Source.*
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -37,16 +36,16 @@ class PostRepositoryImpl @Inject constructor(
     private val firebaseStorage: FirebaseStorage
 ) : IPostRepository {
 
-    override fun getPosts(): Flow<Resource<List<Post>>> = flow {
-        emit(Resource.Loading())
+    override fun getPosts(): Flow<NetworkResult<List<Post>>> = flow {
+        emit(NetworkResult.Loading())
         try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: run { emit(Resource.Error("Not authenticated")); return@flow }
+                ?: run { emit(NetworkResult.Error("Not authenticated")); return@flow }
 
             // Emit local cache immediately so user sees something
             val localPosts = postDao.getAllPosts().map { it.toPost() }
             if (localPosts.isNotEmpty()) {
-                emit(Resource.Success(localPosts))
+                emit(NetworkResult.Success(localPosts))
             }
 
             val followsSnapshot = firestore.collection("follows")
@@ -60,7 +59,7 @@ class PostRepositoryImpl @Inject constructor(
                 .apply { add(currentUserId) }
 
             if (followedUserIds.isEmpty()) {
-                emit(Resource.Success(emptyList()))
+                emit(NetworkResult.Success(emptyList()))
                 return@flow
             }
 
@@ -97,15 +96,15 @@ class PostRepositoryImpl @Inject constructor(
 
             postDao.upsertPosts(enrichedPosts.map { it.toEntity() })
 
-            emit(Resource.Success(enrichedPosts))
+            emit(NetworkResult.Success(enrichedPosts))
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to get posts: ${e.message}", e)
             // Fallback: serve from Room cache
             val cachedPosts = postDao.getAllPosts().map { it.toPost() }
             if (cachedPosts.isNotEmpty()) {
-                emit(Resource.Success(cachedPosts))
+                emit(NetworkResult.Success(cachedPosts))
             } else {
-                emit(Resource.Error(e.message ?: "Failed to load posts"))
+                emit(NetworkResult.Error(e.message ?: "Failed to load posts"))
             }
         }
     }
@@ -124,7 +123,7 @@ class PostRepositoryImpl @Inject constructor(
     }
 
 
-    override suspend fun getPostById(postId: String): Resource<PostDetail?> {
+    override suspend fun getPostById(postId: String): NetworkResult<PostDetail?> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
 
@@ -174,18 +173,18 @@ class PostRepositoryImpl @Inject constructor(
                     isOwner = currentUserId == enrichedPost.userId
                 )
 
-                Resource.Success(postDetail)
+                NetworkResult.Success(postDetail)
             } else {
-                Resource.Error("Post not found")
+                NetworkResult.Error("Post not found")
             }
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to get post by ID: ${e.message}")
-            Resource.Error(e.message ?: "Failed to get post")
+            NetworkResult.Error(e.message ?: "Failed to get post")
         }
     }
 
 
-    override suspend fun getUserPosts(userId: String): Resource<List<Post>> {
+    override suspend fun getUserPosts(userId: String): NetworkResult<List<Post>> {
         return try {
             val query = firestore.collection(Constants.POSTS_COLLECTION)
                 .whereEqualTo("userId", userId)
@@ -198,16 +197,16 @@ class PostRepositoryImpl @Inject constructor(
             }
 
             postDao.insertPosts(posts.map { it.toEntity() })
-            Resource.Success(posts)
+            NetworkResult.Success(posts)
         } catch (e: Exception) {
             val localPosts = postDao.getPostsByUser(userId).map { it.toPost() }
-            Resource.Success(localPosts)
+            NetworkResult.Success(localPosts)
         }
     }
 
-    override suspend fun createPost(post: Post, imageUri: String): Resource<Unit> {
+    override suspend fun createPost(post: Post, imageUri: String): NetworkResult<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
             Log.d("PostRepository", "Creating post with imageUri: $imageUri")
 
@@ -247,10 +246,10 @@ class PostRepositoryImpl @Inject constructor(
                 .await()
 
             Log.d("PostRepository", "Post created successfully")
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to create post: ${e.message}")
-            Resource.Error(e.message ?: "Failed to create post")
+            NetworkResult.Error(e.message ?: "Failed to create post")
         }
     }
 
@@ -281,9 +280,9 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun likePost(postId: String): Resource<Unit> {
+    override suspend fun likePost(postId: String): NetworkResult<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
             // Check if like already exists
             val existingLikeQuery = firestore.collection(Constants.LIKES_COLLECTION)
@@ -358,15 +357,15 @@ class PostRepositoryImpl @Inject constructor(
                 }
             }
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to like post")
+            NetworkResult.Error(e.message ?: "Failed to like post")
         }
     }
 
-    override suspend fun unlikePost(postId: String): Resource<Unit> {
+    override suspend fun unlikePost(postId: String): NetworkResult<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
             // Remove like from Firestore
             val likeQuery = firestore.collection(Constants.LIKES_COLLECTION)
@@ -388,16 +387,16 @@ class PostRepositoryImpl @Inject constructor(
                 )
                 .await()
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to unlike post")
+            NetworkResult.Error(e.message ?: "Failed to unlike post")
         }
     }
 
-    override suspend fun bookmarkPost(postId: String): Resource<Unit> {
+    override suspend fun bookmarkPost(postId: String): NetworkResult<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Error("Not authenticated")
+                ?: return NetworkResult.Error("Not authenticated")
 
             val bookmarkId = "${currentUserId}_${postId}"
 
@@ -408,7 +407,7 @@ class PostRepositoryImpl @Inject constructor(
                 .await()
 
             if (existingBookmark.exists()) {
-                return Resource.Error("Post already bookmarked")
+                return NetworkResult.Error("Post already bookmarked")
             }
 
             val bookmarkData = hashMapOf(
@@ -424,16 +423,16 @@ class PostRepositoryImpl @Inject constructor(
 
             postDao.updatePostBookmark(postId, true)
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to bookmark post")
+            NetworkResult.Error(e.message ?: "Failed to bookmark post")
         }
     }
 
-    override suspend fun unbookmarkPost(postId: String): Resource<Unit> {
+    override suspend fun unbookmarkPost(postId: String): NetworkResult<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Error("Not authenticated")
+                ?: return NetworkResult.Error("Not authenticated")
 
             // ✅ DELETE SPECIFIC BOOKMARK DOCUMENT
             val bookmarkId = "${currentUserId}_${postId}"
@@ -446,22 +445,22 @@ class PostRepositoryImpl @Inject constructor(
             // ✅ UPDATE LOCAL DATABASE
             postDao.updatePostBookmark(postId, false)
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to unbookmark post")
+            NetworkResult.Error(e.message ?: "Failed to unbookmark post")
         }
     }
 
-    override suspend fun getBookmarkedPosts(): Resource<List<Post>> {
+    override suspend fun getBookmarkedPosts(): NetworkResult<List<Post>> {
         return try {
             val posts = postDao.getBookmarkedPosts().map { it.toPost() }
-            Resource.Success(posts)
+            NetworkResult.Success(posts)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to get bookmarked posts")
+            NetworkResult.Error(e.message ?: "Failed to get bookmarked posts")
         }
     }
 
-    override suspend fun getTrendingPosts(): Resource<List<Post>> {
+    override suspend fun getTrendingPosts(): NetworkResult<List<Post>> {
         return try {
             val query = firestore.collection(Constants.POSTS_COLLECTION)
                 .orderBy("likeCount", Query.Direction.DESCENDING)
@@ -474,14 +473,14 @@ class PostRepositoryImpl @Inject constructor(
             }
 
             postDao.insertPosts(posts.map { it.toEntity() })
-            Resource.Success(posts)
+            NetworkResult.Success(posts)
         } catch (e: Exception) {
             val localPosts = postDao.getTrendingPosts(20).map { it.toPost() }
-            Resource.Success(localPosts)
+            NetworkResult.Success(localPosts)
         }
     }
 
-    override suspend fun getPostsByCategory(category: String): Resource<List<Post>> {
+    override suspend fun getPostsByCategory(category: String): NetworkResult<List<Post>> {
         return try {
             val query = firestore.collection(Constants.POSTS_COLLECTION)
                 .whereArrayContains("category", category)
@@ -495,18 +494,18 @@ class PostRepositoryImpl @Inject constructor(
             }
 
             postDao.insertPosts(posts.map { it.toEntity() })
-            Resource.Success(posts)
+            NetworkResult.Success(posts)
         } catch (e: Exception) {
             val localPosts = postDao.getPostsByCategory(category).map { it.toPost() }
             if (localPosts.isNotEmpty()) {
-                Resource.Success(localPosts)
+                NetworkResult.Success(localPosts)
             } else {
-                Resource.Error(e.message ?: "Failed to load category posts")
+                NetworkResult.Error(e.message ?: "Failed to load category posts")
             }
         }
     }
 
-    override suspend fun searchPosts(query: String): Resource<List<Post>> {
+    override suspend fun searchPosts(query: String): NetworkResult<List<Post>> {
         return try {
             val firestoreQuery = firestore.collection(Constants.POSTS_COLLECTION)
                 .orderBy("likeCount", Query.Direction.DESCENDING)
@@ -526,16 +525,16 @@ class PostRepositoryImpl @Inject constructor(
                         post.category.any { it.contains(query, ignoreCase = true) }
             }
 
-            Resource.Success(filteredPosts)
+            NetworkResult.Success(filteredPosts)
         } catch (e: Exception) {
             val localPosts = postDao.searchPosts(query).map { it.toPost() }
-            Resource.Success(localPosts)
+            NetworkResult.Success(localPosts)
         }
     }
 
-    override suspend fun reportPost(postId: String, reason: String): Resource<Unit> {
+    override suspend fun reportPost(postId: String, reason: String): NetworkResult<Unit> {
         return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return Resource.Error("Not authenticated")
+            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
             val reportData = mapOf(
                 "postId" to postId,
@@ -549,15 +548,15 @@ class PostRepositoryImpl @Inject constructor(
                 .add(reportData)
                 .await()
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to report post")
+            NetworkResult.Error(e.message ?: "Failed to report post")
         }
     }
-    override suspend fun getPostsByIds(postIds: List<String>): Resource<List<Post>> {
+    override suspend fun getPostsByIds(postIds: List<String>): NetworkResult<List<Post>> {
         return try {
             if (postIds.isEmpty()) {
-                return Resource.Success(emptyList())
+                return NetworkResult.Success(emptyList())
             }
 
             val posts = mutableListOf<Post>()
@@ -577,13 +576,13 @@ class PostRepositoryImpl @Inject constructor(
 
             postDao.insertPosts(posts.map { it.toEntity() })
 
-            Resource.Success(posts)
+            NetworkResult.Success(posts)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to get posts by IDs")
+            NetworkResult.Error(e.message ?: "Failed to get posts by IDs")
         }
     }
 
-    override suspend fun getUsersWhoLikedPost(postId: String): Resource<List<User>> {
+    override suspend fun getUsersWhoLikedPost(postId: String): NetworkResult<List<User>> {
         return try {
             // Get post first to get likedBy list
             val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
@@ -592,10 +591,10 @@ class PostRepositoryImpl @Inject constructor(
                 .await()
 
             val post = postDoc.toObject(Post::class.java)
-                ?: return Resource.Error("Post not found")
+                ?: return NetworkResult.Error("Post not found")
 
             if (post.likedBy.isEmpty()) {
-                return Resource.Success(emptyList())
+                return NetworkResult.Success(emptyList())
             }
 
             // Fetch user details for each userId in likedBy
@@ -611,17 +610,17 @@ class PostRepositoryImpl @Inject constructor(
                 }
             }
 
-            Resource.Success(users)
+            NetworkResult.Success(users)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to get users who liked post")
+            NetworkResult.Error(e.message ?: "Failed to get users who liked post")
         }
     }
 
     // Also update deletePost if it doesn't match this:
-    override suspend fun deletePost(postId: String): Resource<Unit> {
+    override suspend fun deletePost(postId: String): NetworkResult<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Resource.Error("Not authenticated")
+                ?: return NetworkResult.Error("Not authenticated")
 
             // Get post to verify ownership and get image URL
             val postDoc = firestore.collection(Constants.POSTS_COLLECTION)
@@ -630,11 +629,11 @@ class PostRepositoryImpl @Inject constructor(
                 .await()
 
             val post = postDoc.toObject(Post::class.java)
-                ?: return Resource.Error("Post not found")
+                ?: return NetworkResult.Error("Post not found")
 
             // Verify user owns the post
             if (post.userId != currentUserId) {
-                return Resource.Error("You don't have permission to delete this post")
+                return NetworkResult.Error("You don't have permission to delete this post")
             }
 
             // Delete image from Firebase Storage
@@ -673,9 +672,9 @@ class PostRepositoryImpl @Inject constructor(
             // Delete from local database
             postDao.deletePostById(postId)
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to delete post")
+            NetworkResult.Error(e.message ?: "Failed to delete post")
         }
     }
 

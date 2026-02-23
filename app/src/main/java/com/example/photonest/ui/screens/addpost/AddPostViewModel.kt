@@ -8,7 +8,7 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.ImageCompressionUtils
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Post
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
@@ -54,16 +54,16 @@ class AddPostViewModel @Inject constructor(
                 .collect { result ->
                     withContext(Dispatchers.Main) {
                         when (result) {
-                            is Resource.Success -> {
+                            is NetworkResult.Success -> {
                                 _uiState.value = _uiState.value.copy(currentUser = result.data)
                             }
-                            is Resource.Error -> {
+                            is NetworkResult.Error -> {
                                 _uiState.value = _uiState.value.copy(
                                     error = result.message,
                                     showErrorDialog = true
                                 )
                             }
-                            is Resource.Loading -> {
+                            is NetworkResult.Loading -> {
                                 // Handle loading if needed
                             }
                         }
@@ -199,7 +199,7 @@ class AddPostViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 isPostCreated = true,
@@ -207,7 +207,7 @@ class AddPostViewModel @Inject constructor(
                             )
                             compressedFile.delete()
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 error = result.message ?: "Failed to create post",
@@ -215,7 +215,7 @@ class AddPostViewModel @Inject constructor(
                             )
                             compressedFile.delete()
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             } catch (e: Exception) {

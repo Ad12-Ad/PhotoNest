@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.ImageCompressionUtils
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.User
 import com.example.photonest.domain.repository.IUserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,7 +44,7 @@ class EditProfileViewModel @Inject constructor(
             userRepository.getCurrentUser().collect { result ->
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             val user = result.data
                             if (user != null) {
                                 _uiState.update {
@@ -60,7 +60,7 @@ class EditProfileViewModel @Inject constructor(
                                 }
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -69,7 +69,7 @@ class EditProfileViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Loading -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
                     }
@@ -178,12 +178,12 @@ class EditProfileViewModel @Inject constructor(
                 val profilePictureUrl = if (currentState.profilePictureUri != null) {
                     when (val result =
                         userRepository.uploadProfilePicture(currentState.profilePictureUri.toString())) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             currentState.compressedFile?.delete()
                             result.data ?: currentUser.profilePicture
                         }
 
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             currentState.compressedFile?.delete()
                             withContext(Dispatchers.Main) {
                                 _uiState.update {
@@ -215,7 +215,7 @@ class EditProfileViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main) {
                     when (val result = userRepository.updateUser(updatedUser)) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -224,7 +224,7 @@ class EditProfileViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,

@@ -3,8 +3,7 @@ package com.example.photonest.ui.screens.signin
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.ui.screens.signin.state.SignInEffects
 import com.example.photonest.ui.screens.signin.state.SignInEvents
@@ -89,7 +88,7 @@ class SignInViewModel @Inject constructor(
             )
 
             when (result) {
-                is Resource.Success -> {
+                is NetworkResult.Success -> {
                     withContext(Dispatchers.Main) {
                         _uiState.update {
                             it.copy(
@@ -99,7 +98,7 @@ class SignInViewModel @Inject constructor(
                         _effects.send(SignInEffects.NavigateToHome)
                     }
                 }
-                is Resource.Error -> {
+                is NetworkResult.Error -> {
                     _uiState.update { it.copy(isLoading = false) } // 👈 MISSING
                     _effects.send(
                         SignInEffects.ShowSnackBar(
@@ -107,7 +106,7 @@ class SignInViewModel @Inject constructor(
                         )
                     )
                 }
-                is Resource.Loading -> {
+                is NetworkResult.Loading -> {
                     // Already handled
                 }
             }

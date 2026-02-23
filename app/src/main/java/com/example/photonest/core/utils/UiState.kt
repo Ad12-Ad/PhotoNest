@@ -46,29 +46,29 @@ inline fun <T> UiState<T>.onEmpty(action: (String) -> Unit): UiState<T> {
 /**
  * Converts Resource to UiState
  */
-fun <T> Resource<T>.toUiState(): UiState<T> {
+fun <T> NetworkResult<T>.toUiState(): UiState<T> {
     return when (this) {
-        is Resource.Loading -> UiState.Loading
-        is Resource.Success -> {
+        is NetworkResult.Loading -> UiState.Loading
+        is NetworkResult.Success -> {
             if (data != null) {
                 UiState.Success(data)
             } else {
                 UiState.Empty("No data available")
             }
         }
-        is Resource.Error -> UiState.Error(message ?: "Unknown error occurred")
+        is NetworkResult.Error -> UiState.Error(message ?: "Unknown error occurred")
     }
 }
 
 /**
  * Converts UiState to Resource
  */
-fun <T> UiState<T>.toResource(): Resource<T> {
+fun <T> UiState<T>.toResource(): NetworkResult<T> {
     return when (this) {
-        is UiState.Loading -> Resource.Loading()
-        is UiState.Success -> Resource.Success(data)
-        is UiState.Error -> Resource.Error(exception)
-        is UiState.Empty -> Resource.Error(message)
-        is UiState.Idle -> Resource.Loading()
+        is UiState.Loading -> NetworkResult.Loading()
+        is UiState.Success -> NetworkResult.Success(data)
+        is UiState.Error -> NetworkResult.Error(exception)
+        is UiState.Empty -> NetworkResult.Error(message)
+        is UiState.Idle -> NetworkResult.Loading()
     }
 }

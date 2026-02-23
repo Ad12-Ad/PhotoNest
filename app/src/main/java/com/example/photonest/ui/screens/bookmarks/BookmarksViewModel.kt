@@ -2,7 +2,7 @@ package com.example.photonest.ui.screens.bookmarks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.ui.screens.bookmarks.model.BookmarksEvent
 import com.example.photonest.ui.screens.bookmarks.model.BookmarksUiState
@@ -63,7 +63,7 @@ class BookmarksViewModel @Inject constructor(
 
             withContext(Dispatchers.Main){
                 when (val result = postRepository.getBookmarkedPosts()) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         _uiState.update { currentState ->
                             currentState.copy(
                                 isLoading = false,
@@ -72,7 +72,7 @@ class BookmarksViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         _uiState.update { currentState ->
                             currentState.copy(
                                 isLoading = false,
@@ -81,7 +81,7 @@ class BookmarksViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Loading -> {
+                    is NetworkResult.Loading -> {
                         _uiState.update { it.copy(isLoading = true) }
                     }
                 }
@@ -96,7 +96,7 @@ class BookmarksViewModel @Inject constructor(
                 // Remove from bookmarks
                 withContext(Dispatchers.Main){
                     when (val result = postRepository.unbookmarkPost(postId)) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             // Remove post from the list since it's no longer bookmarked
                             _uiState.update { currentState ->
                                 currentState.copy(
@@ -104,7 +104,7 @@ class BookmarksViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update { currentState ->
                                 currentState.copy(
                                     error = result.message ?: "Failed to remove bookmark",
@@ -112,7 +112,7 @@ class BookmarksViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             }
@@ -131,7 +131,7 @@ class BookmarksViewModel @Inject constructor(
 
                 withContext(Dispatchers.Main){
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             // Update the post in the list
                             _uiState.update { currentState ->
                                 currentState.copy(
@@ -148,7 +148,7 @@ class BookmarksViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update { currentState ->
                                 currentState.copy(
                                     error = result.message ?: "Failed to toggle like",
@@ -156,7 +156,7 @@ class BookmarksViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             }

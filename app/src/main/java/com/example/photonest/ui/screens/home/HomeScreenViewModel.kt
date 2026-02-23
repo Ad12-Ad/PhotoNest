@@ -4,8 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
-import com.example.photonest.core.utils.onSuccess
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.User
@@ -47,7 +46,7 @@ class HomeScreenViewModel @Inject constructor(
             postRepository.getPosts().collect { result ->
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -57,7 +56,7 @@ class HomeScreenViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -67,7 +66,7 @@ class HomeScreenViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Loading -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
                     }
@@ -145,7 +144,7 @@ class HomeScreenViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         if (isCurrentlyFollowing) {
                             // User unfollowed - IMMEDIATELY remove their posts
                             _uiState.update { currentState ->
@@ -159,7 +158,7 @@ class HomeScreenViewModel @Inject constructor(
                             }
                         }
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         // Revert optimistic update on error
                         _uiState.update { currentState ->
                             currentState.copy(
@@ -210,7 +209,7 @@ class HomeScreenViewModel @Inject constructor(
 
             withContext(Dispatchers.Main){
                 when (result) {
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         // Revert on error
                         _uiState.update { currentState ->
                             currentState.copy(
@@ -256,7 +255,7 @@ class HomeScreenViewModel @Inject constructor(
 
             withContext(Dispatchers.Main){
                 when (result) {
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         // Revert on error
                         _uiState.update { currentState ->
                             currentState.copy(
@@ -302,13 +301,13 @@ class HomeScreenViewModel @Inject constructor(
                 val result = postRepository.getUsersWhoLikedPost(postId)
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             onResult(result.data ?: emptyList())
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             onResult(emptyList())
                         }
-                        is Resource.Loading -> {}
+                        is NetworkResult.Loading -> {}
                     }
                 }
             } catch (e: Exception) {
@@ -344,12 +343,12 @@ class HomeScreenViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         postId?.let { id ->
                             loadUsersWhoLiked(id) { /* callback updates automatically */ }
                         }
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
                             !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
                             showError(result.message ?: "Failed to update follow status")

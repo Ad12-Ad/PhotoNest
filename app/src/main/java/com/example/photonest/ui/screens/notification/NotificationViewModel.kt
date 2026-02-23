@@ -3,7 +3,7 @@ package com.example.photonest.ui.screens.notification
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Notification
 import com.example.photonest.domain.repository.INotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,7 +39,7 @@ class NotificationViewModel @Inject constructor(
             notificationRepository.getUserNotifications().collect { result ->
                 withContext(Dispatchers.Main) {
                     when (result) {
-                        is Resource.Success -> {
+                        is NetworkResult.Success -> {
                             Log.d("NotificationVM", "Loaded ${result.data?.size ?: 0} notifications")
                             _uiState.update {
                                 it.copy(
@@ -49,7 +49,7 @@ class NotificationViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Error -> {
+                        is NetworkResult.Error -> {
                             Log.e("NotificationVM", "Error loading notifications: ${result.message}")
                             _uiState.update {
                                 it.copy(
@@ -58,7 +58,7 @@ class NotificationViewModel @Inject constructor(
                                 )
                             }
                         }
-                        is Resource.Loading -> {
+                        is NetworkResult.Loading -> {
                             _uiState.update { it.copy(isLoading = true) }
                         }
                     }
@@ -89,10 +89,10 @@ class NotificationViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         Log.d("NotificationVM", "Successfully marked as read")
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         Log.e("NotificationVM", "Failed to mark as read: ${result.message}")
                         _uiState.update { currentState ->
                             currentState.copy(
@@ -107,7 +107,7 @@ class NotificationViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Loading -> {}
+                    is NetworkResult.Loading -> {}
                 }
             }
         }
@@ -129,17 +129,17 @@ class NotificationViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         Log.d("NotificationVM", "Successfully marked all as read")
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         Log.e("NotificationVM", "Failed to mark all as read: ${result.message}")
                         _uiState.update {
                             it.copy(error = result.message)
                         }
                         loadNotifications()
                     }
-                    is Resource.Loading -> {}
+                    is NetworkResult.Loading -> {}
                 }
             }
         }
@@ -161,10 +161,10 @@ class NotificationViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         Log.d("NotificationVM", "Notification deleted")
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         if (deletedNotification != null) {
                             _uiState.update { currentState ->
                                 currentState.copy(
@@ -175,7 +175,7 @@ class NotificationViewModel @Inject constructor(
                             }
                         }
                     }
-                    is Resource.Loading -> {}
+                    is NetworkResult.Loading -> {}
                 }
             }
         }

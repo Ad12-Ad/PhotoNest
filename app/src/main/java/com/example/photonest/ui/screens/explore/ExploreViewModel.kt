@@ -2,7 +2,7 @@ package com.example.photonest.ui.screens.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.*
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
@@ -72,14 +72,14 @@ class ExploreViewModel @Inject constructor(
                 // Search users
                 val usersResult = userRepository.searchUsers(query)
                 val users = when (usersResult) {
-                    is Resource.Success -> usersResult.data ?: emptyList()
+                    is NetworkResult.Success -> usersResult.data ?: emptyList()
                     else -> emptyList()
                 }
 
                 // Search posts
                 val postsResult = postRepository.searchPosts(query)
                 val posts = when (postsResult) {
-                    is Resource.Success -> postsResult.data ?: emptyList()
+                    is NetworkResult.Success -> postsResult.data ?: emptyList()
                     else -> emptyList()
                 }
 
@@ -136,7 +136,7 @@ class ExploreViewModel @Inject constructor(
 
             withContext(Dispatchers.Main){
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         val searchResults = SearchResult(
                             posts = result.data ?: emptyList(),
                             users = emptyList(),
@@ -153,7 +153,7 @@ class ExploreViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -162,7 +162,7 @@ class ExploreViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Loading -> {
+                    is NetworkResult.Loading -> {
                         _uiState.update { it.copy(isLoading = true) }
                     }
                 }
@@ -226,7 +226,7 @@ class ExploreViewModel @Inject constructor(
 
             val isFollowingResult = userRepository.isFollowing(userId)
             val isCurrentlyFollowing = when (isFollowingResult) {
-                is Resource.Success -> isFollowingResult.data == true
+                is NetworkResult.Success -> isFollowingResult.data == true
                 else -> false
             }
 
@@ -238,7 +238,7 @@ class ExploreViewModel @Inject constructor(
 
             withContext(Dispatchers.Main){
                 when (result) {
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         if (!result.message.orEmpty().contains("Already following", ignoreCase = true) &&
                             !result.message.orEmpty().contains("Cannot follow yourself", ignoreCase = true)) {
 
@@ -271,11 +271,11 @@ class ExploreViewModel @Inject constructor(
                             }
                         }
                     }
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         // Success! UI is already updated optimistically
                         // No need to reload anything
                     }
-                    is Resource.Loading -> {}
+                    is NetworkResult.Loading -> {}
                 }
             }
         }
@@ -304,14 +304,14 @@ class ExploreViewModel @Inject constructor(
                 // Load trending posts
                 val trendingPostsResult = postRepository.getTrendingPosts()
                 val trendingPosts = when (trendingPostsResult) {
-                    is Resource.Success -> trendingPostsResult.data ?: emptyList()
+                    is NetworkResult.Success -> trendingPostsResult.data ?: emptyList()
                     else -> getDummyTrendingPosts() // Fallback to dummy data
                 }
 
                 // Load suggested users
                 val suggestedUsersResult = userRepository.getPopularUsers()
                 val suggestedUsers = when (suggestedUsersResult) {
-                    is Resource.Success -> suggestedUsersResult.data ?: emptyList()
+                    is NetworkResult.Success -> suggestedUsersResult.data ?: emptyList()
                     else -> getDummySuggestedUsers() // Fallback to dummy data
                 }
 

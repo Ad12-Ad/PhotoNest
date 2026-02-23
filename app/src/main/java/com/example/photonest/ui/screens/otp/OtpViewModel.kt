@@ -3,7 +3,7 @@ package com.example.photonest.ui.screens.otp
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.remote.otp.OtpRetrofitClient
 import com.example.photonest.data.remote.otp.SendOtpRequest
 import com.example.photonest.data.remote.otp.VerifyOtpRequest
@@ -207,7 +207,7 @@ class OtpViewModel @Inject constructor(
                 )
 
                 when (result) {
-                    is Resource.Success -> {
+                    is NetworkResult.Success -> {
                         if (result.data?.success == true) {
                             Log.d("OTP_DEBUG", "Account created successfully")
 
@@ -228,7 +228,7 @@ class OtpViewModel @Inject constructor(
                             }
                         }
                     }
-                    is Resource.Error -> {
+                    is NetworkResult.Error -> {
                         Log.e("OTP_DEBUG", "Account creation error: ${result.message}")
 
                         _uiState.update {
@@ -238,7 +238,7 @@ class OtpViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Loading -> {
+                    is NetworkResult.Loading -> {
                         // Already handled
                     }
                 }

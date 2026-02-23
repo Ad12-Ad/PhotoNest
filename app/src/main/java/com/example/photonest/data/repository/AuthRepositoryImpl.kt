@@ -2,7 +2,7 @@ package com.example.photonest.data.repository
 
 import com.example.photonest.core.preferences.PreferencesManager
 import com.example.photonest.core.utils.Constants
-import com.example.photonest.core.utils.Resource
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.model.AuthResult
@@ -38,7 +38,7 @@ class AuthRepositoryImpl @Inject constructor(
         val timestamp: Long = System.currentTimeMillis()
     )
 
-    override suspend fun sendOtpToEmail(email: String): Resource<String> {
+    override suspend fun sendOtpToEmail(email: String): NetworkResult<String> {
         return try {
             val otp = Random.nextInt(100000, 999999).toString()
 
@@ -59,9 +59,9 @@ class AuthRepositoryImpl @Inject constructor(
                 isSignUp = false
             )
 
-            Resource.Success(verificationId)
+            NetworkResult.Success(verificationId)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to send OTP")
+            NetworkResult.Error(e.message ?: "Failed to send OTP")
         }
     }
 
@@ -73,22 +73,22 @@ class AuthRepositoryImpl @Inject constructor(
         name: String?,
         username: String?,
         isSignUp: Boolean
-    ): Resource<AuthResult> {
+    ): NetworkResult<AuthResult> {
         return try {
             val pendingData = pendingOtps[verificationId]
 
             if (pendingData == null) {
-                return Resource.Error("OTP expired or invalid")
+                return NetworkResult.Error("OTP expired or invalid")
             }
 
             val currentTime = System.currentTimeMillis()
             if (currentTime - pendingData.timestamp > 5 * 60 * 1000) {
                 pendingOtps.remove(verificationId)
-                return Resource.Error("OTP expired. Please request a new one")
+                return NetworkResult.Error("OTP expired. Please request a new one")
             }
 
             if (pendingData.otp != otp) {
-                return Resource.Error("Invalid OTP. Please try again")
+                return NetworkResult.Error("Invalid OTP. Please try again")
             }
 
             pendingOtps.remove(verificationId)
@@ -99,17 +99,17 @@ class AuthRepositoryImpl @Inject constructor(
                 signInWithEmailAndPassword(email, password)
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Verification failed")
+            NetworkResult.Error(e.message ?: "Verification failed")
         }
     }
 
-    override suspend fun resendOtp(email: String): Resource<String> {
+    override suspend fun resendOtp(email: String): NetworkResult<String> {
         pendingOtps.entries.removeIf { it.value.email == email }
 
         return sendOtpToEmail(email)
     }
 
-    override suspend fun signInWithEmailAndPassword(email: String, password: String): Resource<AuthResult> {
+    override suspend fun signInWithEmailAndPassword(email: String, password: String): NetworkResult<AuthResult> {
         return try {
             val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
             val firebaseUser = result.user
@@ -131,15 +131,15 @@ class AuthRepositoryImpl @Inject constructor(
                     preferencesManager.setLoggedIn(true)
                     preferencesManager.setUserId(user.id)
 
-                    Resource.Success(AuthResult(success = true, user = user))
+                    NetworkResult.Success(AuthResult(success = true, user = user))
                 } else {
-                    Resource.Error("User data not found")
+                    NetworkResult.Error("User data not found")
                 }
             } else {
-                Resource.Error("Authentication failed")
+                NetworkResult.Error("Authentication failed")
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Sign in failed")
+            NetworkResult.Error(e.message ?: "Sign in failed")
         }
     }
 
@@ -148,7 +148,7 @@ class AuthRepositoryImpl @Inject constructor(
         password: String,
         name: String,
         username: String
-    ): Resource<AuthResult> {
+    ): NetworkResult<AuthResult> {
         return try {
             val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
             val firebaseUser = result.user
@@ -161,7 +161,7 @@ class AuthRepositoryImpl @Inject constructor(
 
                 if (!usernameQuery.isEmpty) {
                     firebaseUser.delete().await()
-                    return Resource.Error("Username is already taken")
+                    return NetworkResult.Error("Username is already taken")
                 }
 
                 val profileUpdates = UserProfileChangeRequest.Builder()
@@ -187,48 +187,48 @@ class AuthRepositoryImpl @Inject constructor(
                 preferencesManager.setLoggedIn(true)
                 preferencesManager.setUserId(user.id)
 
-                Resource.Success(AuthResult(success = true, user = user))
+                NetworkResult.Success(AuthResult(success = true, user = user))
             } else {
-                Resource.Error("Account creation failed")
+                NetworkResult.Error("Account creation failed")
             }
         } catch (e: Exception) {
             android.util.Log.e("AUTH_ERROR", "Sign up failed: ${e.message}", e)
-            Resource.Error(e.message ?: "Sign up failed")
+            NetworkResult.Error(e.message ?: "Sign up failed")
         }
     }
 
 
-    override suspend fun signInWithGoogle(): Resource<AuthResult> {
+    override suspend fun signInWithGoogle(): NetworkResult<AuthResult> {
         return try {
-            Resource.Error("Google Sign-In not implemented yet")
+            NetworkResult.Error("Google Sign-In not implemented yet")
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Google sign in failed")
+            NetworkResult.Error(e.message ?: "Google sign in failed")
         }
     }
 
-    override suspend fun signOut(): Resource<Unit> {
+    override suspend fun signOut(): NetworkResult<Unit> {
         return try {
             firebaseAuth.signOut()
 
             userDao.clearAllUsers()
             preferencesManager.clearUserData()
 
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Sign out failed")
+            NetworkResult.Error(e.message ?: "Sign out failed")
         }
     }
 
-    override suspend fun sendPasswordResetEmail(email: String): Resource<Unit> {
+    override suspend fun sendPasswordResetEmail(email: String): NetworkResult<Unit> {
         return try {
             firebaseAuth.sendPasswordResetEmail(email).await()
-            Resource.Success(Unit)
+            NetworkResult.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to send password reset email")
+            NetworkResult.Error(e.message ?: "Failed to send password reset email")
         }
     }
 
-    override suspend fun getCurrentUser(): Resource<User?> {
+    override suspend fun getCurrentUser(): NetworkResult<User?> {
         return try {
             val currentUser = firebaseAuth.currentUser
             if (currentUser != null) {
@@ -238,18 +238,18 @@ class AuthRepositoryImpl @Inject constructor(
                     .await()
 
                 val user = userDoc.toObject(User::class.java)?.copy(id = currentUser.uid)
-                Resource.Success(user)
+                NetworkResult.Success(user)
             } else {
-                Resource.Success(null)
+                NetworkResult.Success(null)
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to get current user")
+            NetworkResult.Error(e.message ?: "Failed to get current user")
         }
     }
 
     override fun isUserLoggedIn(): Flow<Boolean> = preferencesManager.isLoggedIn
 
-    override suspend fun deleteAccount(): Resource<Unit> {
+    override suspend fun deleteAccount(): NetworkResult<Unit> {
         return try {
             val currentUser = firebaseAuth.currentUser
             if (currentUser != null) {
@@ -266,12 +266,12 @@ class AuthRepositoryImpl @Inject constructor(
                 userDao.clearAllUsers()
                 preferencesManager.clearUserData()
 
-                Resource.Success(Unit)
+                NetworkResult.Success(Unit)
             } else {
-                Resource.Error("No user to delete")
+                NetworkResult.Error("No user to delete")
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to delete account")
+            NetworkResult.Error(e.message ?: "Failed to delete account")
         }
     }
 }
