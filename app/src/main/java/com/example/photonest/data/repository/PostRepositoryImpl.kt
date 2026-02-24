@@ -1,16 +1,21 @@
 package com.example.photonest.data.repository
 
+import android.content.Context
 import android.util.Log
+import com.example.photonest.core.network.NetworkConnectivityObserver
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
+import com.example.photonest.data.local.dao.PendingOperationDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
+import com.example.photonest.data.local.entities.PendingOperationEntity
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.PostDetail
 import com.example.photonest.data.model.User
+import com.example.photonest.data.sync.SyncWorker
 import com.example.photonest.domain.repository.IPostRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldPath
@@ -18,6 +23,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -33,7 +39,10 @@ class PostRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
-    private val firebaseStorage: FirebaseStorage
+    private val firebaseStorage: FirebaseStorage,
+    private val pendingOperationDao: PendingOperationDao,
+    private val connectivityObserver: NetworkConnectivityObserver,
+    @ApplicationContext private val context: Context
 ) : IPostRepository {
 
     override fun getPosts(): Flow<NetworkResult<List<Post>>> = flow {
@@ -278,138 +287,134 @@ class PostRepositoryImpl @Inject constructor(
     }
 
     override suspend fun likePost(postId: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.Error("Not authenticated")
+        val currentUserId = firebaseAuth.currentUser?.uid
+            ?: return NetworkResult.Error("Not authenticated")
 
-            val likeDocId = "${currentUserId}_${postId}"
+        return if (connectivityObserver.isCurrentlyConnected()) {
+            try {
+                val likeDocId = "${currentUserId}_${postId}"
 
-            // Check if already liked (prevent double-like)
-            val existing = firestore.collection(Constants.LIKES_COLLECTION)
-                .document(likeDocId)
-                .get()
-                .await()
+                val existing = firestore.collection(Constants.LIKES_COLLECTION)
+                    .document(likeDocId)
+                    .get()
+                    .await()
 
-            if (existing.exists()) {
-                return NetworkResult.Success(Unit)  // Already liked, silently succeed
+                if (existing.exists()) {
+                    return NetworkResult.Success(Unit)
+                }
+
+                firestore.runBatch { batch ->
+                    batch.set(
+                        firestore.collection(Constants.LIKES_COLLECTION).document(likeDocId),
+                        mapOf(
+                            "userId" to currentUserId,
+                            "postId" to postId,
+                            "timestamp" to System.currentTimeMillis()
+                        )
+                    )
+                    batch.update(
+                        firestore.collection(Constants.POSTS_COLLECTION).document(postId),
+                        "likeCount",
+                        FieldValue.increment(1)
+                    )
+                }.await()
+
+                NetworkResult.Success(Unit)
+            } catch (e: Exception) {
+                NetworkResult.Error(e.message ?: "Failed to like post")
             }
-
-            // Write like document + increment count atomically
-            firestore.runBatch { batch ->
-                val likeRef = firestore.collection(Constants.LIKES_COLLECTION).document(likeDocId)
-                batch.set(likeRef, mapOf(
-                    "userId" to currentUserId,
-                    "postId" to postId,
-                    "timestamp" to System.currentTimeMillis()
-                ))
-                val postRef = firestore.collection(Constants.POSTS_COLLECTION).document(postId)
-                batch.update(postRef, "likeCount", FieldValue.increment(1))
-            }.await()
-
+        } else {
+            pendingOperationDao.insert(
+                PendingOperationEntity(
+                    type = "LIKE",
+                    targetId = postId
+                )
+            )
+            SyncWorker.schedule(context)
             NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to like post")
         }
     }
 
     override suspend fun unlikePost(postId: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.Error("Not authenticated")
+        val userId = firebaseAuth.currentUser?.uid
+            ?: return NetworkResult.Error("Not authenticated")
 
-            val likeDocId = "${currentUserId}_${postId}"
-
-            val existing = firestore.collection(Constants.LIKES_COLLECTION)
-                .document(likeDocId)
-                .get()
-                .await()
-
-            if (!existing.exists()) {
-                return NetworkResult.Success(Unit)  // Already unliked, silently succeed
+        return if (connectivityObserver.isCurrentlyConnected()) {
+            try {
+                val likeId = "${userId}_$postId"
+                firestore.runBatch { batch ->
+                    batch.delete(
+                        firestore.collection(Constants.LIKES_COLLECTION).document(likeId)
+                    )
+                    batch.update(
+                        firestore.collection(Constants.POSTS_COLLECTION).document(postId),
+                        "likeCount",
+                        FieldValue.increment(-1)
+                    )
+                }.await()
+                NetworkResult.Success(Unit)
+            } catch (e: Exception) {
+                NetworkResult.Error(e.message ?: "Unlike failed")
             }
-
-            firestore.runBatch { batch ->
-                val likeRef = firestore.collection(Constants.LIKES_COLLECTION).document(likeDocId)
-                batch.delete(likeRef)
-                val postRef = firestore.collection(Constants.POSTS_COLLECTION).document(postId)
-                batch.update(postRef, "likeCount", FieldValue.increment(-1))
-            }.await()
-
+        } else {
+            pendingOperationDao.insert(
+                PendingOperationEntity(type = "UNLIKE", targetId = postId)
+            )
+            SyncWorker.schedule(context)
             NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to unlike post")
         }
     }
-
-    // Helper: check if current user liked a post (O(1) point read)
-    private suspend fun isPostLikedByCurrentUser(userId: String, postId: String): Boolean {
-        return try {
-            val doc = firestore.collection(Constants.LIKES_COLLECTION)
-                .document("${userId}_${postId}")
-                .get()
-                .await()
-            doc.exists()
-        } catch (e: Exception) {
-            false
-        }
-    }
-
 
     override suspend fun bookmarkPost(postId: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.Error("Not authenticated")
+        val userId = firebaseAuth.currentUser?.uid
+            ?: return NetworkResult.Error("Not authenticated")
 
-            val bookmarkId = "${currentUserId}_${postId}"
+        return if (connectivityObserver.isCurrentlyConnected()) {
+            try {
+                firestore.collection(Constants.BOOKMARKS_COLLECTION)
+                    .document("${userId}_$postId")
+                    .set(mapOf(
+                        "userId" to userId,
+                        "postId" to postId,
+                        "timestamp" to System.currentTimeMillis()
+                    )).await()
 
-            // Check if already bookmarked
-            val existingBookmark = firestore.collection("bookmarks")
-                .document(bookmarkId)
-                .get()
-                .await()
-
-            if (existingBookmark.exists()) {
-                return NetworkResult.Error("Post already bookmarked")
+                postDao.updatePostBookmark(postId, true)
+                NetworkResult.Success(Unit)
+            } catch (e: Exception) {
+                NetworkResult.Error(e.message ?: "Bookmark failed")
             }
-
-            val bookmarkData = hashMapOf(
-                "userId" to currentUserId,
-                "postId" to postId,
-                "timestamp" to System.currentTimeMillis()
+        } else {
+            pendingOperationDao.insert(
+                PendingOperationEntity(type = "BOOKMARK", targetId = postId)
             )
-
-            firestore.collection("bookmarks")
-                .document(bookmarkId)
-                .set(bookmarkData)
-                .await()
-
-            postDao.updatePostBookmark(postId, true)
-
+            SyncWorker.schedule(context)
             NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to bookmark post")
         }
     }
 
     override suspend fun unbookmarkPost(postId: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.Error("Not authenticated")
+        val userId = firebaseAuth.currentUser?.uid
+            ?: return NetworkResult.Error("Not authenticated")
 
-            // ✅ DELETE SPECIFIC BOOKMARK DOCUMENT
-            val bookmarkId = "${currentUserId}_${postId}"
+        return if (connectivityObserver.isCurrentlyConnected()) {
+            try {
+                firestore.collection(Constants.BOOKMARKS_COLLECTION)
+                    .document("${userId}_$postId")
+                    .delete()
+                    .await()
 
-            firestore.collection("bookmarks")
-                .document(bookmarkId)
-                .delete()
-                .await()
-
-            // ✅ UPDATE LOCAL DATABASE
-            postDao.updatePostBookmark(postId, false)
-
+                postDao.updatePostBookmark(postId, false)
+                NetworkResult.Success(Unit)
+            } catch (e: Exception) {
+                NetworkResult.Error(e.message ?: "Unbookmark failed")
+            }
+        } else {
+            pendingOperationDao.insert(
+                PendingOperationEntity(type = "UNBOOKMARK", targetId = postId)
+            )
+            SyncWorker.schedule(context)
             NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to unbookmark post")
         }
     }
 

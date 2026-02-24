@@ -1,23 +1,29 @@
 package com.example.photonest.data.repository
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.example.photonest.core.network.NetworkConnectivityObserver
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.local.dao.FollowDao
+import com.example.photonest.data.local.dao.PendingOperationDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
+import com.example.photonest.data.local.entities.PendingOperationEntity
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
 import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
+import com.example.photonest.data.sync.SyncWorker
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
@@ -31,7 +37,10 @@ class UserRepositoryImpl @Inject constructor(
     private val followDao: FollowDao,
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
-    private val firebaseStorage: FirebaseStorage
+    private val firebaseStorage: FirebaseStorage,
+    private val pendingOperationDao: PendingOperationDao,
+    private val connectivityObserver: NetworkConnectivityObserver,
+    @ApplicationContext private val context: Context
 ) : IUserRepository {
 
     override fun getCurrentUser(): Flow<NetworkResult<User?>> = flow {
@@ -147,65 +156,85 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun followUser(targetUserId: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.Error("Not authenticated")
+        val currentUserId = firebaseAuth.currentUser?.uid
+            ?: return NetworkResult.Error("Not authenticated")
 
-            if (currentUserId == targetUserId) return NetworkResult.Error("Cannot follow yourself")
+        if (currentUserId == targetUserId) {
+            return NetworkResult.Error("Cannot follow yourself")
+        }
 
-            val followDocId = "${currentUserId}_${targetUserId}"
+        return if (connectivityObserver.isCurrentlyConnected()) {
+            try {
+                val followId = "${currentUserId}_$targetUserId"
 
-            // Check if already following
-            val existing = firestore.collection(Constants.FOLLOWS_COLLECTION)
-                .document(followDocId).get().await()
-            if (existing.exists()) return NetworkResult.Success(Unit)
+                firestore.runBatch { batch ->
+                    batch.set(
+                        firestore.collection(Constants.FOLLOWS_COLLECTION).document(followId),
+                        mapOf(
+                            "followerId" to currentUserId,
+                            "followingId" to targetUserId,
+                            "timestamp" to System.currentTimeMillis()
+                        )
+                    )
+                    batch.update(
+                        firestore.collection(Constants.USERS_COLLECTION).document(currentUserId),
+                        "followingCount",
+                        FieldValue.increment(1)
+                    )
+                    batch.update(
+                        firestore.collection(Constants.USERS_COLLECTION).document(targetUserId),
+                        "followersCount",
+                        FieldValue.increment(1)
+                    )
+                }.await()
 
-            // Atomic batch: create follow doc + update counters on both users
-            firestore.runBatch { batch ->
-                // Create follow relationship
-                val followRef = firestore.collection(Constants.FOLLOWS_COLLECTION).document(followDocId)
-                batch.set(followRef, mapOf(
-                    "followerId" to currentUserId,
-                    "followingId" to targetUserId,
-                    "timestamp" to System.currentTimeMillis(),
-                    "isAccepted" to true
-                ))
-                // Increment current user's followingCount
-                val currentUserRef = firestore.collection(Constants.USERS_COLLECTION).document(currentUserId)
-                batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
-                // Increment target user's followersCount
-                val targetUserRef = firestore.collection(Constants.USERS_COLLECTION).document(targetUserId)
-                batch.update(targetUserRef, "followersCount", FieldValue.increment(1))
-            }.await()
-
+                NetworkResult.Success(Unit)
+            } catch (e: Exception) {
+                NetworkResult.Error(e.message ?: "Follow failed")
+            }
+        } else {
+            pendingOperationDao.insert(
+                PendingOperationEntity(type = "FOLLOW", targetId = targetUserId)
+            )
+            SyncWorker.schedule(context)
             NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to follow user")
         }
     }
 
     override suspend fun unfollowUser(targetUserId: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.Error("Not authenticated")
+        val currentUserId = firebaseAuth.currentUser?.uid
+            ?: return NetworkResult.Error("Not authenticated")
 
-            val followDocId = "${currentUserId}_${targetUserId}"
-            val existing = firestore.collection(Constants.FOLLOWS_COLLECTION)
-                .document(followDocId).get().await()
-            if (!existing.exists()) return NetworkResult.Success(Unit)
+        return if (connectivityObserver.isCurrentlyConnected()) {
+            try {
+                val followId = "${currentUserId}_$targetUserId"
 
-            firestore.runBatch { batch ->
-                val followRef = firestore.collection(Constants.FOLLOWS_COLLECTION).document(followDocId)
-                batch.delete(followRef)
-                val currentUserRef = firestore.collection(Constants.USERS_COLLECTION).document(currentUserId)
-                batch.update(currentUserRef, "followingCount", FieldValue.increment(-1))
-                val targetUserRef = firestore.collection(Constants.USERS_COLLECTION).document(targetUserId)
-                batch.update(targetUserRef, "followersCount", FieldValue.increment(-1))
-            }.await()
+                firestore.runBatch { batch ->
+                    batch.delete(
+                        firestore.collection(Constants.FOLLOWS_COLLECTION).document(followId)
+                    )
+                    batch.update(
+                        firestore.collection(Constants.USERS_COLLECTION).document(currentUserId),
+                        "followingCount",
+                        FieldValue.increment(-1)
+                    )
+                    batch.update(
+                        firestore.collection(Constants.USERS_COLLECTION).document(targetUserId),
+                        "followersCount",
+                        FieldValue.increment(-1)
+                    )
+                }.await()
 
+                NetworkResult.Success(Unit)
+            } catch (e: Exception) {
+                NetworkResult.Error(e.message ?: "Unfollow failed")
+            }
+        } else {
+            pendingOperationDao.insert(
+                PendingOperationEntity(type = "UNFOLLOW", targetId = targetUserId)
+            )
+            SyncWorker.schedule(context)
             NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to unfollow user")
         }
     }
 

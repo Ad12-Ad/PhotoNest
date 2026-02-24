@@ -46,4 +46,7 @@ object DatabaseModule {
     @Provides
     fun provideNotificationDao(database: PhotoNestDatabase) = database.notificationDao()
 
+    @Provides
+    fun providePendingOperationDao(database: PhotoNestDatabase) =
+        database.pendingOperationDao()
 }

@@ -17,9 +17,10 @@ import com.example.photonest.data.local.entities.*
         CategoryEntity::class,
         CommentEntity::class,
         FollowEntity::class,
-        NotificationEntity::class
+        NotificationEntity::class,
+        PendingOperationEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,6 +31,8 @@ abstract class PhotoNestDatabase : RoomDatabase() {
     abstract fun commentDao(): CommentDao
     abstract fun followDao(): FollowDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun pendingOperationDao(): PendingOperationDao
+
 
     companion object {
         @Volatile
