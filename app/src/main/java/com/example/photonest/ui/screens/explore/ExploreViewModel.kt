@@ -23,143 +23,212 @@ class ExploreViewModel @Inject constructor(
     private val followUserUseCase: FollowUserUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ExploreUiState())
-    val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
+    private val _state = MutableStateFlow(ExploreState())
+    val state = _state.asStateFlow()
+
+    private val _effect = MutableSharedFlow<ExploreEffect>()
+    val effect = _effect.asSharedFlow()
+
     private var searchJob: Job? = null
 
-    init { loadExploreContent() }
-
-    fun updateSearchQuery(query: String) {
-        _uiState.update { it.copy(searchQuery = query, isSearchActive = query.isNotEmpty()) }
-        if (query.isNotEmpty()) performSearchWithDelay(query)
-        else clearSearch()
+    init {
+        onEvent(ExploreEvent.LoadExplore)
     }
 
-    private fun performSearchWithDelay(query: String) {
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch {
-            delay(500)
-            performSearchInternal(query)
+    fun onEvent(event: ExploreEvent) {
+        when (event) {
+
+            is ExploreEvent.UpdateQuery -> updateQuery(event.query)
+            ExploreEvent.SubmitSearch -> performSearch()
+            ExploreEvent.ClearSearch -> clearSearch()
+            is ExploreEvent.SearchByCategory -> searchByCategory(event.category)
+
+            ExploreEvent.LoadExplore,
+            ExploreEvent.Refresh -> loadExplore()
+
+            is ExploreEvent.FollowUser -> followUser(event.userId)
+
+            is ExploreEvent.OpenProfile ->
+                emitEffect(ExploreEffect.NavigateToProfile(event.userId))
+
+            is ExploreEvent.OpenPost ->
+                emitEffect(ExploreEffect.NavigateToPost(event.postId))
         }
     }
 
-    fun performSearch(query: String? = null) {
-        val q = query ?: _uiState.value.searchQuery
-        if (q.isNotEmpty()) viewModelScope.launch { performSearchInternal(q) }
-    }
+    /* ---------------- Search ---------------- */
 
-    private suspend fun performSearchInternal(query: String) {
-        _uiState.update { it.copy(isLoading = true, error = null) }
-        try {
-            val users = withContext(Dispatchers.IO) {
-                when (val r = userRepository.searchUsers(query)) {
-                    is NetworkResult.Success -> r.data ?: emptyList()
-                    else -> emptyList()
-                }
-            }
-            val posts = withContext(Dispatchers.IO) {
-                when (val r = postRepository.searchPosts(query)) {
-                    is NetworkResult.Success -> r.data ?: emptyList()
-                    else -> emptyList()
-                }
-            }
-            val searchResults = SearchResult(
-                users = users, posts = posts, categories = emptyList(),
-                totalResults = users.size + posts.size, query = query
+    private fun updateQuery(query: String) {
+        _state.update {
+            it.copy(
+                searchQuery = query,
+                isSearchActive = query.isNotBlank()
             )
-            _uiState.update { it.copy(isLoading = false, searchResults = searchResults, error = null) }
-        } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, error = e.message ?: "Search failed") }
         }
-    }
 
-    fun followUser(userId: String) {
-        // Optimistic UI update first
-        _uiState.update { state ->
-            state.copy(suggestedUsers = state.suggestedUsers.map { user ->
-                if (user.id == userId) {
-                    user.copy(followersCount = user.followersCount + 1)
-                } else user
-            })
-        }
-        viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) { followUserUseCase(userId) }
-            when (result) {
-                is NetworkResult.Error -> {
-                    // Rollback optimistic update
-                    _uiState.update { state ->
-                        state.copy(
-                            suggestedUsers = state.suggestedUsers.map { user ->
-                                if (user.id == userId) user.copy(followersCount = user.followersCount - 1)
-                                else user
-                            },
-                            error = result.message ?: "Failed to update follow status"
-                        )
-                    }
-                }
-                else -> { /* optimistic update stays */ }
-            }
-        }
-    }
-
-    fun searchByCategory(categoryName: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(searchQuery = categoryName, isSearchActive = true, isLoading = true) }
-            val result = withContext(Dispatchers.IO) { postRepository.getPostsByCategory(categoryName) }
-            when (result) {
-                is NetworkResult.Success -> {
-                    val sr = SearchResult(posts = result.data ?: emptyList(), totalResults = result.data?.size ?: 0, query = categoryName)
-                    _uiState.update { it.copy(isLoading = false, searchResults = sr) }
-                }
-                is NetworkResult.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
-                else -> {}
-            }
-        }
-    }
-
-    fun clearSearch() {
         searchJob?.cancel()
-        _uiState.update { it.copy(searchQuery = "", isSearchActive = false, searchResults = SearchResult()) }
-    }
-
-    fun refreshContent() { loadExploreContent() }
-
-    fun dismissError() { _uiState.update { it.copy(error = null, showErrorDialog = false) } }
-
-    private fun loadExploreContent() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            try {
-                val trendingPosts = withContext(Dispatchers.IO) {
-                    when (val r = postRepository.getTrendingPosts()) {
-                        is NetworkResult.Success -> r.data ?: emptyList()
-                        else -> emptyList<Post>()
-                    }
-                }
-                val suggestedUsers = withContext(Dispatchers.IO) {
-                    when (val r = userRepository.getPopularUsers()) {
-                        is NetworkResult.Success -> r.data ?: emptyList()
-                        else -> emptyList<User>()
-                    }
-                }
-                _uiState.update {
-                    it.copy(isLoading = false, trendingPosts = trendingPosts, suggestedUsers = suggestedUsers)
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load content") }
+        if (query.isNotBlank()) {
+            searchJob = viewModelScope.launch {
+                delay(400)
+                performSearch()
             }
         }
     }
-}
 
-data class ExploreUiState(
-    val isLoading: Boolean = false,
-    val searchQuery: String = "",
-    val isSearchActive: Boolean = false,
-    val searchResults: SearchResult = SearchResult(),
-    val trendingPosts: List<Post> = emptyList(),
-    val suggestedUsers: List<User> = emptyList(),
-    val trendingCategories: List<Category> = emptyList(),
-    val error: String? = null,
-    val showErrorDialog: Boolean = false
-)
+    private fun performSearch() = viewModelScope.launch {
+        val query = state.value.searchQuery
+        if (query.isBlank()) return@launch
+
+        _state.update { it.copy(isLoading = true) }
+
+        try {
+            val users = when (val r = userRepository.searchUsers(query)) {
+                is NetworkResult.Success -> r.data ?: emptyList()
+                else -> emptyList()
+            }
+
+            val posts = when (val r = postRepository.searchPosts(query)) {
+                is NetworkResult.Success -> r.data ?: emptyList()
+                else -> emptyList()
+            }
+
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    searchResults = SearchResult(
+                        users = users,
+                        posts = posts,
+                        totalResults = users.size + posts.size,
+                        query = query
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            _state.update { it.copy(isLoading = false) }
+            emitEffect(
+                ExploreEffect.ShowError(
+                    e.message ?: "Search failed"
+                )
+            )
+        }
+    }
+
+    private fun clearSearch() {
+        searchJob?.cancel()
+        _state.update {
+            it.copy(
+                searchQuery = "",
+                isSearchActive = false,
+                searchResults = SearchResult()
+            )
+        }
+    }
+
+    private fun searchByCategory(category: String) = viewModelScope.launch {
+        _state.update {
+            it.copy(
+                searchQuery = category,
+                isSearchActive = true,
+                isLoading = true
+            )
+        }
+
+        when (val result = postRepository.getPostsByCategory(category)) {
+            is NetworkResult.Success -> {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        searchResults = SearchResult(
+                            posts = result.data ?: emptyList(),
+                            totalResults = result.data?.size ?: 0,
+                            query = category
+                        )
+                    )
+                }
+            }
+
+            is NetworkResult.Error -> {
+                _state.update { it.copy(isLoading = false) }
+                emitEffect(
+                    ExploreEffect.ShowError(
+                        result.message ?: "Failed to load category"
+                    )
+                )
+            }
+
+            else -> Unit
+        }
+    }
+
+    /* ---------------- Explore ---------------- */
+
+    private fun loadExplore() = viewModelScope.launch {
+        _state.update { it.copy(isLoading = true) }
+
+        try {
+            val trendingPosts = when (val r = postRepository.getTrendingPosts()) {
+                is NetworkResult.Success -> r.data ?: emptyList()
+                else -> emptyList()
+            }
+
+            val users = when (val r = userRepository.getPopularUsers()) {
+                is NetworkResult.Success -> r.data ?: emptyList()
+                else -> emptyList()
+            }
+
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    trendingPosts = trendingPosts,
+                    suggestedUsers = users
+                )
+            }
+        } catch (e: Exception) {
+            _state.update { it.copy(isLoading = false) }
+            emitEffect(
+                ExploreEffect.ShowError(
+                    e.message ?: "Failed to load explore content"
+                )
+            )
+        }
+    }
+
+    /* ---------------- Follow ---------------- */
+
+    private fun followUser(userId: String) = viewModelScope.launch {
+        // optimistic
+        _state.update {
+            it.copy(
+                suggestedUsers = it.suggestedUsers.map { u ->
+                    if (u.id == userId)
+                        u.copy(followersCount = u.followersCount + 1)
+                    else u
+                }
+            )
+        }
+
+        val result = followUserUseCase(userId)
+
+        if (result is NetworkResult.Error) {
+            // rollback
+            _state.update {
+                it.copy(
+                    suggestedUsers = it.suggestedUsers.map { u ->
+                        if (u.id == userId)
+                            u.copy(followersCount = u.followersCount - 1)
+                        else u
+                    }
+                )
+            }
+
+            emitEffect(
+                ExploreEffect.ShowError(
+                    result.message ?: "Failed to follow user"
+                )
+            )
+        }
+    }
+
+    private fun emitEffect(effect: ExploreEffect) =
+        viewModelScope.launch { _effect.emit(effect) }
+}

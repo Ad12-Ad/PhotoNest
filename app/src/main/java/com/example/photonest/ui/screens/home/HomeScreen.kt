@@ -1,5 +1,6 @@
 package com.example.photonest.ui.screens.home
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,154 +13,168 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.photonest.data.model.User
-import com.example.photonest.ui.components.MyAlertDialog
 import com.example.photonest.ui.components.UserListBottomSheet
 import com.example.photonest.ui.components.UserListType
 import com.example.photonest.ui.screens.home.components.PostItem
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.photonest.utils.ObserveAsEvents
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier,
     onPostClick: (String) -> Unit,
     onUserClick: (String) -> Unit,
-    viewModel: HomeScreenViewModel = hiltViewModel()
+    modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var likesMap by remember { mutableStateOf<Map<String, List<User>>>(emptyMap()) }
-
-    val likesSheetState = rememberModalBottomSheetState()
-    var showLikesSheet by remember { mutableStateOf(false) }
-    var selectedLikesList by remember { mutableStateOf<List<User>>(emptyList()) }
-    var isLoadingLikes by remember { mutableStateOf(false) }
-
-    var currentPostIdForLikes by remember { mutableStateOf<String?>(null) }
-
-    fun loadLikesForPost(postId: String) {
-        if (likesMap[postId] != null) return
-
-        viewModel.loadUsersWhoLiked(postId) { users ->
-            likesMap = likesMap.toMutableMap().apply {
-                put(postId, users)
-            }
-        }
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                // Refresh posts when returning to home screen
-                viewModel.loadPosts()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    val uiState by viewModel.uiState.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
+    val likesSheetState = rememberModalBottomSheetState()
 
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            is HomeEffect.NavigateToPost ->
+                onPostClick(effect.postId)
 
-    val onRefresh: () -> Unit = {
-        viewModel.refreshPosts()
-    }
+            is HomeEffect.NavigateToUser ->
+                onUserClick(effect.userId)
 
-    // Error dialog
-    MyAlertDialog(
-        shouldShowDialog = uiState.showErrorDialog,
-        onDismissRequest = { viewModel.dismissErrorDialog() },
-        title = "Error",
-        text = uiState.error ?: "An unknown error occurred",
-        confirmButtonText = "OK",
-        onConfirmClick = { viewModel.dismissErrorDialog() }
-    )
-
-    when {
-        uiState.isLoading && uiState.posts.isEmpty() -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-
-        uiState.posts.isEmpty() -> {
-            PullToRefreshBox(
-                isRefreshing = uiState.isRefreshing,
-                onRefresh = onRefresh,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                EmptyState(
-                    onRefresh = onRefresh
+            is HomeEffect.Share -> {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, effect.text)
+                }
+                context.startActivity(
+                    Intent.createChooser(intent, "Share Post")
                 )
             }
-        }
 
-        else -> {
-            PullToRefreshBox(
-                isRefreshing = uiState.isRefreshing,
-                onRefresh = onRefresh,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = modifier,
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+            is HomeEffect.ShowError -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(effect.message)
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(snackbarHostState)
+        },
+        modifier = modifier
+    ) { padding ->
+
+        when {
+            state.isLoading && state.posts.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
                 ) {
-                    items(
-                        items = uiState.posts,
-                        key = { post -> post.id }
-                    ) { post ->
-                        LaunchedEffect(post.id) {
-                            loadLikesForPost(post.id)
+                    CircularProgressIndicator()
+                }
+            }
+
+            state.posts.isEmpty() -> {
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = {
+                        viewModel.onEvent(HomeEvent.Refresh)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    EmptyState(
+                        onRefresh = {
+                            viewModel.onEvent(HomeEvent.Refresh)
+                        }
+                    )
+                }
+            }
+
+            else -> {
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = {
+                        viewModel.onEvent(HomeEvent.Refresh)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(
+                            items = state.posts,
+                            key = { it.id }
+                        ) { post ->
+
+                            PostItem(
+                                post = post,
+                                onPostClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.PostClicked(post.id)
+                                    )
+                                },
+                                onUserClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.UserClicked(post.userId)
+                                    )
+                                },
+                                onLikeClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.ToggleLike(post.id)
+                                    )
+                                },
+                                onCommentClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.PostClicked(post.id)
+                                    )
+                                },
+                                onBookmarkClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.ToggleBookmark(post.id)
+                                    )
+                                },
+                                onShareClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.SharePost(post.id)
+                                    )
+                                },
+                                onFollowClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.ToggleFollow(
+                                            userId = post.userId,
+                                            postId = post.id
+                                        )
+                                    )
+                                },
+                                usersWhoLiked = emptyList(), // populated via bottom sheet
+                                onLikesInfoClick = {
+                                    viewModel.onEvent(
+                                        HomeEvent.OpenLikes(post.id)
+                                    )
+                                }
+                            )
                         }
 
-                        PostItem(
-                            post = post,
-                            onPostClick = { onPostClick(post.id) },
-                            onUserClick = { onUserClick(post.userId) },
-                            onLikeClick = { viewModel.toggleLike(post.id) },
-                            onCommentClick = { onPostClick(post.id) },
-                            onBookmarkClick = { viewModel.toggleBookmark(post.id) },
-                            onShareClick = {
-                                viewModel.sharePost(post, context)
-                            },
-                            onFollowClick = { viewModel.toggleFollow(post.userId, post.id) },
-                            usersWhoLiked = likesMap[post.id] ?: emptyList(),
-                            onLikesInfoClick = {
-                                currentPostIdForLikes = post.id
-                                isLoadingLikes = true
-                                showLikesSheet = true
-                                viewModel.loadUsersWhoLiked(post.id) { users ->
-                                    selectedLikesList = users
-                                    isLoadingLikes = false
+                        if (state.isLoading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
                                 }
-                            }
-                        )
-                    }
-
-                    if (uiState.isLoading && uiState.posts.isNotEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
                             }
                         }
                     }
@@ -168,23 +183,20 @@ fun HomeScreen(
         }
     }
 
-    if (showLikesSheet) {
-        FirebaseAuth.getInstance().currentUser?.uid?.let {
-            UserListBottomSheet(
-                sheetState = likesSheetState,
-                userList = selectedLikesList,
-                listType = UserListType.LIKES,
-                isLoading = isLoadingLikes,
-                onDismiss = { showLikesSheet = false },
-                onUserClick = { userId ->
-                    showLikesSheet = false
-                    onUserClick(userId)
-                },
-                onSearchPerform = {
-
-                }
-            )
-        }
+    if (state.isLikesSheetVisible) {
+        UserListBottomSheet(
+            sheetState = likesSheetState,
+            userList = state.likedUsers,
+            listType = UserListType.LIKES,
+            isLoading = state.isLikesLoading,
+            onDismiss = {
+                viewModel.onEvent(HomeEvent.CloseLikes)
+            },
+            onUserClick = { userId ->
+                viewModel.onEvent(HomeEvent.CloseLikes)
+                onUserClick(userId)
+            }
+        )
     }
 }
 
