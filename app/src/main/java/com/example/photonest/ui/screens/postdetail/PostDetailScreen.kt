@@ -24,15 +24,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.data.model.Comment
-import com.example.photonest.data.model.User
 import com.example.photonest.ui.components.*
 import com.example.photonest.ui.screens.home.components.PostItem
-import com.google.firebase.auth.FirebaseAuth
+import com.example.photonest.utils.ObserveAsEvents
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -42,50 +43,39 @@ fun PostDetailScreen(
     postId: String,
     onNavigateBack: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
-    onNavigateToUserProfile: (String) -> Unit = {},
-    viewModel: PostDetailViewModel = hiltViewModel(),
-    modifier: Modifier = Modifier
+    viewModel: PostDetailViewModel = hiltViewModel()
 ) {
-    val likesSheetState = rememberModalBottomSheetState()
-    var showLikesSheet by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var likesList by remember { mutableStateOf<List<User>>(emptyList()) }
-    var isLoadingLikes by remember { mutableStateOf(false) }
-
-    val uiState by viewModel.uiState.collectAsState()
-    val currentUserId = uiState.currentUserId
+    val snackbarHostState = remember { SnackbarHostState() }
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val likesSheetState = rememberModalBottomSheetState()
 
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is PostDetailEvent.SharePost -> {
-                    val shareIntent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, event.shareText)
-                    }
-                    context.startActivity(Intent.createChooser(shareIntent, "Share Post"))
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect){
+            PostDetailEffect.NavigateBack -> onNavigateBack()
+            is PostDetailEffect.Share -> {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, effect.text)
+                }
+                context.startActivity(
+                    Intent.createChooser(intent, "Share Post")
+                )
+            }
+            is PostDetailEffect.ShowError -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = effect.message
+                    )
                 }
             }
         }
     }
 
     LaunchedEffect(postId) {
-        viewModel.loadPostDetail(postId)
-        viewModel.loadUsersWhoLiked(postId) { users ->
-            likesList = users
-        }
+        viewModel.onEvent(PostDetailEvent.Load(postId))
     }
-
-    MyAlertDialog(
-        shouldShowDialog = uiState.showErrorDialog,
-        onDismissRequest = viewModel::dismissError,
-        title = "Error",
-        text = uiState.error ?: "An unknown error occurred",
-        confirmButtonText = "OK",
-        onConfirmClick = viewModel::dismissError
-    )
 
     Scaffold(
         topBar = {
@@ -99,32 +89,39 @@ fun PostDetailScreen(
                 },
                 navigationIcon = {
                     BackCircleButton(onClick = onNavigateBack)
-                },
-//                actions = {
-//                    if (uiState.postDetail?.post?.userId == currentUserId) {
-//                        IconButton(onClick = { showDeleteDialog = true }) {
-//                            Icon(Icons.Default.Delete, "Delete Post")
-//                        }
-//                    }
-//                }
+                }
             )
         },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
         bottomBar = {
-            if (uiState.postDetail != null) {
+            if (state.postDetail != null) {
                 CommentInputBar(
-                    userImage = uiState.currentUserImage,
-                    comment = uiState.newComment,
-                    onCommentChange = viewModel::updateComment,
-                    onSendClick = viewModel::addComment,
-                    isLoading = uiState.isAddingComment,
-                    enabled = uiState.newComment.isNotBlank(),
-                    onClearSearch = {viewModel.updateComment("")}
+                    userImage = state.currentUserImage,
+                    comment = state.newComment,
+                    onCommentChange = {
+                        viewModel.onEvent(
+                            PostDetailEvent.UpdateComment(it)
+                        )
+                    },
+                    onSendClick = {
+                        viewModel.onEvent(PostDetailEvent.AddComment)
+                    },
+                    isLoading = state.isAddingComment,
+                    enabled = state.newComment.isNotBlank(),
+                    onClearSearch = {
+                        viewModel.onEvent(
+                            PostDetailEvent.UpdateComment("")
+                        )
+                    }
                 )
             }
         }
     ) { paddingValues ->
+
         when {
-            uiState.isLoading -> {
+            state.isLoading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -134,122 +131,106 @@ fun PostDetailScreen(
                     CircularProgressIndicator()
                 }
             }
-            uiState.postDetail != null -> {
+
+            state.postDetail != null -> {
+                val postDetail = state.postDetail!!
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                        .padding(paddingValues)
                 ) {
+
+                    /* -------- Post -------- */
+
                     item {
                         PostItem(
-                            post = uiState.postDetail!!.post,
-                            onPostClick = { /* Already in detail view */ },
-                            onLikeClick = { viewModel.toggleLike() },
-                            onBookmarkClick = { viewModel.toggleBookmark() },
-                            onCommentClick = { /* Already in comments view */ },
-                            onShareClick = { viewModel.sharePost() },
-                            onUserClick = { onNavigateToProfile(uiState.postDetail!!.post.userId) },
-                            onFollowClick = { viewModel.toggleFollow() },
-                            usersWhoLiked = likesList,
-                            onLikesInfoClick = {
-                                isLoadingLikes = true
-                                showLikesSheet = true
-                                viewModel.loadUsersWhoLiked(postId) { users ->
-                                    likesList = users
-                                    isLoadingLikes = false
-                                }
+                            post = postDetail.post,
+                            onPostClick = {},
+                            onLikeClick = {
+                                viewModel.onEvent(PostDetailEvent.ToggleLike)
                             },
-                            shape = RoundedCornerShape(bottomEnd = 16.dp, bottomStart = 16.dp)
-                        )
-                    }
-                    // Comments Section Header
-                    item {
-                        CommentsHeader(
-                            commentCount = uiState.postDetail!!.comments.size
+                            onBookmarkClick = {
+                                viewModel.onEvent(PostDetailEvent.ToggleBookmark)
+                            },
+                            onCommentClick = {},
+                            onShareClick = {
+                                viewModel.onEvent(PostDetailEvent.SharePost)
+                            },
+                            onUserClick = {
+                                onNavigateToProfile(postDetail.post.userId)
+                            },
+                            onFollowClick = {
+                                viewModel.onEvent(PostDetailEvent.ToggleFollow)
+                            },
+                            usersWhoLiked = state.likedUsers,
+                            onLikesInfoClick = {
+                                viewModel.onEvent(PostDetailEvent.OpenLikesSheet)
+                            },
+                            shape = RoundedCornerShape(
+                                bottomStart = 16.dp,
+                                bottomEnd = 16.dp
+                            )
                         )
                     }
 
-                    // Comments List
-                    if (uiState.postDetail!!.comments.isEmpty()) {
-                        item {
-                            EmptyCommentsState()
-                        }
+                    item {
+                        CommentsHeader(
+                            commentCount = postDetail.comments.size
+                        )
+                    }
+
+                    if (postDetail.comments.isEmpty()) {
+                        item { EmptyCommentsState() }
                     } else {
                         items(
-                            items = uiState.postDetail!!.comments,
+                            items = postDetail.comments,
                             key = { it.id }
                         ) { comment ->
                             EnhancedCommentItem(
                                 comment = comment,
-                                onUserClick = { onNavigateToProfile(comment.userId) },
-                                onLikeClick = { /* TODO: Implement comment like */ },
-                                onReplyClick = { /* TODO: Implement reply */ },
-                                currentUserId = currentUserId,
-                                onDeleteClick = if (comment.userId == currentUserId) {
-                                    { viewModel.deleteComment(comment.id) }
-                                } else null
+                                currentUserId = state.currentUserId,
+                                onUserClick = {
+                                    onNavigateToProfile(comment.userId)
+                                },
+                                onDeleteClick =
+                                    if (comment.userId == state.currentUserId)
+                                    {
+                                        {
+                                            viewModel.onEvent(
+                                                PostDetailEvent.DeleteComment(comment.id)
+                                            )
+                                        }
+                                    }
+                                    else null,
+                                onLikeClick = {},
+                                onReplyClick = {}
                             )
                             Divider(
                                 modifier = Modifier.padding(start = 72.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.outlineVariant
                             )
                         }
                     }
 
-                    // Bottom spacing for input bar
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
+                    item { Spacer(Modifier.height(16.dp)) }
                 }
             }
         }
     }
 
-    if (showLikesSheet) {
-        currentUserId?.let {
-            UserListBottomSheet(
-                sheetState = likesSheetState,
-                userList = likesList,
-                listType = UserListType.LIKES,
-                isLoading = isLoadingLikes,
-                onDismiss = { showLikesSheet = false },
-                onUserClick = { userId ->
-                    showLikesSheet = false
-                    onNavigateToUserProfile(userId)
-                }
-            )
-        }
-    }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Post") },
-            text = {
-                Text("Are you sure you want to delete this post? This action cannot be undone.")
+    if (state.isLikesSheetVisible) {
+        UserListBottomSheet(
+            sheetState = likesSheetState,
+            userList = state.likedUsers,
+            listType = UserListType.LIKES,
+            isLoading = state.isLikesLoading,
+            onDismiss = {
+                viewModel.onEvent(PostDetailEvent.CloseLikesSheet)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        viewModel.deletePost(postId) { success ->
-                            if (success) {
-                                onNavigateBack()
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
+            onUserClick = { userId ->
+                viewModel.onEvent(PostDetailEvent.CloseLikesSheet)
+                onNavigateToProfile(userId)
             }
         )
     }

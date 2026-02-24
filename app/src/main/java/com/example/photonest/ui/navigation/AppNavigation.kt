@@ -342,11 +342,11 @@ private fun NavigationGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToProfile = { userId ->
                     navController.navigate(AppDestinations.getUserProfileRoute(userId))
-                },
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.background)
-                    .fillMaxSize()
-                    .safeContentPadding()
+                }
+//                modifier = Modifier
+//                    .background(MaterialTheme.colorScheme.background)
+//                    .fillMaxSize()
+//                    .safeContentPadding()
             )
         }
 

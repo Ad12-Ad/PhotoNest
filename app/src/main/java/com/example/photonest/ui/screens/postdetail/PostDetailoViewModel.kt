@@ -1,34 +1,22 @@
 package com.example.photonest.ui.screens.postdetail
 
-import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.Comment
-import com.example.photonest.data.model.PostDetail
-import com.example.photonest.data.model.User
+import com.example.photonest.data.model.Post
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.domain.repository.ICommentRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
-
-sealed class PostDetailEvent {
-    data class SharePost(val shareText: String) : PostDetailEvent()
-}
 
 @HiltViewModel
 class PostDetailViewModel @Inject constructor(
@@ -38,544 +26,260 @@ class PostDetailViewModel @Inject constructor(
     private val authRepository: IAuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PostDetailUiState())
-    val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
+    private val _state = MutableStateFlow(PostDetailState())
+    val state = _state.asStateFlow()
 
-    private val _events = MutableSharedFlow<PostDetailEvent>(extraBufferCapacity = 1)
-    val events: SharedFlow<PostDetailEvent> = _events.asSharedFlow()
+    private val _effect = MutableSharedFlow<PostDetailEffect>()
+    val effect = _effect.asSharedFlow()
 
-    private var currentPostId: String = ""
+    private var postId: String = ""
 
-    init {
-        loadCurrentUserImage()
-    }
+    fun onEvent(event: PostDetailEvent) {
+        when (event) {
+            is PostDetailEvent.Load -> loadPost(event.postId)
 
-    private fun loadCurrentUserImage() {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.getCurrentUser().collect { result ->
-                withContext(Dispatchers.Main) {
-                    if (result is NetworkResult.Success && result.data != null) {
-                        _uiState.update {
-                            it.copy(
-                                currentUserId = authRepository.getCurrentUserId(),
-                                currentUserImage = result.data.profilePicture,
-                                currentUserName = result.data.name
-                            )
-                        }
-                    }
-                }
-            }
+            PostDetailEvent.ToggleLike -> toggleLike()
+            PostDetailEvent.ToggleBookmark -> toggleBookmark()
+            PostDetailEvent.ToggleFollow -> toggleFollow()
+
+            PostDetailEvent.OpenLikesSheet -> openLikesSheet()
+            PostDetailEvent.CloseLikesSheet ->
+                _state.update { it.copy(isLikesSheetVisible = false) }
+
+            is PostDetailEvent.UpdateComment ->
+                _state.update { it.copy(newComment = event.value) }
+
+            PostDetailEvent.AddComment -> addComment()
+            is PostDetailEvent.DeleteComment -> deleteComment(event.commentId)
+
+            PostDetailEvent.SharePost -> sharePost()
+            PostDetailEvent.DismissError -> {}
         }
     }
 
-    fun loadPostDetail(postId: String) {
-        currentPostId = postId
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _uiState.update { it.copy(isLoading = true, error = null) }
-            }
-
-            try {
-                val postResult = postRepository.getPostById(postId)
-
-                withContext(Dispatchers.Main) {
-                    when (postResult) {
-                        is NetworkResult.Success -> {
-                            val postDetail = postResult.data
-                            if (postDetail != null) {
-                                val commentsResult = commentRepository.getCommentsForPost(postId)
-                                when (commentsResult) {
-                                    is NetworkResult.Success -> {
-                                        val updatedPostDetail = postDetail.copy(comments = commentsResult.data ?: emptyList())
-                                        _uiState.update {
-                                            it.copy(isLoading = false, postDetail = updatedPostDetail)
-                                        }
-                                    }
-                                    is NetworkResult.Error -> {
-                                        _uiState.update {
-                                            it.copy(isLoading = false, postDetail = postDetail,
-                                                error = "Failed to load comments: ${commentsResult.message}")
-                                        }
-                                    }
-                                    else -> Unit
-                                }
-                            } else {
-                                _uiState.update {
-                                    it.copy(isLoading = false, error = "Post not found")
-                                }
-                            }
-                        }
-                        is NetworkResult.Error -> {
-                            _uiState.update {
-                                it.copy(isLoading = false, error = postResult.message ?: "Failed to load post")
-                            }
-                        }
-                        else -> Unit
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.update {
-                        it.copy(isLoading = false, error = e.message ?: "An error occurred")
-                    }
-                }
-            }
-        }
-    }
-
-    fun deleteComment(commentId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = commentRepository.deleteComment(commentId)
-
-            withContext(Dispatchers.Main) {
-                when (result) {
-                    is NetworkResult.Success -> {
-                        // Remove comment from UI state
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                postDetail = currentState.postDetail?.copy(
-                                    comments = currentState.postDetail.comments.filter {
-                                        it.id != commentId
-                                    }
-                                )
-                            )
-                        }
-                    }
-                    is NetworkResult.Error -> {
-                        // Show error message
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to delete comment",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        }
-    }
-
-    fun toggleLike() {
-        val currentPost = _uiState.value.postDetail?.post ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _uiState.update { state ->
-                    state.postDetail?.let { postDetail ->
-                        state.copy(
-                            postDetail = postDetail.copy(
-                                post = postDetail.post.copy(
-                                    isLiked = !currentPost.isLiked,
-                                    likeCount = if (currentPost.isLiked) currentPost.likeCount - 1
-                                    else currentPost.likeCount + 1
-                                )
-                            )
-                        )
-                    } ?: state
-                }
-            }
-
-            try {
-                val result = if (currentPost.isLiked) {
-                    postRepository.unlikePost(currentPost.id)
-                } else {
-                    postRepository.likePost(currentPost.id)
-                }
-
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is NetworkResult.Error -> {
-                            _uiState.update { state ->
-                                state.postDetail?.let { postDetail ->
-                                    state.copy(
-                                        postDetail = postDetail.copy(
-                                            post = postDetail.post.copy(
-                                                isLiked = currentPost.isLiked,
-                                                likeCount = currentPost.likeCount
-                                            )
-                                        )
-                                    )
-                                } ?: state
-                            }
-                            _uiState.update {
-                                it.copy(error = result.message ?: "Failed to update like status",
-                                    showErrorDialog = true)
-                            }
-                        }
-                        else -> Unit
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.update { state ->
-                        state.postDetail?.let { postDetail ->
-                            state.copy(
-                                postDetail = postDetail.copy(
-                                    post = postDetail.post.copy(
-                                        isLiked = currentPost.isLiked,
-                                        likeCount = currentPost.likeCount
-                                    )
-                                )
-                            )
-                        } ?: state
-                    }
-                }
-            }
-        }
-    }
-
-    fun toggleBookmark() {
-        val currentPost = _uiState.value.postDetail?.post ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main){
-                _uiState.update { state ->
-                    state.postDetail?.let { postDetail ->
-                        state.copy(
-                            postDetail = postDetail.copy(
-                                post = postDetail.post.copy(
-                                    isBookmarked = !currentPost.isBookmarked
-                                )
-                            )
-                        )
-                    } ?: state
-                }
-            }
-
-            try {
-                val result = if (currentPost.isBookmarked) {
-                    postRepository.unbookmarkPost(currentPost.id)
-                } else {
-                    postRepository.bookmarkPost(currentPost.id)
-                }
-
-                withContext(Dispatchers.Main){
-                    when (result) {
-                        is NetworkResult.Error -> {
-                            _uiState.update { state ->
-                                state.postDetail?.let { postDetail ->
-                                    state.copy(
-                                        postDetail = postDetail.copy(
-                                            post = postDetail.post.copy(
-                                                isBookmarked = currentPost.isBookmarked
-                                            )
-                                        )
-                                    )
-                                } ?: state
-                            }
-                        }
-                        else -> Unit
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main){
-                    _uiState.update { state ->
-                        state.postDetail?.let { postDetail ->
-                            state.copy(
-                                postDetail = postDetail.copy(
-                                    post = postDetail.post.copy(
-                                        isBookmarked = currentPost.isBookmarked
-                                    )
-                                )
-                            )
-                        } ?: state
-                    }
-                }
-            }
-        }
-    }
-
-    fun toggleFollow() {
-        val currentPost = _uiState.value.postDetail?.post ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main){
-                _uiState.update { state ->
-                    state.postDetail?.let { postDetail ->
-                        state.copy(
-                            postDetail = postDetail.copy(
-                                post = postDetail.post.copy(
-                                    isUserFollowed = !currentPost.isUserFollowed
-                                )
-                            )
-                        )
-                    } ?: state
-                }
-            }
-
-            try {
-                val result = if (currentPost.isUserFollowed) {
-                    userRepository.unfollowUser(currentPost.userId)
-                } else {
-                    userRepository.followUser(currentPost.userId)
-                }
-
-                withContext(Dispatchers.Main){
-                    when (result) {
-                        is NetworkResult.Error -> {
-                            _uiState.update { state ->
-                                state.postDetail?.let { postDetail ->
-                                    state.copy(
-                                        postDetail = postDetail.copy(
-                                            post = postDetail.post.copy(
-                                                isUserFollowed = currentPost.isUserFollowed
-                                            )
-                                        )
-                                    )
-                                } ?: state
-                            }
-                        }
-                        else -> Unit
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main){
-                    _uiState.update { state ->
-                        state.postDetail?.let { postDetail ->
-                            state.copy(
-                                postDetail = postDetail.copy(
-                                    post = postDetail.post.copy(
-                                        isUserFollowed = currentPost.isUserFollowed
-                                    )
-                                )
-                            )
-                        } ?: state
-                    }
-                }
-            }
-        }
-    }
-
-    fun sharePost() {
-        val post = _uiState.value.postDetail?.post
-        val shareText = buildString {
-            if (post != null){
-                appendLine("Check out this post on PhotoNest!")
-                appendLine()
-                appendLine(post.caption)
-                if (post.location.isNotEmpty()) {
-                    appendLine("📍 ${post.location}")
-                }
-                appendLine()
-                appendLine("by @${post.userName}")
-            }
+    private fun loadPost(id: String) = viewModelScope.launch {
+        postId = id
+        _state.update {
+            it.copy(
+                isLoading = true,
+                currentUserId = authRepository.getCurrentUserId()
+            )
         }
 
-        viewModelScope.launch {
-            _events.emit(PostDetailEvent.SharePost(shareText))
-        }
-    }
-
-    fun updateComment(comment: String) {
-        _uiState.update { it.copy(newComment = comment) }
-    }
-
-    fun addComment() {
-        val comment = _uiState.value.newComment.trim()
-        if (comment.isEmpty()) return
-
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main){
-                _uiState.update { it.copy(isAddingComment = true) }
-            }
-            try {
-                val currentUser = FirebaseAuth.getInstance().currentUser
-                if (currentUser == null) {
-                    withContext(Dispatchers.Main){
-                        _uiState.update {
-                            it.copy(
-                                isAddingComment = false,
-                                error = "You must be logged in to comment",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                    return@launch
+        when (val result = postRepository.getPostById(id)) {
+            is NetworkResult.Success -> {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        postDetail = result.data
+                    )
                 }
+            }
 
-                val userName = _uiState.value.currentUserName ?: "Anonymous"
-                val userImage = _uiState.value.currentUserImage ?: ""
-
-                val newComment = Comment(
-                    id = "", // Will be set by repository
-                    postId = currentPostId,
-                    userId = currentUser.uid,
-                    userName = userName,
-                    userImage = userImage,
-                    text = comment,
-                    timestamp = System.currentTimeMillis()
+            is NetworkResult.Error -> {
+                _effect.emit(
+                    PostDetailEffect.ShowError(
+                        result.message ?: "Failed to load post"
+                    )
                 )
+            }
 
-                val result = commentRepository.addComment(newComment)
+            else -> Unit
+        }
+    }
 
-                withContext(Dispatchers.Main){
-                    when (result) {
-                        is NetworkResult.Success -> {
-                            _uiState.update { state ->
-                                val currentPostDetail = state.postDetail
-                                if (currentPostDetail != null) {
-                                    val updatedComments = listOf(newComment) + currentPostDetail.comments
-                                    val updatedPost = currentPostDetail.post.copy(
-                                        commentCount = currentPostDetail.post.commentCount + 1
-                                    )
-                                    state.copy(
-                                        isAddingComment = false,
-                                        newComment = "",
-                                        postDetail = currentPostDetail.copy(
-                                            comments = updatedComments,
-                                            post = updatedPost
-                                        )
-                                    )
-                                } else {
-                                    state.copy(
-                                        isAddingComment = false,
-                                        newComment = ""
-                                    )
-                                }
-                            }
-                        }
-                        is NetworkResult.Error -> {
-                            _uiState.update {
-                                it.copy(
-                                    isAddingComment = false,
-                                    error = result.message ?: "Failed to add comment",
-                                    showErrorDialog = true
-                                )
-                            }
-                        }
-                        else -> Unit
-                    }
+    private fun toggleLike() = viewModelScope.launch {
+        val post = _state.value.postDetail?.post ?: return@launch
+
+        // Optimistic UI
+        _state.update {
+            it.copy(
+                postDetail = it.postDetail!!.copy(
+                    post = post.copy(
+                        isLiked = !post.isLiked,
+                        likeCount =
+                            if (post.isLiked) post.likeCount - 1
+                            else post.likeCount + 1
+                    )
+                )
+            )
+        }
+
+        val result =
+            if (post.isLiked) postRepository.unlikePost(post.id)
+            else postRepository.likePost(post.id)
+
+        if (result is NetworkResult.Error) {
+            rollbackLike(post)
+
+            _effect.emit(
+                PostDetailEffect.ShowError(
+                    result.message ?: "Failed to update like"
+                )
+            )
+        }
+    }
+
+    private fun rollbackLike(originalPost: Post) {
+        _state.update {
+            it.copy(
+                postDetail = it.postDetail!!.copy(post = originalPost)
+            )
+        }
+    }
+
+    private fun toggleBookmark() = viewModelScope.launch {
+        val post = _state.value.postDetail?.post ?: return@launch
+
+        _state.update {
+            it.copy(
+                postDetail = it.postDetail!!.copy(
+                    post = post.copy(isBookmarked = !post.isBookmarked)
+                )
+            )
+        }
+
+        val result =
+            if (post.isBookmarked)
+                postRepository.unbookmarkPost(post.id)
+            else
+                postRepository.bookmarkPost(post.id)
+
+        if (result is NetworkResult.Error) {
+            _state.update {
+                it.copy(
+                    postDetail = it.postDetail!!.copy(post = post)
+                )
+            }
+        }
+    }
+
+    private fun toggleFollow() = viewModelScope.launch {
+        val post = _state.value.postDetail?.post ?: return@launch
+
+        _state.update {
+            it.copy(
+                postDetail = it.postDetail!!.copy(
+                    post = post.copy(isUserFollowed = !post.isUserFollowed)
+                )
+            )
+        }
+
+        val result =
+            if (post.isUserFollowed)
+                userRepository.unfollowUser(post.userId)
+            else
+                userRepository.followUser(post.userId)
+
+        if (result is NetworkResult.Error) {
+            _state.update {
+                it.copy(
+                    postDetail = it.postDetail!!.copy(post = post)
+                )
+            }
+        }
+    }
+
+    private fun openLikesSheet() = viewModelScope.launch {
+        val postId = _state.value.postDetail?.post?.id ?: return@launch
+
+        _state.update {
+            it.copy(
+                isLikesSheetVisible = true,
+                isLikesLoading = true
+            )
+        }
+
+        when (val result = postRepository.getUsersWhoLikedPost(postId)) {
+            is NetworkResult.Success -> {
+                _state.update {
+                    it.copy(
+                        likedUsers = result.data ?: emptyList(),
+                        isLikesLoading = false
+                    )
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main){
-                    _uiState.update {
-                        it.copy(
-                            isAddingComment = false,
-                            error = e.message ?: "An error occurred",
-                            showErrorDialog = true
+            }
+
+            is NetworkResult.Error -> {
+                _state.update {
+                    it.copy(isLikesLoading = false)
+                }
+                _effect.emit(
+                    PostDetailEffect.ShowError(
+                        result.message ?: "Failed to load likes"
+                    )
+                )
+            }
+
+            else -> Unit
+        }
+    }
+
+    private fun addComment() = viewModelScope.launch {
+        val text = _state.value.newComment.trim()
+        if (text.isEmpty()) return@launch
+
+        val userId = authRepository.getCurrentUserId() ?: return@launch
+
+        val comment = Comment(
+            id = "",
+            postId = postId,
+            userId = userId,
+            userName = _state.value.currentUserName.orEmpty(),
+            userImage = _state.value.currentUserImage.orEmpty(),
+            text = text,
+            timestamp = System.currentTimeMillis()
+        )
+
+        _state.update { it.copy(isAddingComment = true) }
+
+        when (val result = commentRepository.addComment(comment)) {
+            is NetworkResult.Success -> {
+                _state.update {
+                    it.copy(
+                        isAddingComment = false,
+                        newComment = "",
+                        postDetail = it.postDetail!!.copy(
+                            comments = listOf(comment) + it.postDetail.comments
                         )
-                    }
+                    )
                 }
             }
-        }
-    }
 
-    fun loadUsersWhoLiked(postId: String, onResult: (List<User>) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val result = postRepository.getUsersWhoLikedPost(postId)
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is NetworkResult.Success -> {
-                            onResult(result.data ?: emptyList())
-                        }
-                        is NetworkResult.Error -> {
-                            onResult(emptyList())
-                        }
-                        is NetworkResult.Loading -> {}
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    onResult(emptyList())
-                }
-            }
-        }
-    }
-
-    fun deletePost(postId: String, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(isLoading = true) }
-
-            try {
-                val result = postRepository.deletePost(postId)
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is NetworkResult.Success -> {
-                            onComplete(true)
-                        }
-                        is NetworkResult.Error -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = result.message ?: "Failed to delete post",
-                                    showErrorDialog = true
-                                )
-                            }
-                            onComplete(false)
-                        }
-                        is NetworkResult.Loading -> {}
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: "Failed to delete post",
-                            showErrorDialog = true
-                        )
-                    }
-                    onComplete(false)
-                }
-            }
-        }
-    }
-
-    fun onFollowClickFromSheet(userId: String, isCurrentlyFollowing: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = if (isCurrentlyFollowing) {
-                userRepository.unfollowUser(userId)
-            } else {
-                userRepository.followUser(userId)
+            is NetworkResult.Error -> {
+                _state.update { it.copy(isAddingComment = false) }
+                _effect.emit(
+                    PostDetailEffect.ShowError(
+                        result.message ?: "Failed to add comment"
+                    )
+                )
             }
 
-            when (result) {
-                is NetworkResult.Success -> {
-                    // Reload users who liked the post to reflect updated follow states
-                    loadUsersWhoLiked(currentPostId) { /* updated automatically via callback */ }
-                }
-                is NetworkResult.Error -> {
-                    withContext(Dispatchers.Main) {
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to update follow status",
-                                showErrorDialog = true
-                            )
+            else -> Unit
+        }
+    }
+
+    private fun deleteComment(commentId: String) =
+        viewModelScope.launch {
+            commentRepository.deleteComment(commentId)
+            _state.update {
+                it.copy(
+                    postDetail = it.postDetail!!.copy(
+                        comments = it.postDetail.comments.filterNot { c ->
+                            c.id == commentId
                         }
-                    }
-                }
-                else -> {}
+                    )
+                )
             }
         }
-    }
 
-    fun followUser(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.followUser(userId)
-        }
-    }
+    private fun sharePost() = viewModelScope.launch {
+        val post = _state.value.postDetail?.post ?: return@launch
 
-    fun unfollowUser(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.unfollowUser(userId)
-        }
-    }
-
-
-    fun dismissError() {
-        _uiState.update {
-            it.copy(error = null, showErrorDialog = false)
-        }
+        _effect.emit(
+            PostDetailEffect.Share(
+                "${post.caption}\n\nby @${post.userName}"
+            )
+        )
     }
 }
-
-data class PostDetailUiState(
-    val isLoading: Boolean = false,
-    val postDetail: PostDetail? = null,
-    val error: String? = null,
-    val showErrorDialog: Boolean = false,
-    val newComment: String = "",
-    val isAddingComment: Boolean = false,
-    val currentUserImage: String? = null,
-    val currentUserName: String? = null,
-    val currentUserId: String? = null
-)
