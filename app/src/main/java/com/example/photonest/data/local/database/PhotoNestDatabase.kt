@@ -20,7 +20,7 @@ import com.example.photonest.data.local.entities.*
         NotificationEntity::class,
         PendingOperationEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

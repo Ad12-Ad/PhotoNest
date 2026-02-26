@@ -9,6 +9,8 @@ data class User(
     val bio: String = "",
     val website: String = "",
     val location: String = "",
+    val birthday: String = "",
+    val onboardingCompleted: Boolean = false,
     val joinedDate: Long = System.currentTimeMillis(),
     val postsCount: Int = 0,
     val followersCount: Int = 0,

@@ -118,6 +118,64 @@ class AuthRepositoryImpl @Inject constructor(
         return sendOtpToEmail(email)
     }
 
+    // Inside AuthRepositoryImpl.kt
+    override suspend fun isOnboardingComplete(): Boolean {
+        val uid = firebaseAuth.currentUser?.uid ?: return false
+        return try {
+            val doc = firestore.collection(Constants.USERS_COLLECTION)
+                .document(uid).get().await()
+            doc.toObject(User::class.java)?.onboardingCompleted ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    override suspend fun updateOnboardingData(
+        name: String,
+        username: String,
+        bio: String,
+        profilePictureUrl: String,
+        birthday: String,
+        location: String
+    ): NetworkResult<Unit> {
+        return try {
+            val uid = getCurrentUserIdOrThrow()
+
+            val updates = mapOf(
+                "name" to name,
+                "username" to username,
+                "bio" to bio,
+                "profilePicture" to profilePictureUrl,
+                "birthday" to birthday,
+                "location" to location,
+                "onboardingCompleted" to true
+            )
+            firestore.collection(Constants.USERS_COLLECTION)
+                .document(uid)
+                .update(updates)
+                .await()
+
+            val localUser = userDao.getUserById(uid)
+            if (localUser != null) {
+                val updatedUser = localUser.copy(
+                    name = name,
+                    username = username,
+                    bio = bio,
+                    profilePicture = profilePictureUrl,
+                    birthday = birthday,
+                    location = location,
+                    onboardingCompleted = true
+                )
+                userDao.updateUser(updatedUser)
+            }
+
+            preferencesManager.setOnboardingCompleted(true)
+            NetworkResult.Success(Unit)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Failed to update profile")
+        }
+    }
+
     override suspend fun signInWithEmailAndPassword(email: String, password: String): NetworkResult<AuthResult> {
         return try {
             val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
@@ -195,6 +253,7 @@ class AuthRepositoryImpl @Inject constructor(
 
                 preferencesManager.setLoggedIn(true)
                 preferencesManager.setUserId(user.id)
+                preferencesManager.setOnboardingCompleted(false)
 
                 NetworkResult.Success(AuthResult(success = true, user = user))
             } else {
@@ -203,15 +262,6 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             android.util.Log.e("AUTH_ERROR", "Sign up failed: ${e.message}", e)
             NetworkResult.Error(e.message ?: "Sign up failed")
-        }
-    }
-
-
-    override suspend fun signInWithGoogle(): NetworkResult<AuthResult> {
-        return try {
-            NetworkResult.Error("Google Sign-In not implemented yet")
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Google sign in failed")
         }
     }
 
@@ -225,15 +275,6 @@ class AuthRepositoryImpl @Inject constructor(
             NetworkResult.Success(Unit)
         } catch (e: Exception) {
             NetworkResult.Error(e.message ?: "Sign out failed")
-        }
-    }
-
-    override suspend fun sendPasswordResetEmail(email: String): NetworkResult<Unit> {
-        return try {
-            firebaseAuth.sendPasswordResetEmail(email).await()
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to send password reset email")
         }
     }
 

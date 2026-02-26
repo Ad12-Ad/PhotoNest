@@ -22,5 +22,7 @@ data class UserEntity(
     val isPrivate: Boolean,
     val fcmToken: String,
     val lastSeen: Long,
-    val isOnline: Boolean
+    val isOnline: Boolean,
+    val birthday: String,
+    val onboardingCompleted: Boolean
 )

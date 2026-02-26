@@ -21,7 +21,9 @@ fun User.toEntity(): UserEntity {
         isPrivate = isPrivate,
         fcmToken = fcmToken,
         lastSeen = lastSeen,
-        isOnline = isOnline
+        isOnline = isOnline,
+        birthday = birthday,
+        onboardingCompleted = onboardingCompleted
     )
 }
 
