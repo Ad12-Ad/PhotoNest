@@ -8,6 +8,9 @@ import com.example.photonest.data.model.Post
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
+import com.example.photonest.feature.feed.home.model.HomeUiEffect
+import com.example.photonest.feature.feed.home.model.HomeUiEvent
+import com.example.photonest.feature.feed.home.model.HomeUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,38 +24,38 @@ class HomeViewModel @Inject constructor(
     private val postDao: PostDao
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(HomeState())
+    private val _state = MutableStateFlow(HomeUiState())
     val state = _state.asStateFlow()
 
-    private val _effect = MutableSharedFlow<HomeEffect>()
+    private val _effect = MutableSharedFlow<HomeUiEffect>()
     val effect = _effect.asSharedFlow()
 
     init {
-        onEvent(HomeEvent.Load)
+        onEvent(HomeUiEvent.Load)
     }
 
-    fun onEvent(event: HomeEvent) {
+    fun onEvent(event: HomeUiEvent) {
         when (event) {
-            HomeEvent.Load -> loadPosts()
-            HomeEvent.Refresh -> refresh()
+            HomeUiEvent.Load -> loadPosts()
+            HomeUiEvent.Refresh -> refresh()
 
-            is HomeEvent.PostClicked ->
-                emitEffect(HomeEffect.NavigateToPost(event.postId))
+            is HomeUiEvent.PostClicked ->
+                emitEffect(HomeUiEffect.NavigateToPost(event.postId))
 
-            is HomeEvent.UserClicked ->
-                emitEffect(HomeEffect.NavigateToUser(event.userId))
+            is HomeUiEvent.UserClicked ->
+                emitEffect(HomeUiEffect.NavigateToUser(event.userId))
 
-            is HomeEvent.ToggleLike -> toggleLike(event.postId)
-            is HomeEvent.ToggleBookmark -> toggleBookmark(event.postId)
-            is HomeEvent.ToggleFollow ->
+            is HomeUiEvent.ToggleLike -> toggleLike(event.postId)
+            is HomeUiEvent.ToggleBookmark -> toggleBookmark(event.postId)
+            is HomeUiEvent.ToggleFollow ->
                 toggleFollow(event.userId, event.postId)
 
-            is HomeEvent.OpenLikes -> openLikes(event.postId)
-            HomeEvent.CloseLikes ->
+            is HomeUiEvent.OpenLikes -> openLikes(event.postId)
+            HomeUiEvent.CloseLikes ->
                 _state.update { it.copy(isLikesSheetVisible = false) }
 
-            is HomeEvent.SharePost -> sharePost(event.postId)
-            HomeEvent.DismissError ->
+            is HomeUiEvent.SharePost -> sharePost(event.postId)
+            HomeUiEvent.DismissError ->
                 _state.update { it.copy(error = null) }
         }
     }
@@ -187,7 +190,7 @@ class HomeViewModel @Inject constructor(
     private fun sharePost(postId: String) {
         val post = _state.value.posts.firstOrNull { it.id == postId } ?: return
         emitEffect(
-            HomeEffect.Share(
+            HomeUiEffect.Share(
                 "${post.caption}\n\nby @${post.userName}"
             )
         )
@@ -203,15 +206,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun optimisticUpdate(block: (HomeState) -> HomeState) {
+    private fun optimisticUpdate(block: (HomeUiState) -> HomeUiState) {
         _state.update(block)
     }
 
     private fun emitError(message: String) {
         _state.update { it.copy(error = message, isLoading = false) }
-        emitEffect(HomeEffect.ShowError(message))
+        emitEffect(HomeUiEffect.ShowError(message))
     }
 
-    private fun emitEffect(effect: HomeEffect) =
+    private fun emitEffect(effect: HomeUiEffect) =
         viewModelScope.launch { _effect.emit(effect) }
 }

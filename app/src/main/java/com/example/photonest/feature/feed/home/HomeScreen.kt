@@ -19,6 +19,8 @@ import com.example.photonest.feature.feed.home.components.PostItem
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.photonest.core.utils.ObserveAsEvents
+import com.example.photonest.feature.feed.home.model.HomeUiEffect
+import com.example.photonest.feature.feed.home.model.HomeUiEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,13 +39,13 @@ fun HomeScreen(
 
     ObserveAsEvents(viewModel.effect) { effect ->
         when (effect) {
-            is HomeEffect.NavigateToPost ->
+            is HomeUiEffect.NavigateToPost ->
                 onPostClick(effect.postId)
 
-            is HomeEffect.NavigateToUser ->
+            is HomeUiEffect.NavigateToUser ->
                 onUserClick(effect.userId)
 
-            is HomeEffect.Share -> {
+            is HomeUiEffect.Share -> {
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_TEXT, effect.text)
@@ -53,7 +55,7 @@ fun HomeScreen(
                 )
             }
 
-            is HomeEffect.ShowError -> {
+            is HomeUiEffect.ShowError -> {
                 scope.launch {
                     snackbarHostState.showSnackbar(effect.message)
                 }
@@ -84,14 +86,14 @@ fun HomeScreen(
                 PullToRefreshBox(
                     isRefreshing = state.isRefreshing,
                     onRefresh = {
-                        viewModel.onEvent(HomeEvent.Refresh)
+                        viewModel.onEvent(HomeUiEvent.Refresh)
                     },
                     modifier = Modifier
                         .fillMaxSize()
                 ) {
                     EmptyState(
                         onRefresh = {
-                            viewModel.onEvent(HomeEvent.Refresh)
+                            viewModel.onEvent(HomeUiEvent.Refresh)
                         }
                     )
                 }
@@ -101,7 +103,7 @@ fun HomeScreen(
                 PullToRefreshBox(
                     isRefreshing = state.isRefreshing,
                     onRefresh = {
-                        viewModel.onEvent(HomeEvent.Refresh)
+                        viewModel.onEvent(HomeUiEvent.Refresh)
                     },
                     modifier = Modifier
                         .fillMaxSize()
@@ -120,37 +122,37 @@ fun HomeScreen(
                                 post = post,
                                 onPostClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.PostClicked(post.id)
+                                        HomeUiEvent.PostClicked(post.id)
                                     )
                                 },
                                 onUserClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.UserClicked(post.userId)
+                                        HomeUiEvent.UserClicked(post.userId)
                                     )
                                 },
                                 onLikeClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.ToggleLike(post.id)
+                                        HomeUiEvent.ToggleLike(post.id)
                                     )
                                 },
                                 onCommentClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.PostClicked(post.id)
+                                        HomeUiEvent.PostClicked(post.id)
                                     )
                                 },
                                 onBookmarkClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.ToggleBookmark(post.id)
+                                        HomeUiEvent.ToggleBookmark(post.id)
                                     )
                                 },
                                 onShareClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.SharePost(post.id)
+                                        HomeUiEvent.SharePost(post.id)
                                     )
                                 },
                                 onFollowClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.ToggleFollow(
+                                        HomeUiEvent.ToggleFollow(
                                             userId = post.userId,
                                             postId = post.id
                                         )
@@ -159,7 +161,7 @@ fun HomeScreen(
                                 usersWhoLiked = emptyList(), // populated via bottom sheet
                                 onLikesInfoClick = {
                                     viewModel.onEvent(
-                                        HomeEvent.OpenLikes(post.id)
+                                        HomeUiEvent.OpenLikes(post.id)
                                     )
                                 }
                             )
@@ -190,10 +192,10 @@ fun HomeScreen(
             listType = UserListType.LIKES,
             isLoading = state.isLikesLoading,
             onDismiss = {
-                viewModel.onEvent(HomeEvent.CloseLikes)
+                viewModel.onEvent(HomeUiEvent.CloseLikes)
             },
             onUserClick = { userId ->
-                viewModel.onEvent(HomeEvent.CloseLikes)
+                viewModel.onEvent(HomeUiEvent.CloseLikes)
                 onUserClick(userId)
             }
         )

@@ -38,6 +38,8 @@ import com.example.photonest.data.model.Comment
 import com.example.photonest.ui.components.*
 import com.example.photonest.feature.feed.home.components.PostItem
 import com.example.photonest.core.utils.ObserveAsEvents
+import com.example.photonest.feature.feed.postdetail.model.PostDetailEffect
+import com.example.photonest.feature.feed.postdetail.model.PostDetailEvent
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*

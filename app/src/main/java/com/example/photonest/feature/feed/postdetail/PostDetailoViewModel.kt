@@ -9,6 +9,9 @@ import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.domain.repository.ICommentRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
+import com.example.photonest.feature.feed.postdetail.model.PostDetailEffect
+import com.example.photonest.feature.feed.postdetail.model.PostDetailEvent
+import com.example.photonest.feature.feed.postdetail.model.PostDetailState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
