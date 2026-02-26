@@ -110,7 +110,6 @@ fun HomeScreen(
                 ) {
                     LazyColumn(
                         state = listState,
-                        contentPadding = PaddingValues(vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(
@@ -158,12 +157,12 @@ fun HomeScreen(
                                         )
                                     )
                                 },
-                                usersWhoLiked = emptyList(), // populated via bottom sheet
-                                onLikesInfoClick = {
+                                onViewLikesClicked = {
                                     viewModel.onEvent(
                                         HomeUiEvent.OpenLikes(post.id)
                                     )
-                                }
+                                },
+                                modifier = Modifier.padding(8.dp)
                             )
                         }
 

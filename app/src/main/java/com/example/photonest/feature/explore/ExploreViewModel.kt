@@ -6,19 +6,21 @@ import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.model.*
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
-import com.example.photonest.domain.usecase.FollowUserUseCase
+import com.example.photonest.domain.usecase.ToggleFollowUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
     private val postRepository: IPostRepository,
     private val userRepository: IUserRepository,
-    private val followUserUseCase: FollowUserUseCase
+    private val toggleFollowUseCase: ToggleFollowUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExploreState())
@@ -194,39 +196,33 @@ class ExploreViewModel @Inject constructor(
     /* ---------------- Follow ---------------- */
 
     private fun followUser(userId: String) = viewModelScope.launch {
-        // optimistic
+        val user = _state.value.suggestedUsers.find { it.id == userId } ?: return@launch
+        val wasFollowing = false // For "Suggested Users," the initial state is always false
+
         _state.update {
             it.copy(
                 suggestedUsers = it.suggestedUsers.map { u ->
-                    if (u.id == userId)
-                        u.copy(followersCount = u.followersCount + 1)
-                    else u
+                    if (u.id == userId) u.copy(followersCount = u.followersCount + 1) else u
                 }
             )
         }
 
-        val result = followUserUseCase(userId)
+        val result = toggleFollowUseCase(
+            targetUserId = userId,
+            isCurrentlyFollowing = wasFollowing
+        )
 
         if (result is NetworkResult.Error) {
-            // rollback
             _state.update {
                 it.copy(
                     suggestedUsers = it.suggestedUsers.map { u ->
-                        if (u.id == userId)
-                            u.copy(followersCount = u.followersCount - 1)
-                        else u
+                        if (u.id == userId) u.copy(followersCount = u.followersCount - 1) else u
                     }
                 )
             }
-
-            emitEffect(
-                ExploreEffect.ShowError(
-                    result.message ?: "Failed to follow user"
-                )
-            )
+            emitEffect(ExploreEffect.ShowError(result.message ?: "Failed to follow user"))
         }
     }
-
     private fun emitEffect(effect: ExploreEffect) =
         viewModelScope.launch { _effect.emit(effect) }
 }

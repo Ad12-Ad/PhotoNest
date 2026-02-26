@@ -1,4 +1,4 @@
-package com.example.photonest.feature.profile.profile.components
+package com.example.photonest.feature.profile.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

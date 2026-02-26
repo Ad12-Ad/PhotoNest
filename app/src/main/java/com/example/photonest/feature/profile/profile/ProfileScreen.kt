@@ -28,7 +28,7 @@ import com.example.photonest.core.ui.components.NormalText
 import com.example.photonest.core.ui.components.UserListBottomSheet
 import com.example.photonest.core.ui.components.UserListType
 import com.example.photonest.ui.components.states.LoadingState
-import com.example.photonest.feature.profile.profile.components.ProfileHeader
+import com.example.photonest.feature.profile.components.ProfileHeader
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)

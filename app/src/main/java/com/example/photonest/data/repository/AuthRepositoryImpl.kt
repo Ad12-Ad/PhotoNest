@@ -3,6 +3,9 @@ package com.example.photonest.data.repository
 import com.example.photonest.core.preferences.PreferencesManager
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
+import com.example.photonest.core.utils.getDataOrNull
+import com.example.photonest.core.utils.getDataOrThrow
+import com.example.photonest.core.utils.safeFirebaseCall
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.model.AuthResult
@@ -38,36 +41,29 @@ class AuthRepositoryImpl @Inject constructor(
         val timestamp: Long = System.currentTimeMillis()
     )
 
-    override suspend fun sendOtpToEmail(email: String): NetworkResult<String> {
-        return try {
-            val otp = Random.nextInt(100000, 999999).toString()
+    override suspend fun sendOtpToEmail(email: String): NetworkResult<String> = safeFirebaseCall {
+        val otp = Random.nextInt(100000, 999999).toString()
+        val verificationId = "${email}_${System.currentTimeMillis()}"
 
-            val verificationId = "${email}_${System.currentTimeMillis()}"
+        val actionCodeSettings = ActionCodeSettings.newBuilder()
+            .setUrl("https://photonest.page.link/verify")
+            .setHandleCodeInApp(true)
+            .setAndroidPackageName("com.example.photonest", true, null)
+            .build()
 
-            val actionCodeSettings = ActionCodeSettings.newBuilder()
-                .setUrl("https://photonest.page.link/verify")
-                .setHandleCodeInApp(true)
-                .setAndroidPackageName("com.example.photonest", true, null)
-                .build()
+        android.util.Log.d("OTP_DEBUG", "OTP for $email: $otp")
 
-            android.util.Log.d("OTP_DEBUG", "OTP for $email: $otp")
+        pendingOtps[verificationId] = PendingOtpData(
+            otp = otp,
+            email = email,
+            password = "",
+            isSignUp = false
+        )
 
-            pendingOtps[verificationId] = PendingOtpData(
-                otp = otp,
-                email = email,
-                password = "",
-                isSignUp = false
-            )
-
-            NetworkResult.Success(verificationId)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to send OTP")
-        }
+        verificationId
     }
 
-    override fun getCurrentUserId(): String? {
-        return firebaseAuth.currentUser?.uid
-    }
+    override fun getCurrentUserId(): String? = firebaseAuth.currentUser?.uid
 
     override suspend fun getCurrentUserIdOrThrow(): String {
         return firebaseAuth.currentUser?.uid
@@ -82,52 +78,42 @@ class AuthRepositoryImpl @Inject constructor(
         name: String?,
         username: String?,
         isSignUp: Boolean
-    ): NetworkResult<AuthResult> {
-        return try {
-            val pendingData = pendingOtps[verificationId]
+    ): NetworkResult<AuthResult> = safeFirebaseCall {
+        val pendingData = pendingOtps[verificationId] ?: throw IllegalStateException("OTP expired or invalid")
 
-            if (pendingData == null) {
-                return NetworkResult.Error("OTP expired or invalid")
-            }
-
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - pendingData.timestamp > 5 * 60 * 1000) {
-                pendingOtps.remove(verificationId)
-                return NetworkResult.Error("OTP expired. Please request a new one")
-            }
-
-            if (pendingData.otp != otp) {
-                return NetworkResult.Error("Invalid OTP. Please try again")
-            }
-
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - pendingData.timestamp > 5 * 60 * 1000) {
             pendingOtps.remove(verificationId)
-
-            return if (isSignUp) {
-                signUpWithEmailAndPassword(email, password, name ?: "", username ?: "")
-            } else {
-                signInWithEmailAndPassword(email, password)
-            }
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Verification failed")
+            throw IllegalStateException("OTP expired. Please request a new one")
         }
+
+        if (pendingData.otp != otp) {
+            throw IllegalStateException("Invalid OTP. Please try again")
+        }
+
+        pendingOtps.remove(verificationId)
+
+        val result = if (isSignUp) {
+            signUpWithEmailAndPassword(email, password, name ?: "", username ?: "")
+        } else {
+            signInWithEmailAndPassword(email, password)
+        }
+
+        result.getDataOrThrow()!!
     }
 
     override suspend fun resendOtp(email: String): NetworkResult<String> {
         pendingOtps.entries.removeIf { it.value.email == email }
-
         return sendOtpToEmail(email)
     }
 
-    // Inside AuthRepositoryImpl.kt
     override suspend fun isOnboardingComplete(): Boolean {
         val uid = firebaseAuth.currentUser?.uid ?: return false
-        return try {
+        return safeFirebaseCall {
             val doc = firestore.collection(Constants.USERS_COLLECTION)
                 .document(uid).get().await()
             doc.toObject(User::class.java)?.onboardingCompleted ?: false
-        } catch (e: Exception) {
-            false
-        }
+        }.getDataOrNull() ?: false
     }
 
     override suspend fun updateOnboardingData(
@@ -137,77 +123,58 @@ class AuthRepositoryImpl @Inject constructor(
         profilePictureUrl: String,
         birthday: String,
         location: String
-    ): NetworkResult<Unit> {
-        return try {
-            val uid = getCurrentUserIdOrThrow()
+    ): NetworkResult<Unit> = safeFirebaseCall {
+        val uid = getCurrentUserIdOrThrow()
 
-            val updates = mapOf(
-                "name" to name,
-                "username" to username,
-                "bio" to bio,
-                "profilePicture" to profilePictureUrl,
-                "birthday" to birthday,
-                "location" to location,
-                "onboardingCompleted" to true
+        val updates = mapOf(
+            "name" to name,
+            "username" to username,
+            "bio" to bio,
+            "profilePicture" to profilePictureUrl,
+            "birthday" to birthday,
+            "location" to location,
+            "onboardingCompleted" to true
+        )
+
+        firestore.collection(Constants.USERS_COLLECTION)
+            .document(uid)
+            .update(updates)
+            .await()
+
+        val localUser = userDao.getUserById(uid)
+        if (localUser != null) {
+            val updatedUser = localUser.copy(
+                name = name,
+                username = username,
+                bio = bio,
+                profilePicture = profilePictureUrl,
+                birthday = birthday,
+                location = location,
+                onboardingCompleted = true
             )
-            firestore.collection(Constants.USERS_COLLECTION)
-                .document(uid)
-                .update(updates)
-                .await()
-
-            val localUser = userDao.getUserById(uid)
-            if (localUser != null) {
-                val updatedUser = localUser.copy(
-                    name = name,
-                    username = username,
-                    bio = bio,
-                    profilePicture = profilePictureUrl,
-                    birthday = birthday,
-                    location = location,
-                    onboardingCompleted = true
-                )
-                userDao.updateUser(updatedUser)
-            }
-
-            preferencesManager.setOnboardingCompleted(true)
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to update profile")
+            userDao.updateUser(updatedUser)
         }
+
+        preferencesManager.setOnboardingCompleted(true)
     }
 
-    override suspend fun signInWithEmailAndPassword(email: String, password: String): NetworkResult<AuthResult> {
-        return try {
-            val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
-            val firebaseUser = result.user
+    override suspend fun signInWithEmailAndPassword(email: String, password: String): NetworkResult<AuthResult> = safeFirebaseCall {
+        val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
+        val firebaseUser = result.user ?: throw IllegalStateException("Authentication failed")
 
-            if (firebaseUser != null) {
-                // Get user data from Firestore
-                val userDoc = firestore.collection(Constants.USERS_COLLECTION)
-                    .document(firebaseUser.uid)
-                    .get()
-                    .await()
+        val userDoc = firestore.collection(Constants.USERS_COLLECTION)
+            .document(firebaseUser.uid)
+            .get()
+            .await()
 
-                val user = userDoc.toObject(User::class.java)?.copy(id = firebaseUser.uid)
+        val user = userDoc.toObject(User::class.java)?.copy(id = firebaseUser.uid)
+            ?: throw IllegalStateException("User data not found")
 
-                if (user != null) {
-                    // Save to local database
-                    userDao.insertUser(user.toEntity())
+        userDao.insertUser(user.toEntity())
+        preferencesManager.setLoggedIn(true)
+        preferencesManager.setUserId(user.id)
 
-                    // Update preferences
-                    preferencesManager.setLoggedIn(true)
-                    preferencesManager.setUserId(user.id)
-
-                    NetworkResult.Success(AuthResult(success = true, user = user))
-                } else {
-                    NetworkResult.Error("User data not found")
-                }
-            } else {
-                NetworkResult.Error("Authentication failed")
-            }
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Sign in failed")
-        }
+        AuthResult(success = true, user = user)
     }
 
     override suspend fun signUpWithEmailAndPassword(
@@ -215,113 +182,70 @@ class AuthRepositoryImpl @Inject constructor(
         password: String,
         name: String,
         username: String
-    ): NetworkResult<AuthResult> {
-        return try {
-            val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
-            val firebaseUser = result.user
+    ): NetworkResult<AuthResult> = safeFirebaseCall {
+        val usernameQuery = firestore.collection(Constants.USERS_COLLECTION)
+            .whereEqualTo("username", username)
+            .get()
+            .await()
 
-            if (firebaseUser != null) {
-                val usernameQuery = firestore.collection(Constants.USERS_COLLECTION)
-                    .whereEqualTo("username", username)
-                    .get()
-                    .await()
-
-                if (!usernameQuery.isEmpty) {
-                    firebaseUser.delete().await()
-                    return NetworkResult.Error("Username is already taken")
-                }
-
-                val profileUpdates = UserProfileChangeRequest.Builder()
-                    .setDisplayName(name)
-                    .build()
-                firebaseUser.updateProfile(profileUpdates).await()
-
-                val user = User(
-                    id = firebaseUser.uid,
-                    email = email,
-                    name = name,
-                    username = username,
-                    joinedDate = System.currentTimeMillis()
-                )
-
-                firestore.collection(Constants.USERS_COLLECTION)
-                    .document(firebaseUser.uid)
-                    .set(user)
-                    .await()
-
-                userDao.insertUser(user.toEntity())
-
-                preferencesManager.setLoggedIn(true)
-                preferencesManager.setUserId(user.id)
-                preferencesManager.setOnboardingCompleted(false)
-
-                NetworkResult.Success(AuthResult(success = true, user = user))
-            } else {
-                NetworkResult.Error("Account creation failed")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AUTH_ERROR", "Sign up failed: ${e.message}", e)
-            NetworkResult.Error(e.message ?: "Sign up failed")
+        if (!usernameQuery.isEmpty) {
+            throw IllegalStateException("Username is already taken")
         }
+
+        val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+        val firebaseUser = result.user ?: throw IllegalStateException("Account creation failed")
+
+        val profileUpdates = UserProfileChangeRequest.Builder()
+            .setDisplayName(name)
+            .build()
+        firebaseUser.updateProfile(profileUpdates).await()
+
+        val user = User(
+            id = firebaseUser.uid,
+            email = email,
+            name = name,
+            username = username,
+            joinedDate = System.currentTimeMillis()
+        )
+
+        firestore.collection(Constants.USERS_COLLECTION)
+            .document(firebaseUser.uid)
+            .set(user)
+            .await()
+
+        userDao.insertUser(user.toEntity())
+        preferencesManager.setLoggedIn(true)
+        preferencesManager.setUserId(user.id)
+        preferencesManager.setOnboardingCompleted(false)
+
+        AuthResult(success = true, user = user)
     }
 
-    override suspend fun signOut(): NetworkResult<Unit> {
-        return try {
-            firebaseAuth.signOut()
-
-            userDao.clearAllUsers()
-            preferencesManager.clearUserData()
-
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Sign out failed")
-        }
+    override suspend fun signOut(): NetworkResult<Unit> = safeFirebaseCall {
+        firebaseAuth.signOut()
+        userDao.clearAllUsers()
+        preferencesManager.clearUserData()
     }
 
-    override suspend fun getCurrentUser(): NetworkResult<User?> {
-        return try {
-            val currentUser = firebaseAuth.currentUser
-            if (currentUser != null) {
-                val userDoc = firestore.collection(Constants.USERS_COLLECTION)
-                    .document(currentUser.uid)
-                    .get()
-                    .await()
-
-                val user = userDoc.toObject(User::class.java)?.copy(id = currentUser.uid)
-                NetworkResult.Success(user)
-            } else {
-                NetworkResult.Success(null)
-            }
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to get current user")
-        }
+    override suspend fun getCurrentUser(): NetworkResult<User?> = safeFirebaseCall {
+        val currentUser = firebaseAuth.currentUser ?: return@safeFirebaseCall null
+        val userDoc = firestore.collection(Constants.USERS_COLLECTION)
+            .document(currentUser.uid)
+            .get()
+            .await()
+        userDoc.toObject(User::class.java)?.copy(id = currentUser.uid)
     }
 
     override fun isUserLoggedIn(): Flow<Boolean> = preferencesManager.isLoggedIn
 
-    override suspend fun deleteAccount(): NetworkResult<Unit> {
-        return try {
-            val currentUser = firebaseAuth.currentUser
-            if (currentUser != null) {
-                // Delete user document from Firestore
-                firestore.collection(Constants.USERS_COLLECTION)
-                    .document(currentUser.uid)
-                    .delete()
-                    .await()
-
-                // Delete Firebase auth account
-                currentUser.delete().await()
-
-                // Clear local data
-                userDao.clearAllUsers()
-                preferencesManager.clearUserData()
-
-                NetworkResult.Success(Unit)
-            } else {
-                NetworkResult.Error("No user to delete")
-            }
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to delete account")
-        }
+    override suspend fun deleteAccount(): NetworkResult<Unit> = safeFirebaseCall {
+        val currentUser = firebaseAuth.currentUser ?: throw IllegalStateException("No user to delete")
+        firestore.collection(Constants.USERS_COLLECTION)
+            .document(currentUser.uid)
+            .delete()
+            .await()
+        currentUser.delete().await()
+        userDao.clearAllUsers()
+        preferencesManager.clearUserData()
     }
 }

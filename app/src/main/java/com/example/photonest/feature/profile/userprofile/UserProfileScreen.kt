@@ -1,4 +1,4 @@
-package com.example.photonest.feature.profile.profile.userprofile
+package com.example.photonest.feature.profile.userprofile
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,7 +21,7 @@ import com.example.photonest.core.ui.components.MyAlertDialog
 import com.example.photonest.core.ui.components.UserListBottomSheet
 import com.example.photonest.core.ui.components.UserListType
 import com.example.photonest.feature.explore.components.PostGridItem
-import com.example.photonest.feature.profile.profile.components.UserProfileHeader
+import com.example.photonest.feature.profile.components.UserProfileHeader
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)

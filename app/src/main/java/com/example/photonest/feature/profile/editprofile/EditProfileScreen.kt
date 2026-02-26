@@ -1,6 +1,5 @@
-package com.example.photonest.feature.profile.profile
+package com.example.photonest.feature.profile.editprofile
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -9,8 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.*
@@ -32,7 +29,6 @@ import com.example.photonest.core.ui.components.ButtonOnboarding
 import com.example.photonest.core.ui.components.MyAlertDialog
 import com.example.photonest.core.ui.components.OnBoardingTextField
 import com.example.photonest.core.ui.components.ShimmerEffect
-import com.example.photonest.ui.components.*
 import com.example.photonest.app.theme.bodyFontFamily
 
 @OptIn(ExperimentalMaterial3Api::class)

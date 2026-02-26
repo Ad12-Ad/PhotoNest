@@ -2,54 +2,38 @@ package com.example.photonest.feature.feed.home.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BrokenImage
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.constraintlayout.compose.ConstraintLayout
-import androidx.constraintlayout.compose.ConstraintSet
-import androidx.constraintlayout.compose.Dimension
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
+import com.example.photonest.app.theme.PhotoNestTheme
 import com.example.photonest.data.model.Post
 import com.example.photonest.data.model.User
-import com.example.photonest.core.ui.components.FollowTxtBtn
-import com.example.photonest.core.ui.components.LikesInfoBar
-import com.example.photonest.core.ui.components.NormalText
 import com.example.photonest.core.ui.components.ShimmerEffect
-import com.example.photonest.core.ui.components.annotatedText
-import com.example.photonest.core.ui.components.formatTimestamp
-import com.example.photonest.app.theme.bodyFontFamily
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -62,63 +46,24 @@ fun PostItem(
     onCommentClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onUserClick: () -> Unit,
-    onLikesInfoClick: () -> Unit = {},
-    usersWhoLiked: List<User> = emptyList<User>(),
     onFollowClick: () -> Unit = {},
+    onViewLikesClicked: () -> Unit = {},
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
-) {
-    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+    ) {
+    val currentUserId = remember { try { FirebaseAuth.getInstance().currentUser?.uid } catch (e: Exception) { null } }
     val isOwnPost = currentUserId == post.userId
 
-    val constraintSet = ConstraintSet {
-        val userImage = createRefFor("userImage")
-        val userName = createRefFor("userName")
-        val timeStamp = createRefFor("timeStamp")
-        val bookmarkIcon = createRefFor("bookmarkIcon")
-        val followButton = createRefFor("followButton")
-        val postCard = createRefFor("postCard")
-
-        constrain(followButton) {
-            start.linkTo(userName.end, 8.dp)
-            centerVerticallyTo(userName)
-        }
-
-        constrain(userImage) {
-            start.linkTo(parent.start, 16.dp)
-            top.linkTo(parent.top)
-        }
-        constrain(userName) {
-            start.linkTo(userImage.end, 12.dp)
-            top.linkTo(parent.top)
-        }
-        constrain(timeStamp) {
-            start.linkTo(userImage.end,12.dp)
-            top.linkTo(userName.bottom,2.dp)
-            bottom.linkTo(userImage.bottom)
-            height = Dimension.fillToConstraints
-        }
-        constrain(bookmarkIcon) {
-            end.linkTo(parent.end, 8.dp)
-            centerVerticallyTo(userImage)
-        }
-        constrain(postCard) {
-            top.linkTo(userImage.bottom, 12.dp)
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-            width = Dimension.fillToConstraints
-        }
-    }
-
-    ConstraintLayout(
-        modifier = modifier.fillMaxWidth(),
-        constraintSet = constraintSet
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(bottom = 16.dp)
     ) {
-        ElevatedCard(
-            shape = RoundedCornerShape(8.dp),
-            elevation = CardDefaults.elevatedCardElevation(8.dp),
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .layoutId("userImage")
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
@@ -127,7 +72,9 @@ fun PostItem(
                     .build(),
                 contentDescription = post.userName,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clickable(onClick = onUserClick),
+                modifier = Modifier.clickable(onClick = onUserClick)
+                    .size(40.dp)
+                    .clip(CircleShape),
                 loading = {
                     ShimmerEffect(
                         modifier = Modifier.fillMaxSize()
@@ -137,6 +84,8 @@ fun PostItem(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .size(40.dp)
+                            .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
@@ -148,232 +97,217 @@ fun PostItem(
                     }
                 }
             )
-        }
 
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = post.userName,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable { onUserClick() }
+                    )
 
-        NormalText(
-            text = post.userName,
-            fontWeight = FontWeight.SemiBold,
-            fontColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .layoutId("userName")
-                .clickable(onClick = onUserClick)
-        )
+                    if (!isOwnPost) {
+                        Text(
+                            text = " • ",
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                        Text(
+                            text = if (post.isUserFollowed) "Following" else "Follow",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = if (post.isUserFollowed) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier.clickable { onFollowClick() }
+                        )
+                    }
+                }
 
-        NormalText(
-            text = formatTimestamp(post.timestamp),
-            fontSize = 12.sp,
-            fontColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.layoutId("timeStamp")
-        )
-
-        if (!isOwnPost){
-            FollowTxtBtn(
-                onClick = onFollowClick,
-                isFollowing = post.isUserFollowed,
-                modifier = Modifier.layoutId("followButton")
-            )
-        }
-
-        IconButton(
-            onClick = onBookmarkClick,
-            modifier = Modifier.layoutId("bookmarkIcon")
-        ) {
-            Icon(
-                painter = painterResource(
-                    id = if (post.isBookmarked) R.drawable.bookmark_icon_filled else R.drawable.bookmark_icon_outlined
-                ),
-                contentDescription = if (post.isBookmarked) "Bookmarked post" else "not a Bookmarked post",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        PostContentCard(
-            post = post,
-            userName = post.userName,
-            imageUrl = post.imageUrl,
-            categories = post.category,
-            likeCount = post.likeCount,
-            isLiked = post.isLiked,
-            onPostClick = onPostClick,
-            onLikeClick = onLikeClick,
-            onCommentClick = onCommentClick,
-            onShareClick = onShareClick,
-            caption = post.caption,
-            location = post.location,
-            commentCount = post.commentCount,
-            shareCount = post.shareCount,
-            onLikesInfoClick = onLikesInfoClick,
-            usersWhoLiked = usersWhoLiked,
-            shape = shape,
-            modifier = Modifier.layoutId("postCard")
-        )
-    }
-}
-
-@Composable
-private fun PostContentCard(
-    post: Post,
-    location: String,
-    userName: String,
-    imageUrl: String,
-    categories: List<String>,
-    likeCount: Int,
-    commentCount: Int,
-    shareCount: Int,
-    isLiked: Boolean,
-    onPostClick: () -> Unit,
-    onLikeClick: () -> Unit,
-    onCommentClick: () -> Unit = {},
-    onShareClick: () -> Unit = {},
-    onLikesInfoClick: () -> Unit = {},
-    usersWhoLiked: List<User>,
-    caption: String,
-    shape: RoundedCornerShape,
-    modifier: Modifier = Modifier
-) {
-    ElevatedCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onPostClick),
-        shape = shape,
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
-    ) {
-        SubcomposeAsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(imageUrl)
-                .crossfade(true)
-                .build(),
-            contentDescription = "",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 200.dp, max = 350.dp)
-                .clickable(onClick = onPostClick),
-            loading = {
-                ShimmerEffect(
-                    modifier = Modifier.fillMaxSize()
-                )
-            },
-            error = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.BrokenImage,
-                        contentDescription = "Failed to load",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                if (post.location.isNotEmpty()) {
+                    Text(
+                        text = post.location,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-        )
 
-        Text(
-            text = annotatedText(
-                text1 = userName,
-                text1Color = MaterialTheme.colorScheme.onSurfaceVariant,
-                text2 = caption,
-                text2Color = MaterialTheme.colorScheme.onBackground
-            ),
-            fontFamily = bodyFontFamily,
+            IconButton(onClick = { /* More Options */ }) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-        )
+                .padding(horizontal = 0.dp),
+            shape = shape,
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(post.imageUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 250.dp, max = 450.dp)
+                    .clickable { onPostClick() },
+                loading = { ShimmerEffect(Modifier.fillMaxSize()) }
+            )
+        }
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (categories.isNotEmpty()) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(categories) { category ->
-                        AssistChip(
-                            enabled = false,
-                            onClick = { },
-                            label = {
-                                NormalText(
-                                    text = category,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer
-                            )
-                        )
-                    }
-                }
-            }
-            if (location.isNotEmpty()){
-                AssistChip(
-                    enabled = false,
-                    onClick = { },
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.icon_location_outlined),
-                            contentDescription = "location",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    },
-                    label = {
-                        NormalText(
-                            text = location,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
+            PostActionButton(
+                icon = if (post.isLiked) R.drawable.heart_icon else R.drawable.outlined_heart_icon,
+                count = post.likeCount,
+                tint = if (post.isLiked) Color.Red else MaterialTheme.colorScheme.onSurface,
+                onClick = onLikeClick
+            )
+
+            PostActionButton(
+                icon = R.drawable.icon_comment,
+                count = post.commentCount,
+                onClick = onCommentClick
+            )
+
+            PostActionButton(
+                icon = R.drawable.icon_share_outlined,
+                count = post.shareCount,
+                onClick = onShareClick
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            IconButton(onClick = onBookmarkClick) {
+                Icon(
+                    painter = painterResource(
+                        if (post.isBookmarked) R.drawable.bookmark_icon_filled else R.drawable.bookmark_icon_outlined
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = if (post.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
             }
         }
 
-        Row (
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            modifier = Modifier.fillMaxWidth()
-        ){
-            StatIconLabel(
-                onClick = onLikeClick,
-                iconId = if (isLiked) R.drawable.heart_icon else R.drawable.outlined_heart_icon,
-                label = likeCount,
-                iconColor = if (isLiked) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            val annotatedCaption = buildAnnotatedString {
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append("${post.userName} ")
+                }
+                append(post.caption)
+            }
+
+            Text(
+                text = annotatedCaption,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
             )
-            StatIconLabel(
-                onClick = onCommentClick,
-                iconId = R.drawable.icon_comment_outlined,
-                label = commentCount,
-                iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            StatIconLabel(
-                onClick = onShareClick,
-                iconId = R.drawable.icon_share_outlined,
-                label = shareCount,
-                iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+            Text(
+                text = "View all likes",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .clickable { onViewLikesClicked() }
             )
         }
+    }
+}
 
-        if (post.likeCount > 0) {
-            LikesInfoBar(
-                users = usersWhoLiked,
-                mainUsername = usersWhoLiked.firstOrNull()?.username ?: "Someone",
-                likeCount = post.likeCount,
-                onClick = onLikesInfoClick
+@Composable
+private fun PostActionButton(
+    icon: Int,
+    count: Int,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(CircleShape)
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(24.dp)
+        )
+        if (count > 0) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+// --- PREVIEW SECTION ---
+
+@Preview(showBackground = true, name = "Modern Post Light Mode")
+@Composable
+fun PostItemPreview() {
+    // Mock Data for Preview
+    val mockPost = Post(
+        id = "1",
+        userId = "user_123",
+        userName = "alex_design",
+        userImage = "https://example.com/avatar.jpg",
+        imageUrl = "https://example.com/post.jpg",
+        caption = "Exploring the mountain peaks of the Alps! Such a breathtaking view. #travel #nature",
+        location = "Swiss Alps, Switzerland",
+        timestamp = System.currentTimeMillis(),
+        likeCount = 1240,
+        commentCount = 85,
+        shareCount = 12,
+        isLiked = true,
+        isBookmarked = false,
+        isUserFollowed = false,
+        category = listOf("Travel", "Nature")
+    )
+
+    PhotoNestTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            PostItem(
+                post = mockPost,
+                onPostClick = {},
+                onLikeClick = {},
+                onBookmarkClick = {},
+                onUserClick = {},
+                onFollowClick = {},
+                onViewLikesClicked = {}
             )
         }
     }

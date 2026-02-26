@@ -3,6 +3,8 @@ package com.example.photonest.data.repository
 import android.util.Log
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
+import com.example.photonest.core.utils.safeFirebaseCall
+import com.example.photonest.core.utils.retryCall
 import com.example.photonest.data.local.dao.CommentDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toComment
@@ -24,180 +26,141 @@ class CommentRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : ICommentRepository {
 
-
     override suspend fun getCommentsForPost(postId: String): NetworkResult<List<Comment>> {
-        return try {
-            val query = firestore.collection(Constants.COMMENTS_COLLECTION)
-                .whereEqualTo("postId", postId)
-                .whereEqualTo("parentCommentId", null)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .get()
-                .await()
+        val remoteResult = safeFirebaseCall {
+            val query = retryCall {
+                firestore.collection(Constants.COMMENTS_COLLECTION)
+                    .whereEqualTo("postId", postId)
+                    .whereEqualTo("parentCommentId", null)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+            }
 
             val comments = query.documents.mapNotNull { doc ->
-                val comment = doc.toObject(Comment::class.java)?.copy(id = doc.id) ?: return@mapNotNull null
-                comment
+                doc.toObject(Comment::class.java)?.copy(id = doc.id)
             }
 
-            // Cache locally
             commentDao.insertComments(comments.map { it.toEntity() })
-
-            NetworkResult.Success(comments)
-        } catch (e: Exception) {
-            val localComments = commentDao.getCommentsForPost(postId).map { it.toComment() }
-            NetworkResult.Success(localComments)
+            comments
         }
-    }
 
-
-    override suspend fun addComment(comment: Comment): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
-            val commentId = UUID.randomUUID().toString()
-
-            // Create comment data as Map to ensure userId field exists
-            val commentData = hashMapOf(
-                "id" to commentId,
-                "postId" to comment.postId,
-                "userId" to currentUserId,
-                "userName" to comment.userName,
-                "userProfilePicture" to comment.userImage,
-                "text" to comment.text,
-                "timestamp" to System.currentTimeMillis(),
-                "likeCount" to 0,
-                "parentCommentId" to comment.parentCommentId
-            )
-
-            // Add to Firestore
-            firestore.collection(Constants.COMMENTS_COLLECTION)
-                .document(commentId)
-                .set(commentData)
-                .await()
-
-            // Update post comment count
-            firestore.collection(Constants.POSTS_COLLECTION)
-                .document(comment.postId)
-                .update("commentCount", FieldValue.increment(1))
-                .await()
-
-            val newComment = comment.copy(
-                id = commentId,
-                userId = currentUserId,
-                timestamp = System.currentTimeMillis()
-            )
-            commentDao.insertComment(newComment.toEntity())
-
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to add comment")
-        }
-    }
-
-    override suspend fun deleteComment(commentId: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.Error("Not authenticated")
-
-            // Get comment to verify ownership
-            val commentDoc = firestore.collection(Constants.COMMENTS_COLLECTION)
-                .document(commentId)
-                .get()
-                .await()
-
-            val comment = commentDoc.toObject(Comment::class.java)
-                ?: return NetworkResult.Error("Comment not found")
-
-            // Verify user owns the comment
-            if (comment.userId != currentUserId) {
-                return NetworkResult.Error("You don't have permission to delete this comment")
+        return when(remoteResult) {
+            is NetworkResult.Success -> remoteResult
+            else -> {
+                val localComments = commentDao.getCommentsForPost(postId).map { it.toComment() }
+                NetworkResult.Success(localComments)
             }
-
-            // Delete comment
-            firestore.collection(Constants.COMMENTS_COLLECTION)
-                .document(commentId)
-                .delete()
-                .await()
-
-            // Update post's comment count
-            firestore.collection(Constants.POSTS_COLLECTION)
-                .document(comment.postId)
-                .update("commentCount", FieldValue.increment(-1))
-                .await()
-
-            // Delete from local database
-            commentDao.deleteCommentById(commentId)
-
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            Log.e("CommentRepository", "Failed to delete comment: ${e.message}", e)
-            NetworkResult.Error(e.message ?: "Failed to delete comment")
         }
     }
 
+    override suspend fun addComment(comment: Comment): NetworkResult<Unit> = safeFirebaseCall {
+        val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
+        val commentId = UUID.randomUUID().toString()
 
-    override suspend fun likeComment(commentId: String): NetworkResult<Unit> {
-        return try {
-            firestore.collection(Constants.COMMENTS_COLLECTION)
-                .document(commentId)
-                .update("likeCount", FieldValue.increment(1))
-                .await()
+        val commentData = hashMapOf(
+            "id" to commentId,
+            "postId" to comment.postId,
+            "userId" to currentUserId,
+            "userName" to comment.userName,
+            "userProfilePicture" to comment.userImage,
+            "text" to comment.text,
+            "timestamp" to System.currentTimeMillis(),
+            "likeCount" to 0,
+            "parentCommentId" to comment.parentCommentId
+        )
 
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to like comment")
-        }
+        firestore.collection(Constants.COMMENTS_COLLECTION)
+            .document(commentId)
+            .set(commentData)
+            .await()
+
+        firestore.collection(Constants.POSTS_COLLECTION)
+            .document(comment.postId)
+            .update("commentCount", FieldValue.increment(1))
+            .await()
+
+        val newComment = comment.copy(
+            id = commentId,
+            userId = currentUserId,
+            timestamp = System.currentTimeMillis()
+        )
+        commentDao.insertComment(newComment.toEntity())
     }
 
-    override suspend fun unlikeComment(commentId: String): NetworkResult<Unit> {
-        return try {
-            firestore.collection(Constants.COMMENTS_COLLECTION)
-                .document(commentId)
-                .update("likeCount", FieldValue.increment(-1))
-                .await()
+    override suspend fun deleteComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
+        val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
 
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to unlike comment")
+        val commentDoc = firestore.collection(Constants.COMMENTS_COLLECTION)
+            .document(commentId)
+            .get()
+            .await()
+
+        val comment = commentDoc.toObject(Comment::class.java) ?: throw IllegalStateException("Comment not found")
+
+        if (comment.userId != currentUserId) {
+            throw IllegalStateException("You don't have permission to delete this comment")
         }
+
+        firestore.collection(Constants.COMMENTS_COLLECTION)
+            .document(commentId)
+            .delete()
+            .await()
+
+        firestore.collection(Constants.POSTS_COLLECTION)
+            .document(comment.postId)
+            .update("commentCount", FieldValue.increment(-1))
+            .await()
+
+        commentDao.deleteCommentById(commentId)
+    }
+
+    override suspend fun likeComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
+        firestore.collection(Constants.COMMENTS_COLLECTION)
+            .document(commentId)
+            .update("likeCount", FieldValue.increment(1))
+            .await()
+    }
+
+    override suspend fun unlikeComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
+        firestore.collection(Constants.COMMENTS_COLLECTION)
+            .document(commentId)
+            .update("likeCount", FieldValue.increment(-1))
+            .await()
     }
 
     override suspend fun getRepliesForComment(commentId: String): NetworkResult<List<Comment>> {
-        return try {
+        val remoteResult = safeFirebaseCall {
             val query = firestore.collection(Constants.COMMENTS_COLLECTION)
                 .whereEqualTo("parentCommentId", commentId)
                 .orderBy("timestamp", Query.Direction.ASCENDING)
                 .get()
                 .await()
 
-            val replies = query.documents.mapNotNull { doc ->
-                doc.toObject(Comment::class.java)?.copy(id = doc.id)
-            }
+            query.documents.mapNotNull { doc -> doc.toObject(Comment::class.java)?.copy(id = doc.id) }
+        }
 
-            NetworkResult.Success(replies)
-        } catch (e: Exception) {
-            val localReplies = commentDao.getRepliesForComment(commentId).map { it.toComment() }
-            NetworkResult.Success(localReplies)
+        return when(remoteResult) {
+            is NetworkResult.Success -> remoteResult
+            else -> {
+                val localReplies = commentDao.getRepliesForComment(commentId).map { it.toComment() }
+                NetworkResult.Success(localReplies)
+            }
         }
     }
 
-    override suspend fun reportComment(commentId: String, reason: String): NetworkResult<Unit> {
-        return try {
-            val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
+    override suspend fun reportComment(commentId: String, reason: String): NetworkResult<Unit> = safeFirebaseCall {
+        val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
 
-            val reportData = mapOf(
-                "commentId" to commentId,
-                "reporterId" to currentUserId,
-                "reason" to reason,
-                "timestamp" to System.currentTimeMillis()
-            )
+        val reportData = mapOf(
+            "commentId" to commentId,
+            "reporterId" to currentUserId,
+            "reason" to reason,
+            "timestamp" to System.currentTimeMillis()
+        )
 
-            firestore.collection(Constants.REPORTS_COLLECTION)
-                .add(reportData)
-                .await()
-
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to report comment")
-        }
+        firestore.collection(Constants.REPORTS_COLLECTION)
+            .add(reportData)
+            .await()
     }
 }

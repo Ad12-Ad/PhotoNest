@@ -44,6 +44,8 @@ fun UserEntity.toUser(): User {
         isVerified = isVerified,
         isPrivate = isPrivate,
         fcmToken = fcmToken,
+        birthday = birthday,
+        onboardingCompleted = onboardingCompleted,
         lastSeen = lastSeen,
         isOnline = isOnline
     )

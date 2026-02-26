@@ -1,4 +1,4 @@
-package com.example.photonest.feature.profile.profile
+package com.example.photonest.feature.profile.editprofile
 
 import android.content.Context
 import android.net.Uri

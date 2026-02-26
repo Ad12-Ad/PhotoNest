@@ -42,11 +42,11 @@ import com.example.photonest.feature.auth.signup.SignUpScreen
 import com.example.photonest.feature.splash.SplashScreen
 import com.example.photonest.feature.notification.NotificationScreen
 import com.example.photonest.feature.feed.postdetail.PostDetailScreen
-import com.example.photonest.feature.profile.profile.EditProfileScreen
+import com.example.photonest.feature.profile.editprofile.EditProfileScreen
 import com.example.photonest.feature.profile.profile.LikedPostsScreen
 import com.example.photonest.feature.profile.profile.YourPostsScreen
-import com.example.photonest.feature.profile.profile.userprofile.UserProfileScreen
-import com.example.photonest.feature.profile.profile.userprofile.UserProfileViewModel
+import com.example.photonest.feature.profile.userprofile.UserProfileScreen
+import com.example.photonest.feature.profile.userprofile.UserProfileViewModel
 import com.example.photonest.feature.profile.settings.SettingsScreen
 import com.example.photonest.app.theme.PhotoNestTheme
 import com.example.photonest.feature.auth.onboarding.OnboardingScreen
@@ -221,7 +221,7 @@ private fun NavigationGraph(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 8.dp),
                 onPostClick = { postId ->
                     navController.navigate("post_detail/$postId")
                 },

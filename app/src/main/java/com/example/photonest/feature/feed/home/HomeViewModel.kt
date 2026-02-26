@@ -8,6 +8,7 @@ import com.example.photonest.data.model.Post
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
+import com.example.photonest.domain.usecase.ToggleFollowUseCase
 import com.example.photonest.feature.feed.home.model.HomeUiEffect
 import com.example.photonest.feature.feed.home.model.HomeUiEvent
 import com.example.photonest.feature.feed.home.model.HomeUiState
@@ -19,9 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val postRepository: IPostRepository,
-    private val userRepository: IUserRepository,
-    private val authRepository: IAuthRepository,
-    private val postDao: PostDao
+    private val toggleFollowUseCase: ToggleFollowUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -71,7 +70,7 @@ class HomeViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             posts = result.data.orEmpty(),
-                            isRefreshing = false
+                            isRefreshing = false,
                         )
                     }
 
@@ -134,31 +133,22 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun toggleFollow(userId: String, postId: String) = viewModelScope.launch {
-        val currentUserId = authRepository.getCurrentUserId() ?: return@launch
-        if (currentUserId == userId) return@launch
-
         val post = _state.value.posts.firstOrNull { it.id == postId } ?: return@launch
         val wasFollowing = post.isUserFollowed
 
         optimisticUpdate {
             it.copy(
-                posts = it.posts.map {
-                    if (it.userId == userId)
-                        it.copy(isUserFollowed = !wasFollowing)
-                    else it
+                posts = it.posts.map { p ->
+                    if (p.userId == userId) p.copy(isUserFollowed = !wasFollowing) else p
                 }
             )
         }
 
-        val result =
-            if (wasFollowing)
-                userRepository.unfollowUser(userId)
-            else
-                userRepository.followUser(userId)
+        val result = toggleFollowUseCase(targetUserId = userId, isCurrentlyFollowing = wasFollowing)
 
-        if (result is NetworkResult.Error) rollback(post)
-        if (wasFollowing && result is NetworkResult.Success) {
-            postDao.deletePostsByUser(userId)
+        if (result is NetworkResult.Error) {
+            rollback(post)
+            emitError(result.message ?: "Failed to update follow status")
         }
     }
 

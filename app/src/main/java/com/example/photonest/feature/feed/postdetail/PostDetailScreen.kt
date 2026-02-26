@@ -170,14 +170,10 @@ fun PostDetailScreen(
                             onFollowClick = {
                                 viewModel.onEvent(PostDetailEvent.ToggleFollow)
                             },
-                            usersWhoLiked = state.likedUsers,
-                            onLikesInfoClick = {
+                            onViewLikesClicked = {
                                 viewModel.onEvent(PostDetailEvent.OpenLikesSheet)
                             },
-                            shape = RoundedCornerShape(
-                                bottomStart = 16.dp,
-                                bottomEnd = 16.dp
-                            )
+                            shape = RoundedCornerShape(0.dp)
                         )
                     }
 

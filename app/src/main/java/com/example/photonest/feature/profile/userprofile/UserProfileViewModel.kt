@@ -1,4 +1,4 @@
-package com.example.photonest.feature.profile.profile.userprofile
+package com.example.photonest.feature.profile.userprofile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,6 +8,7 @@ import com.example.photonest.data.model.User
 import com.example.photonest.data.model.UserProfile
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
+import com.example.photonest.domain.usecase.ToggleFollowUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -18,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class UserProfileViewModel @Inject constructor(
     private val userRepository: IUserRepository,
-    private val postRepository: IPostRepository
+    private val postRepository: IPostRepository,
+    private val toggleFollowUseCase: ToggleFollowUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserProfileUiState())
@@ -73,8 +75,6 @@ class UserProfileViewModel @Inject constructor(
         }
     }
 
-    // ADD THESE NEW METHODS to UserProfileViewModel:
-
     fun loadFollowers(userId: String, onResult: (List<User>) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -121,55 +121,6 @@ class UserProfileViewModel @Inject constructor(
         }
     }
 
-
-    fun onFollowClickFromSheet(userId: String, currentProfileUserId: String, listType: String, isCurrentlyFollowing: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = if (isCurrentlyFollowing) {
-                userRepository.unfollowUser(userId)
-            } else {
-                userRepository.followUser(userId)
-            }
-
-            withContext(Dispatchers.Main) {
-                when (result) {
-                    is NetworkResult.Success -> {
-                        when (listType) {
-                            "FOLLOWERS" -> {
-                                loadFollowers(currentProfileUserId) { /* callback updates automatically */ }
-                            }
-                            "FOLLOWING" -> {
-                                loadFollowing(currentProfileUserId) { /* callback updates automatically */ }
-                            }
-                        }
-                        // Also refresh the profile to update counts
-                        loadUserProfile(currentProfileUserId)
-                    }
-                    is NetworkResult.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to update follow status",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        }
-    }
-
-    fun followUser(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.followUser(userId)
-        }
-    }
-
-    fun unfollowUser(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.unfollowUser(userId)
-        }
-    }
-
     private fun loadUserPosts(userId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -199,57 +150,43 @@ class UserProfileViewModel @Inject constructor(
     fun toggleFollow(userId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val currentUserProfile = _uiState.value.userProfile ?: return@launch
-            try {
-                val wasFollowing = currentUserProfile.isFollowing
-                val updatedProfile = currentUserProfile.copy(
-                    isFollowing = !wasFollowing,
-                    user = currentUserProfile.user.copy(
-                        followersCount = if (wasFollowing)
-                            currentUserProfile.user.followersCount - 1
-                        else
-                            currentUserProfile.user.followersCount + 1
-                    )
+            val wasFollowing = currentUserProfile.isFollowing
+
+            val updatedProfile = currentUserProfile.copy(
+                isFollowing = !wasFollowing,
+                user = currentUserProfile.user.copy(
+                    followersCount = if (wasFollowing) {
+                        currentUserProfile.user.followersCount - 1
+                    } else {
+                        currentUserProfile.user.followersCount + 1
+                    }
                 )
+            )
 
-                withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(userProfile = updatedProfile) }
-                }
+            withContext(Dispatchers.Main){
+                _uiState.update { it.copy(userProfile = updatedProfile) }
+            }
 
-                val result = if (wasFollowing) {
-                    userRepository.unfollowUser(userId)
-                } else {
-                    userRepository.followUser(userId)
-                }
+            val result = toggleFollowUseCase(targetUserId = userId, isCurrentlyFollowing = wasFollowing)
 
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is NetworkResult.Success -> { }
-                        is NetworkResult.Error -> {
-                            _uiState.update { it.copy(userProfile = currentUserProfile) }
-                            _uiState.update {
-                                it.copy(
-                                    error = result.message ?: "Failed to update follow status",
-                                    showErrorDialog = true
-                                )
-                            }
+            when (result) {
+                is NetworkResult.Success -> { /* Already updated optimistically */ }
+                is NetworkResult.Error -> {
+                    withContext(Dispatchers.Main){
+                        // Rollback to previous state
+                        _uiState.update {
+                            it.copy(
+                                userProfile = currentUserProfile,
+                                error = result.message ?: "Failed to update follow status",
+                                showErrorDialog = true
+                            )
                         }
-                        is NetworkResult.Loading -> { }
                     }
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(userProfile = currentUserProfile) }
-                    _uiState.update {
-                        it.copy(
-                            error = e.message ?: "An error occurred",
-                            showErrorDialog = true
-                        )
-                    }
-                }
+                is NetworkResult.Loading -> {}
             }
         }
     }
-
     fun dismissError() {
         _uiState.update { it.copy(error = null, showErrorDialog = false) }
     }
