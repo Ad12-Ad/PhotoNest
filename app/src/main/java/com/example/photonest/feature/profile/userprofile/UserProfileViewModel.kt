@@ -3,9 +3,9 @@ package com.example.photonest.feature.profile.userprofile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.Post
-import com.example.photonest.data.model.User
-import com.example.photonest.data.model.UserProfile
+import com.example.photonest.domain.model.Post
+import com.example.photonest.domain.model.User
+import com.example.photonest.domain.model.UserProfile
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.domain.usecase.ToggleFollowUseCase

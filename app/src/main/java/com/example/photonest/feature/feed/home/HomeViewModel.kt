@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.data.local.dao.PostDao
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
@@ -103,8 +103,7 @@ class HomeViewModel @Inject constructor(
             )
         }
 
-        val result =
-            if (post.isLiked) postRepository.unlikePost(postId)
+        val result = if (post.isLiked) postRepository.unlikePost(postId)
             else postRepository.likePost(postId)
 
         if (result is NetworkResult.Error) rollback(post)

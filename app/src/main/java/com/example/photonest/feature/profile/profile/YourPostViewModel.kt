@@ -3,7 +3,7 @@ package com.example.photonest.feature.profile.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.domain.repository.IPostRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

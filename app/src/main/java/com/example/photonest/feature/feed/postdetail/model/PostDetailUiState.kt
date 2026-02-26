@@ -1,7 +1,7 @@
 package com.example.photonest.feature.feed.postdetail.model
 
-import com.example.photonest.data.model.PostDetail
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.PostDetail
+import com.example.photonest.domain.model.User
 
 data class PostDetailState(
     val isLoading: Boolean = false,

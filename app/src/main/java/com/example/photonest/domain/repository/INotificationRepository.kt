@@ -1,7 +1,7 @@
 package com.example.photonest.domain.repository
 
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.Notification
+import com.example.photonest.domain.model.Notification
 import kotlinx.coroutines.flow.Flow
 
 interface INotificationRepository {

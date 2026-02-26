@@ -110,7 +110,6 @@ fun HomeScreen(
                 ) {
                     LazyColumn(
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(
                             items = state.posts,

@@ -15,7 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 import com.example.photonest.ui.components.states.LoadingState
 import com.example.photonest.core.ui.components.MyAlertDialog
 import com.example.photonest.core.ui.components.UserListBottomSheet

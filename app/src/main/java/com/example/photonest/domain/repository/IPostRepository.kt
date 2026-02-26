@@ -1,9 +1,9 @@
 package com.example.photonest.domain.repository
 
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.Post
-import com.example.photonest.data.model.PostDetail
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.Post
+import com.example.photonest.domain.model.PostDetail
+import com.example.photonest.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface IPostRepository {

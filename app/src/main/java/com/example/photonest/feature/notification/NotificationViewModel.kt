@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.Notification
+import com.example.photonest.domain.model.Notification
 import com.example.photonest.domain.repository.INotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers

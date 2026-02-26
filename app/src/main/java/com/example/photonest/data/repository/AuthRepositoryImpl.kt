@@ -8,8 +8,8 @@ import com.example.photonest.core.utils.getDataOrThrow
 import com.example.photonest.core.utils.safeFirebaseCall
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
-import com.example.photonest.data.model.AuthResult
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.AuthResult
+import com.example.photonest.domain.model.User
 import com.example.photonest.domain.repository.IAuthRepository
 import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth

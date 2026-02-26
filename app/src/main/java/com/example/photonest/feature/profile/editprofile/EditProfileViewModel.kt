@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.ImageCompressionUtils
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 import com.example.photonest.domain.repository.IUserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext

@@ -1,7 +1,7 @@
 package com.example.photonest.feature.addpost.addpost.model
 
 import android.net.Uri
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 
 data class AddPostState(
     val selectedImageUri: Uri? = null,

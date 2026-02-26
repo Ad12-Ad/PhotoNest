@@ -21,9 +21,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
-import com.example.photonest.data.model.Category
-import com.example.photonest.data.model.Post
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.Category
+import com.example.photonest.domain.model.Post
+import com.example.photonest.domain.model.User
 import com.example.photonest.core.ui.components.ShimmerEffect
 
 @Composable
@@ -141,16 +141,6 @@ fun UserSearchItem(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, false)
                     )
-
-                    if (user.isVerified) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.Verified,
-                            contentDescription = "Verified",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
                 }
 
                 if (user.name.isNotEmpty() && user.username.isNotEmpty()) {

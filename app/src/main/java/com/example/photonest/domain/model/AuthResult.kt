@@ -1,4 +1,4 @@
-package com.example.photonest.data.model
+package com.example.photonest.domain.model
 
 data class AuthResult(
     val success: Boolean = false,

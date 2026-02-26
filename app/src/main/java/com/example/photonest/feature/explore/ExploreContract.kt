@@ -1,6 +1,9 @@
 package com.example.photonest.feature.explore
 
-import com.example.photonest.data.model.*
+import com.example.photonest.domain.model.Category
+import com.example.photonest.domain.model.Post
+import com.example.photonest.domain.model.SearchResult
+import com.example.photonest.domain.model.User
 
 data class ExploreState(
     val isLoading: Boolean = false,

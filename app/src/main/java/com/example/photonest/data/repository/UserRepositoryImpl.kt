@@ -1,30 +1,23 @@
 package com.example.photonest.data.repository
 
-import android.content.Context
 import android.net.Uri
-import android.util.Log
-import com.example.photonest.core.network.NetworkConnectivityObserver
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.core.utils.safeFirebaseCall
 import com.example.photonest.data.local.dao.FollowDao
-import com.example.photonest.data.local.dao.PendingOperationDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
-import com.example.photonest.data.local.entities.PendingOperationEntity
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
-import com.example.photonest.data.model.User
-import com.example.photonest.data.model.UserProfile
-import com.example.photonest.data.sync.SyncWorker
+import com.example.photonest.domain.model.User
+import com.example.photonest.domain.model.UserProfile
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
@@ -39,9 +32,6 @@ class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
-    private val pendingOperationDao: PendingOperationDao,
-    private val connectivityObserver: NetworkConnectivityObserver,
-    @ApplicationContext private val context: Context
 ) : IUserRepository {
 
     override fun getCurrentUser(): Flow<NetworkResult<User?>> = flow {
@@ -120,11 +110,6 @@ class UserRepositoryImpl @Inject constructor(
         val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
         if (currentUserId == targetUserId) return NetworkResult.Error("Cannot follow yourself")
 
-        if (!connectivityObserver.isCurrentlyConnected()) {
-            pendingOperationDao.insert(PendingOperationEntity(type = "FOLLOW", targetId = targetUserId))
-            SyncWorker.schedule(context)
-            return NetworkResult.Success(Unit)
-        }
 
         return safeFirebaseCall {
             val followId = "${currentUserId}_$targetUserId"
@@ -139,11 +124,6 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun unfollowUser(targetUserId: String): NetworkResult<Unit> {
         val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
-        if (!connectivityObserver.isCurrentlyConnected()) {
-            pendingOperationDao.insert(PendingOperationEntity(type = "UNFOLLOW", targetId = targetUserId))
-            SyncWorker.schedule(context)
-            return NetworkResult.Success(Unit)
-        }
 
         return safeFirebaseCall {
             val followId = "${currentUserId}_$targetUserId"

@@ -261,8 +261,7 @@ fun ImagePickerSection(
         ElevatedCard(
             onClick = onPickImage,
             modifier = modifier
-                .fillMaxWidth()
-                .heightIn(min = 200.dp, max = 350.dp),
+                .heightIn(min = 250.dp, max = 450.dp),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
         ) {
             Box(

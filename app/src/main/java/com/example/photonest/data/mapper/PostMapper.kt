@@ -1,7 +1,7 @@
 package com.example.photonest.data.mapper
 
 import com.example.photonest.data.local.entities.PostEntity
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 
 fun Post.toEntity(): PostEntity {
     return PostEntity(

@@ -14,7 +14,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.photonest.R
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 
 enum class IconType {
     LIKE, BOOKMARK, NONE

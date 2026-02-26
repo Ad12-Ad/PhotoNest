@@ -1,7 +1,7 @@
 package com.example.photonest.domain.repository
 
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.Comment
+import com.example.photonest.domain.model.Comment
 
 interface ICommentRepository {
     suspend fun getCommentsForPost(postId: String): NetworkResult<List<Comment>>

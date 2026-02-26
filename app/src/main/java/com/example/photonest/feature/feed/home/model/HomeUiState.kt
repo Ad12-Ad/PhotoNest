@@ -1,7 +1,7 @@
 package com.example.photonest.feature.feed.home.model
 
-import com.example.photonest.data.model.Post
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.Post
+import com.example.photonest.domain.model.User
 
 data class HomeUiState(
     val isLoading: Boolean = false,

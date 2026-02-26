@@ -1,6 +1,6 @@
 package com.example.photonest.feature.bookmark.model
 
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 
 data class BookmarksUiState(
     val isLoading: Boolean = false,

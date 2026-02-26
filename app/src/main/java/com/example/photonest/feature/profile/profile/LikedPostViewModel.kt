@@ -3,7 +3,7 @@ package com.example.photonest.ui.screens.bookmarks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth

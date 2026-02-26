@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -119,6 +120,13 @@ fun AddPostScreen(
                     onEvent = viewModel::handleEvent,
                     onNavigateToCamera = onNavigateToCamera                )
             }
+            // Loading Indicator
+            if (state.isLoading) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
         }
     }
 }
@@ -202,13 +210,4 @@ private fun AddPostContent(
         ),
         onClick = { onEvent(AddPostEvent.PostClicked) }
     )
-
-    // Loading Indicator
-    if (state.isLoading) {
-        LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    }
 }

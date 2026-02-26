@@ -22,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
-import com.example.photonest.data.model.Category
+import com.example.photonest.domain.model.Category
 import com.example.photonest.core.ui.components.ShimmerEffect
 import java.text.NumberFormat
 import java.util.Locale

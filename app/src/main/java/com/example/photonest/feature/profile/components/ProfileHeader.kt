@@ -25,8 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.example.photonest.R
-import com.example.photonest.data.model.User
-import com.example.photonest.data.model.UserProfile
+import com.example.photonest.domain.model.User
+import com.example.photonest.domain.model.UserProfile
 import com.example.photonest.core.ui.components.ButtonOnboarding
 import com.example.photonest.core.ui.components.NormalText
 import com.example.photonest.core.ui.components.ShimmerEffect
@@ -166,15 +166,6 @@ fun UserProfileHeader(
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (userProfile.user.isVerified) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.Default.Verified,
-                    contentDescription = "Verified",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
 
         if (userProfile.user.name.isNotEmpty() && userProfile.user.username.isNotEmpty()) {

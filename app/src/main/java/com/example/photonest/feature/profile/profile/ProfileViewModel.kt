@@ -3,8 +3,8 @@ package com.example.photonest.feature.profile.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.User
-import com.example.photonest.data.model.UserProfile
+import com.example.photonest.domain.model.User
+import com.example.photonest.domain.model.UserProfile
 import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.core.ui.components.UserListType
 import com.google.firebase.auth.FirebaseAuth

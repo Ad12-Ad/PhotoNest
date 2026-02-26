@@ -31,8 +31,8 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.app.theme.PhotoNestTheme
-import com.example.photonest.data.model.Post
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.Post
+import com.example.photonest.domain.model.User
 import com.example.photonest.core.ui.components.ShimmerEffect
 import com.google.firebase.auth.FirebaseAuth
 
@@ -154,7 +154,7 @@ fun PostItem(
                 .fillMaxWidth()
                 .padding(horizontal = 0.dp),
             shape = shape,
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             SubcomposeAsyncImage(
@@ -163,7 +163,7 @@ fun PostItem(
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 250.dp, max = 450.dp)

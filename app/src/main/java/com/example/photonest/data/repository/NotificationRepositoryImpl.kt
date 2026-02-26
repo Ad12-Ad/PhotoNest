@@ -6,7 +6,7 @@ import com.example.photonest.core.utils.safeFirebaseCall
 import com.example.photonest.data.local.dao.NotificationDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toNotification
-import com.example.photonest.data.model.Notification
+import com.example.photonest.domain.model.Notification
 import com.example.photonest.domain.repository.INotificationRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore

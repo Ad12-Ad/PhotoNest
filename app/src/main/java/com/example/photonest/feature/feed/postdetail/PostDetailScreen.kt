@@ -34,7 +34,7 @@ import com.example.photonest.core.ui.components.OnBoardingTextField
 import com.example.photonest.core.ui.components.ShimmerEffect
 import com.example.photonest.core.ui.components.UserListBottomSheet
 import com.example.photonest.core.ui.components.UserListType
-import com.example.photonest.data.model.Comment
+import com.example.photonest.domain.model.Comment
 import com.example.photonest.ui.components.*
 import com.example.photonest.feature.feed.home.components.PostItem
 import com.example.photonest.core.utils.ObserveAsEvents

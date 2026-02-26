@@ -1,8 +1,8 @@
 package com.example.photonest.data.mapper
 
 import com.example.photonest.data.local.entities.NotificationEntity
-import com.example.photonest.data.model.Notification
-import com.example.photonest.data.model.NotificationType
+import com.example.photonest.domain.model.Notification
+import com.example.photonest.domain.model.NotificationType
 
 fun Notification.toEntity(): NotificationEntity {
     return NotificationEntity(

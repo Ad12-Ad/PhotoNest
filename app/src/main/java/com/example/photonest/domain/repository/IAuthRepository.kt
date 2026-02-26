@@ -1,8 +1,8 @@
 package com.example.photonest.domain.repository
 
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.AuthResult
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.AuthResult
+import com.example.photonest.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface IAuthRepository {

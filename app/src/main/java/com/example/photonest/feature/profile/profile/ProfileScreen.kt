@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 import com.example.photonest.core.ui.components.MyAlertDialog
 import com.example.photonest.core.ui.components.NormalText
 import com.example.photonest.core.ui.components.UserListBottomSheet

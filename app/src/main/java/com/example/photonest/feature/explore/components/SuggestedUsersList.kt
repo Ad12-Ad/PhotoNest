@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 import com.example.photonest.core.ui.components.ShimmerEffect
 import java.text.NumberFormat
 import java.util.Locale
@@ -126,15 +126,6 @@ private fun SuggestedUserItem(
                     modifier = Modifier.weight(1f, false)
                 )
 
-                if (user.isVerified) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Default.Verified,
-                        contentDescription = "Verified",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
             }
 
             // Username

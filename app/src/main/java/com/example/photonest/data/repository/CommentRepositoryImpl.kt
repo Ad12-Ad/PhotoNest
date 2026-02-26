@@ -8,7 +8,7 @@ import com.example.photonest.core.utils.retryCall
 import com.example.photonest.data.local.dao.CommentDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toComment
-import com.example.photonest.data.model.Comment
+import com.example.photonest.domain.model.Comment
 import com.example.photonest.domain.repository.ICommentRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue

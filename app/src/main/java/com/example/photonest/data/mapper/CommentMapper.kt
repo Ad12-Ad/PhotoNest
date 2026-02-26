@@ -1,7 +1,7 @@
 package com.example.photonest.data.mapper
 
 import com.example.photonest.data.local.entities.CommentEntity
-import com.example.photonest.data.model.Comment
+import com.example.photonest.domain.model.Comment
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 

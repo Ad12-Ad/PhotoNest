@@ -3,7 +3,7 @@ package com.example.photonest.feature.explore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photonest.core.utils.NetworkResult
-import com.example.photonest.data.model.*
+import com.example.photonest.domain.model.SearchResult
 import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.domain.usecase.ToggleFollowUseCase

@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.example.photonest.R
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 
 enum class UserListType {
     FOLLOWERS,

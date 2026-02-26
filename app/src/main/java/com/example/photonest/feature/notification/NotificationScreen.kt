@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.example.photonest.data.model.Notification
-import com.example.photonest.data.model.NotificationType
+import com.example.photonest.domain.model.Notification
+import com.example.photonest.domain.model.NotificationType
 import com.example.photonest.core.ui.components.MyAlertDialog
 import com.example.photonest.core.ui.components.ShimmerEffect
 import java.text.SimpleDateFormat

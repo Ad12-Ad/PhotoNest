@@ -2,22 +2,18 @@ package com.example.photonest.data.repository
 
 import android.content.Context
 import android.util.Log
-import com.example.photonest.core.network.NetworkConnectivityObserver
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.core.utils.retryCall
 import com.example.photonest.core.utils.safeFirebaseCall
-import com.example.photonest.data.local.dao.PendingOperationDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
-import com.example.photonest.data.local.entities.PendingOperationEntity
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
-import com.example.photonest.data.model.Post
-import com.example.photonest.data.model.PostDetail
-import com.example.photonest.data.model.User
-import com.example.photonest.data.sync.SyncWorker
+import com.example.photonest.domain.model.Post
+import com.example.photonest.domain.model.PostDetail
+import com.example.photonest.domain.model.User
 import com.example.photonest.domain.repository.IPostRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldPath
@@ -42,8 +38,6 @@ class PostRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
-    private val pendingOperationDao: PendingOperationDao,
-    private val connectivityObserver: NetworkConnectivityObserver,
     @ApplicationContext private val context: Context
 ) : IPostRepository {
 
@@ -183,11 +177,6 @@ class PostRepositoryImpl @Inject constructor(
     override suspend fun likePost(postId: String): NetworkResult<Unit> {
         val currentUserId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
-        if (!connectivityObserver.isCurrentlyConnected()) {
-            pendingOperationDao.insert(PendingOperationEntity(type = "LIKE", targetId = postId))
-            SyncWorker.schedule(context)
-            return NetworkResult.Success(Unit)
-        }
 
         return safeFirebaseCall {
             val likeDocId = "${currentUserId}_${postId}"
@@ -204,12 +193,6 @@ class PostRepositoryImpl @Inject constructor(
     override suspend fun unlikePost(postId: String): NetworkResult<Unit> {
         val userId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
-        if (!connectivityObserver.isCurrentlyConnected()) {
-            pendingOperationDao.insert(PendingOperationEntity(type = "UNLIKE", targetId = postId))
-            SyncWorker.schedule(context)
-            return NetworkResult.Success(Unit)
-        }
-
         return safeFirebaseCall {
             val likeId = "${userId}_$postId"
             firestore.runBatch { batch ->
@@ -222,12 +205,6 @@ class PostRepositoryImpl @Inject constructor(
     override suspend fun bookmarkPost(postId: String): NetworkResult<Unit> {
         val userId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
 
-        if (!connectivityObserver.isCurrentlyConnected()) {
-            pendingOperationDao.insert(PendingOperationEntity(type = "BOOKMARK", targetId = postId))
-            SyncWorker.schedule(context)
-            return NetworkResult.Success(Unit)
-        }
-
         return safeFirebaseCall {
             firestore.collection(Constants.BOOKMARKS_COLLECTION).document("${userId}_$postId")
                 .set(mapOf("userId" to userId, "postId" to postId, "timestamp" to System.currentTimeMillis())).await()
@@ -237,12 +214,6 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun unbookmarkPost(postId: String): NetworkResult<Unit> {
         val userId = firebaseAuth.currentUser?.uid ?: return NetworkResult.Error("Not authenticated")
-
-        if (!connectivityObserver.isCurrentlyConnected()) {
-            pendingOperationDao.insert(PendingOperationEntity(type = "UNBOOKMARK", targetId = postId))
-            SyncWorker.schedule(context)
-            return NetworkResult.Success(Unit)
-        }
 
         return safeFirebaseCall {
             firestore.collection(Constants.BOOKMARKS_COLLECTION).document("${userId}_$postId").delete().await()

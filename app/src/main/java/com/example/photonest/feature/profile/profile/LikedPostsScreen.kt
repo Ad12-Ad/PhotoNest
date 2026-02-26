@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 import com.example.photonest.core.ui.components.BackCircleButton
 import com.example.photonest.ui.screens.bookmarks.LikedPostsViewModel
 import com.example.photonest.core.ui.components.IconType

@@ -23,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 
 @Composable
 fun LikesInfoBar(
