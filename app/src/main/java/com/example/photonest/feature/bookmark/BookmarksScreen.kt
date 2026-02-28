@@ -25,11 +25,8 @@ import com.example.photonest.core.ui.components.PostGridItem
 import com.example.photonest.feature.bookmark.model.BookmarksEvent
 import com.example.photonest.feature.feed.home.components.PostItem
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookmarksScreen(
-    onNavigateToPostDetail: (Int) -> Unit,
-    onNavigateToProfile: (Int) -> Unit,
     onPostClick: (String) -> Unit = {},
     viewModel: BookmarksViewModel = hiltViewModel(),
     modifier: Modifier = Modifier

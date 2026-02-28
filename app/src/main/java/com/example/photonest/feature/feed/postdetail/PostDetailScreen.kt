@@ -30,6 +30,7 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.photonest.R
 import com.example.photonest.core.ui.components.BackCircleButton
+import com.example.photonest.core.ui.components.MyAlertDialog
 import com.example.photonest.core.ui.components.OnBoardingTextField
 import com.example.photonest.core.ui.components.ShimmerEffect
 import com.example.photonest.core.ui.components.UserListBottomSheet
@@ -57,6 +58,7 @@ fun PostDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val likesSheetState = rememberModalBottomSheetState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     ObserveAsEvents(viewModel.effect) { effect ->
         when (effect){
@@ -121,7 +123,10 @@ fun PostDetailScreen(
                         viewModel.onEvent(
                             PostDetailEvent.UpdateComment("")
                         )
-                    }
+                    },
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .imePadding(),
                 )
             }
         }
@@ -148,8 +153,6 @@ fun PostDetailScreen(
                         .padding(paddingValues)
                 ) {
 
-                    /* -------- Post -------- */
-
                     item {
                         PostItem(
                             post = postDetail.post,
@@ -164,6 +167,8 @@ fun PostDetailScreen(
                             onShareClick = {
                                 viewModel.onEvent(PostDetailEvent.SharePost)
                             },
+                            showDeleteIcon = true,
+                            onDeleteClick = { showDeleteDialog = true },
                             onUserClick = {
                                 onNavigateToProfile(postDetail.post.userId)
                             },
@@ -206,7 +211,9 @@ fun PostDetailScreen(
                                         }
                                     }
                                     else null,
-                                onLikeClick = {},
+                                onLikeClick = {
+                                    viewModel.onEvent(PostDetailEvent.ToggleCommentLike(comment.id))
+                                },
                                 onReplyClick = {}
                             )
                             Divider(
@@ -222,6 +229,20 @@ fun PostDetailScreen(
         }
     }
 
+    if (showDeleteDialog) {
+        MyAlertDialog(
+            title = "Delete Post",
+            text = "Are you sure you want to delete this post? This action cannot be undone.",
+            shouldShowDialog = showDeleteDialog,
+            confirmButtonText = "Delete",
+            dismissButtonText = "Cancel",
+            onConfirmClick = {
+                showDeleteDialog = false
+                viewModel.onEvent(PostDetailEvent.DeletePost)
+            },
+            onDismissRequest = {showDeleteDialog = false}
+        )
+    }
     if (state.isLikesSheetVisible) {
         UserListBottomSheet(
             sheetState = likesSheetState,
@@ -387,7 +408,7 @@ private fun EnhancedCommentItem(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Delete comment",
                                 modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.error
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -410,7 +431,9 @@ private fun EnhancedCommentItem(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 CommentActionButton(
-                    text = "Like",
+                    // Show count if > 0, otherwise just "Like"
+                    text = if (comment.likeCount > 0) "${comment.likeCount} ${if (comment.isLiked) "Liked" else "Like"}" else "Like",
+                    isLiked = comment.isLiked,
                     onClick = onLikeClick
                 )
 
@@ -427,13 +450,14 @@ private fun EnhancedCommentItem(
 private fun CommentActionButton(
     text: String,
     onClick: () -> Unit,
+    isLiked: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = if (isLiked) FontWeight.Bold else FontWeight.Medium,
+        color = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.clickable(onClick = onClick)
     )
 }

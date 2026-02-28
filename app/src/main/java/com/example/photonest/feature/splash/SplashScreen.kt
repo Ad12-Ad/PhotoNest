@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForwardIos
@@ -26,13 +27,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.photonest.R
+import com.example.photonest.core.ui.animations.bouncyClick
+import com.example.photonest.core.ui.animations.pressClick
 import com.example.photonest.core.ui.components.ButtonOnboarding
 import com.example.photonest.core.ui.components.Heading1
 import com.example.photonest.core.ui.components.NormalText
 import kotlinx.coroutines.delay
 
-private const val ANIMATION_DURATION = 1000
-private const val ANIMATION_DELAY = 2000
+private const val ANIMATION_DURATION = 800
+private const val ANIMATION_DELAY = 800L
 
 @Composable
 fun SplashScreen(
@@ -44,27 +47,27 @@ fun SplashScreen(
     val loginState by viewModel.uiState.collectAsState()
     var animationState by rememberSaveable { mutableStateOf(AnimationState.LogoZoom) }
 
-    LaunchedEffect(loginState, animationState) {
-//        delay(ANIMATION_DELAY.toLong())
+    LaunchedEffect(loginState.isLoading, animationState) {
         when (animationState) {
             AnimationState.LogoZoom -> {
+                delay(100)
                 animationState = AnimationState.LogoFadeOut
             }
             AnimationState.LogoFadeOut -> {
-                delay(ANIMATION_DELAY.toLong())
-                if (loginState.isUserLoggedIn) {
-                    onNavigateToHome()
-                } else {
-                    animationState = AnimationState.BackgroundTransition
+                delay(ANIMATION_DELAY)
+                if (!loginState.isLoading) {
+                    if (loginState.isUserLoggedIn) {
+                        onNavigateToHome()
+                    } else {
+                        animationState = AnimationState.BackgroundTransition
+                    }
                 }
             }
-            AnimationState.BackgroundTransition ->{
-                delay(ANIMATION_DELAY.toLong())
+            AnimationState.BackgroundTransition -> {
+                delay(ANIMATION_DELAY)
                 animationState = AnimationState.ContentFadeIn
             }
-            AnimationState.ContentFadeIn -> {
-                // Wait for user interaction
-            }
+            AnimationState.ContentFadeIn -> {}
         }
     }
 
@@ -164,7 +167,8 @@ fun SplashScreen(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .height(60.dp)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .bouncyClick { },
                         onClick = onNavigateToSignUp
                     )
                     Spacer(modifier = Modifier.height(45.dp))
@@ -174,7 +178,8 @@ fun SplashScreen(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .height(60.dp)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .bouncyClick {  },
                         onClick = onNavigateToSignIn,
                         buttonColors = ButtonDefaults.buttonColors(
                             MaterialTheme.colorScheme.surfaceContainer

@@ -1,14 +1,12 @@
-package com.example.photonest.feature.addpost.addpost
+package com.example.photonest.feature.addpost
 
 import android.net.Uri
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -35,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -261,12 +258,20 @@ fun ImagePickerSection(
         ElevatedCard(
             onClick = onPickImage,
             modifier = modifier
-                .heightIn(min = 250.dp, max = 450.dp),
+                .fillMaxWidth(),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
         ) {
             Box(
-                Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ){
+                AsyncImage(
+                    model = selectedImageUri,
+                    contentDescription = "Selected Image",
+                    modifier = Modifier.heightIn(min = 250.dp, max = 450.dp),
+                    contentScale = ContentScale.Fit
+                )
                 IconButton(
                     shape = CircleShape,
                     onClick = reset,
@@ -282,12 +287,6 @@ fun ImagePickerSection(
                         modifier = Modifier.size(12.dp)
                     )
                 }
-                AsyncImage(
-                    model = selectedImageUri,
-                    contentDescription = "Selected Image",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
             }
         }
     }

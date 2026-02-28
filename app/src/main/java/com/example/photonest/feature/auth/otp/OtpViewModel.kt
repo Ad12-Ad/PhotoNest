@@ -48,8 +48,6 @@ class OtpViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                Log.d("OTP_DEBUG", "Sending OTP to ${currentState.email}")
-
                 _uiState.update {
                     it.copy(
                         isSendingOtp = true,
@@ -62,8 +60,6 @@ class OtpViewModel @Inject constructor(
                     SendOtpRequest(currentState.email)
                 )
 
-                Log.d("OTP_DEBUG", "Response: ${response.code()}")
-
                 if (response.isSuccessful && response.body()?.success == true) {
                     _uiState.update {
                         it.copy(
@@ -74,10 +70,8 @@ class OtpViewModel @Inject constructor(
                         )
                     }
                     startCountdown()
-                    Log.d("OTP_DEBUG", "OTP sent successfully")
                 } else {
                     val errorMsg = response.body()?.message ?: "Failed to send OTP"
-                    Log.e("OTP_DEBUG", "Error: $errorMsg")
                     _uiState.update {
                         it.copy(
                             isSendingOtp = false,
@@ -87,7 +81,6 @@ class OtpViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                Log.e("OTP_DEBUG", "Exception: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         isSendingOtp = false,
@@ -198,9 +191,7 @@ class OtpViewModel @Inject constructor(
 
                 val result = authRepository.signUpWithEmailAndPassword(
                     email = currentState.email,
-                    password = currentState.password,
-                    name = currentState.name,
-                    username = currentState.username
+                    password = currentState.password
                 )
 
                 when (result) {

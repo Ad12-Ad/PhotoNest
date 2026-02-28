@@ -3,6 +3,7 @@ package com.example.photonest.feature.auth.signup
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.domain.repository.IAuthRepository
 import com.example.photonest.feature.auth.signup.model.SignUpEffect
 import com.example.photonest.feature.auth.signup.model.SignUpEvent
@@ -64,9 +65,24 @@ class SignUpViewModel @Inject constructor(
             viewModelScope.launch { _effect.send(SignUpEffect.ShowSnackbar("Please fix errors")) }
             return
         }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            _effect.send(SignUpEffect.NavigateToOtp)
+
+            when (val result = authRepository.checkUserExists(state.email)) {
+                is NetworkResult.Success -> {
+                    if (result.data == true) {
+                        _effect.send(SignUpEffect.ShowSnackbar("Email is already registered. Please Sign In."))
+                    } else {
+                        _effect.send(SignUpEffect.NavigateToOtp)
+                    }
+                }
+                is NetworkResult.Error -> {
+                    _effect.send(SignUpEffect.ShowSnackbar(result.message ?: "Failed to verify email. Try again."))
+                }
+                else -> {}
+            }
+
             _uiState.update { it.copy(isLoading = false) }
         }
     }

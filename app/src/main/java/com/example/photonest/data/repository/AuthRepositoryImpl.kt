@@ -6,6 +6,10 @@ import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.core.utils.getDataOrNull
 import com.example.photonest.core.utils.getDataOrThrow
 import com.example.photonest.core.utils.safeFirebaseCall
+import com.example.photonest.data.local.dao.CommentDao
+import com.example.photonest.data.local.dao.FollowDao
+import com.example.photonest.data.local.dao.NotificationDao
+import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.domain.model.AuthResult
@@ -15,6 +19,7 @@ import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -25,7 +30,12 @@ import kotlin.random.Random
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val firebaseStorage: FirebaseStorage,
     private val userDao: UserDao,
+    private val postDao: PostDao,
+    private val commentDao: CommentDao,
+    private val notificationDao: NotificationDao,
+    private val followDao: FollowDao,
     private val preferencesManager: PreferencesManager
 ) : IAuthRepository {
 
@@ -94,12 +104,17 @@ class AuthRepositoryImpl @Inject constructor(
         pendingOtps.remove(verificationId)
 
         val result = if (isSignUp) {
-            signUpWithEmailAndPassword(email, password, name ?: "", username ?: "")
+            signUpWithEmailAndPassword(email, password)
         } else {
             signInWithEmailAndPassword(email, password)
         }
 
         result.getDataOrThrow()!!
+    }
+
+    override suspend fun checkUserExists(email: String): NetworkResult<Boolean> = safeFirebaseCall {
+        val result = firebaseAuth.fetchSignInMethodsForEmail(email).await()
+        !result.signInMethods.isNullOrEmpty()
     }
 
     override suspend fun resendOtp(email: String): NetworkResult<String> {
@@ -180,31 +195,14 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signUpWithEmailAndPassword(
         email: String,
         password: String,
-        name: String,
-        username: String
     ): NetworkResult<AuthResult> = safeFirebaseCall {
-        val usernameQuery = firestore.collection(Constants.USERS_COLLECTION)
-            .whereEqualTo("username", username)
-            .get()
-            .await()
-
-        if (!usernameQuery.isEmpty) {
-            throw IllegalStateException("Username is already taken")
-        }
 
         val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
         val firebaseUser = result.user ?: throw IllegalStateException("Account creation failed")
 
-        val profileUpdates = UserProfileChangeRequest.Builder()
-            .setDisplayName(name)
-            .build()
-        firebaseUser.updateProfile(profileUpdates).await()
-
         val user = User(
             id = firebaseUser.uid,
             email = email,
-            name = name,
-            username = username,
             joinedDate = System.currentTimeMillis()
         )
 
@@ -213,14 +211,16 @@ class AuthRepositoryImpl @Inject constructor(
             .set(user)
             .await()
 
+        // 3. Update local state
         userDao.insertUser(user.toEntity())
         preferencesManager.setLoggedIn(true)
         preferencesManager.setUserId(user.id)
+
+        // Crucial: This ensures the user is forced into the Onboarding flow next
         preferencesManager.setOnboardingCompleted(false)
 
         AuthResult(success = true, user = user)
     }
-
     override suspend fun signOut(): NetworkResult<Unit> = safeFirebaseCall {
         firebaseAuth.signOut()
         userDao.clearAllUsers()
@@ -240,12 +240,59 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun deleteAccount(): NetworkResult<Unit> = safeFirebaseCall {
         val currentUser = firebaseAuth.currentUser ?: throw IllegalStateException("No user to delete")
-        firestore.collection(Constants.USERS_COLLECTION)
-            .document(currentUser.uid)
-            .delete()
-            .await()
+        val uid = currentUser.uid
+        val batch = firestore.batch()
+
+        // 1. WIPE PROFILE PICTURE FROM STORAGE
+        try {
+            firebaseStorage.reference.child(Constants.PROFILE_IMAGES_PATH).child("$uid.jpg").delete().await()
+        } catch (e: Exception) { /* Ignore if they don't have a profile picture */ }
+
+        // 2. WIPE ALL POSTS AND POST IMAGES
+        val posts = firestore.collection(Constants.POSTS_COLLECTION).whereEqualTo("userId", uid).get().await()
+        for (postDoc in posts.documents) {
+            val imageUrl = postDoc.getString("imageUrl")
+            // Delete the image from storage if it exists and isn't a mock Picsum URL
+            if (!imageUrl.isNullOrEmpty() && !imageUrl.contains("picsum.photos")) {
+                try { firebaseStorage.getReferenceFromUrl(imageUrl).delete().await() } catch (e: Exception) {}
+            }
+            // Add post document to deletion batch
+            batch.delete(postDoc.reference)
+        }
+
+        // 3. WIPE ALL COMMENTS
+        val comments = firestore.collection(Constants.COMMENTS_COLLECTION).whereEqualTo("userId", uid).get().await()
+        comments.documents.forEach { batch.delete(it.reference) }
+
+        // 4. WIPE ALL LIKES, BOOKMARKS, AND FOLLOWS
+        val likes = firestore.collection(Constants.LIKES_COLLECTION).whereEqualTo("userId", uid).get().await()
+        likes.documents.forEach { batch.delete(it.reference) }
+
+        val bookmarks = firestore.collection(Constants.BOOKMARKS_COLLECTION).whereEqualTo("userId", uid).get().await()
+        bookmarks.documents.forEach { batch.delete(it.reference) }
+
+        val followsAsFollower = firestore.collection(Constants.FOLLOWS_COLLECTION).whereEqualTo("followerId", uid).get().await()
+        followsAsFollower.documents.forEach { batch.delete(it.reference) }
+
+        val followsAsFollowing = firestore.collection(Constants.FOLLOWS_COLLECTION).whereEqualTo("followingId", uid).get().await()
+        followsAsFollowing.documents.forEach { batch.delete(it.reference) }
+
+        // 5. DELETE USER DOCUMENT
+        batch.delete(firestore.collection(Constants.USERS_COLLECTION).document(uid))
+
+        // 6. COMMIT ALL FIRESTORE DELETIONS AT ONCE
+        batch.commit().await()
+
+        // 7. DELETE FIREBASE AUTH ACCOUNT
         currentUser.delete().await()
+
         userDao.clearAllUsers()
+        postDao.clearAllPosts()
+        commentDao.clearAllComments()
+        notificationDao.clearAllNotifications()
+        followDao.clearAllFollows()
+
+        // 9. CLEAR SHARED PREFERENCES
         preferencesManager.clearUserData()
     }
 }

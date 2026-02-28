@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
@@ -54,7 +56,8 @@ import com.example.photonest.core.ui.components.NormalText
 import com.example.photonest.core.ui.components.OnBoardingTextField
 import com.example.photonest.core.ui.components.camera.CameraScreen
 import com.example.photonest.core.utils.PermissionUtils
-import com.example.photonest.feature.addpost.addpost.ImagePickerSection
+import com.example.photonest.feature.addpost.ImagePickerSection
+import com.example.photonest.feature.addpost.model.AddPostEvent
 import com.example.photonest.feature.auth.onboarding.model.OnboardingEvent
 import com.example.photonest.feature.auth.onboarding.model.OnboardingUiState
 
@@ -68,7 +71,7 @@ fun OnboardingScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showCamera by remember { mutableStateOf(false) }
 
-    val pickMedia = rememberLauncherForActivityResult(
+    val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
@@ -108,37 +111,41 @@ fun OnboardingScreen(
         )
     } else {
         Scaffold { padding ->
-            Column(modifier = Modifier
+            LazyColumn (modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)) {
-                // Progress Bar (3 steps)
-                LinearProgressIndicator(
-                    progress = uiState.currentStep / 3f,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                )
+                .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(32.dp)
+            ) {
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                when (uiState.currentStep) {
-                    1 -> IdentityStep(uiState, viewModel::onEvent)
-                    2 -> ProfileStep(
-                        uiState,
-                        onEvent = viewModel::onEvent,
-                        onLaunchCamera = {
-                            PermissionUtils.checkAndRequestPermissions(
-                                context = context,
-                                launcher = permissionLauncher,
-                                onAlreadyGranted = { showCamera = true }
-                            )
-                        },
-                        onLaunchGallery = {
-                            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))}
+                item {
+                    LinearProgressIndicator(
+                        progress = uiState.currentStep / 3f,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
                     )
-                    3 -> DemographicStep(uiState, viewModel::onEvent)
+
+                }
+                item {
+                    when (uiState.currentStep) {
+                        1 -> IdentityStep(uiState, viewModel::onEvent)
+                        2 -> ProfileStep(
+                            uiState,
+                            onEvent = viewModel::onEvent,
+                            onLaunchCamera = {
+                                PermissionUtils.checkAndRequestPermissions(
+                                    context = context,
+                                    launcher = permissionLauncher,
+                                    onAlreadyGranted = { showCamera = true }
+                                )
+                            },
+                            onLaunchGallery = {
+                                imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }                    )
+                        3 -> DemographicStep(uiState, viewModel::onEvent)
+                    }
                 }
             }
         }
@@ -151,9 +158,19 @@ fun IdentityStep(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Unit) {
         Heading1(text = "Identity")
         NormalText(text = "Choose your name and @handle.")
         Spacer(modifier = Modifier.height(24.dp))
-        OnBoardingTextField(value = state.name, onValueChange = { onEvent(OnboardingEvent.NameChanged(it)) }, label = "Full Name")
+        OnBoardingTextField(
+            value = state.name,
+            onValueChange = { onEvent(OnboardingEvent.NameChanged(it)) },
+            label = "Full Name",
+            onClearSearch = { onEvent(OnboardingEvent.NameChanged("")) }
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        OnBoardingTextField(value = state.username, onValueChange = { onEvent(OnboardingEvent.UsernameChanged(it)) }, label = "Username")
+        OnBoardingTextField(
+            value = state.username,
+            onValueChange = { onEvent(OnboardingEvent.UsernameChanged(it)) },
+            label = "Username",
+            onClearSearch = { onEvent(OnboardingEvent.UsernameChanged("")) }
+        )
         Spacer(modifier = Modifier.height(32.dp))
         ButtonOnboarding(
             buttonText = "Continue",
@@ -187,7 +204,12 @@ fun ProfileStep(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
-        OnBoardingTextField(value = state.bio, onValueChange = { onEvent(OnboardingEvent.BioChanged(it)) }, label = "Short Bio (Optional)")
+        OnBoardingTextField(
+            value = state.bio,
+            onValueChange = { onEvent(OnboardingEvent.BioChanged(it)) },
+            label = "Short Bio (Optional)",
+            onClearSearch = { onEvent(OnboardingEvent.BioChanged("")) }
+        )
         Spacer(modifier = Modifier.height(32.dp))
         ButtonOnboarding(
             buttonText = "Continue",
@@ -268,7 +290,8 @@ fun DemographicStep(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Unit
         OnBoardingTextField(
             value = state.location,
             onValueChange = { onEvent(OnboardingEvent.LocationChanged(it)) },
-            label = "Location"
+            label = "Location",
+            onClearSearch = { onEvent(OnboardingEvent.LocationChanged("")) }
         )
         Spacer(modifier = Modifier.height(24.dp))
         ButtonOnboarding(

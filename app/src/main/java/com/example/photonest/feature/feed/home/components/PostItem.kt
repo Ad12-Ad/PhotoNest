@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.*
@@ -34,6 +35,7 @@ import com.example.photonest.app.theme.PhotoNestTheme
 import com.example.photonest.domain.model.Post
 import com.example.photonest.domain.model.User
 import com.example.photonest.core.ui.components.ShimmerEffect
+import com.example.photonest.core.ui.components.formatTimestamp
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -46,10 +48,12 @@ fun PostItem(
     onCommentClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onUserClick: () -> Unit,
+    showDeleteIcon: Boolean = false,
+    onDeleteClick: () -> Unit = {},
     onFollowClick: () -> Unit = {},
     onViewLikesClicked: () -> Unit = {},
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
-    ) {
+) {
     val currentUserId = remember { try { FirebaseAuth.getInstance().currentUser?.uid } catch (e: Exception) { null } }
     val isOwnPost = currentUserId == post.userId
 
@@ -131,21 +135,23 @@ fun PostItem(
                     }
                 }
 
-                if (post.location.isNotEmpty()) {
-                    Text(
-                        text = post.location,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = if (post.location.isNotEmpty())
+                                post.location + " • " + formatTimestamp(post.timestamp)
+                            else formatTimestamp(post.timestamp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            IconButton(onClick = { /* More Options */ }) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            if (isOwnPost && showDeleteIcon){
+                IconButton(onClick = { onDeleteClick() }) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -229,6 +235,17 @@ fun PostItem(
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
+            )
+
+            val tags = buildAnnotatedString {
+                post.category.forEach {
+                    append("#$it ")
+                }
+            }
+            Text(
+                text = tags,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.tertiary,
             )
 
             Text(

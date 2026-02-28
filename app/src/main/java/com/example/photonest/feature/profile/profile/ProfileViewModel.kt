@@ -7,6 +7,7 @@ import com.example.photonest.domain.model.User
 import com.example.photonest.domain.model.UserProfile
 import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.core.ui.components.UserListType
+import com.example.photonest.domain.repository.IAuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -17,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val authRepository: IAuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -91,8 +93,6 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // ADD THESE NEW METHODS:
-
     fun loadFollowers(userId: String, onResult: (List<User>) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -151,105 +151,17 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun onFollowClickFromSheet(userId: String, currentUserId: String, listType: UserListType, isCurrentlyFollowing: Boolean) {
+    fun logOut(onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val result = if (isCurrentlyFollowing) {
-                userRepository.unfollowUser(userId)
-            } else {
-                userRepository.followUser(userId)
-            }
+            val result = authRepository.signOut()
 
-            when (result) {
-                is NetworkResult.Success -> {
-                    // Reload the appropriate list to reflect updated follow states
-                    when (listType) {
-                        UserListType.FOLLOWERS -> {
-                            loadFollowers(currentUserId) { /* callback updates automatically */ }
-                        }
-                        UserListType.FOLLOWING -> {
-                            loadFollowing(currentUserId) { /* callback updates automatically */ }
-                        }
-                        else -> {}
-                    }
-                    // Also refresh the profile to update counts
-                    loadUserProfile(currentUserId)
-                }
-                is NetworkResult.Error -> {
-                    withContext(Dispatchers.Main) {
-                        _uiState.update {
-                            it.copy(
-                                error = result.message ?: "Failed to update follow status",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                }
-                else -> {}
-            }
-        }
-    }
-
-    fun followUser(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.followUser(userId)
-        }
-    }
-
-    fun unfollowUser(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.unfollowUser(userId)
-        }
-    }
-
-    fun toggleFollow(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentUserProfile = _uiState.value.userProfile ?: return@launch
-
-            try {
-                val result = if (currentUserProfile.isFollowing) {
-                    userRepository.unfollowUser(userId)
+            withContext(Dispatchers.Main) {
+                if (result is NetworkResult.Success) {
+                    onSuccess()
                 } else {
-                    userRepository.followUser(userId)
-                }
-
-                when (result) {
-                    is NetworkResult.Success -> {
-                        // Update UI state optimistically
-                        val updatedProfile = currentUserProfile.copy(
-                            isFollowing = !currentUserProfile.isFollowing,
-                            user = currentUserProfile.user.copy(
-                                followersCount = if (currentUserProfile.isFollowing) {
-                                    currentUserProfile.user.followersCount - 1
-                                } else {
-                                    currentUserProfile.user.followersCount + 1
-                                }
-                            )
-                        )
-                        withContext(Dispatchers.Main){
-                            _uiState.update {
-                                it.copy(userProfile = updatedProfile)
-                            }
-                        }
-                    }
-                    is NetworkResult.Error -> {
-                        withContext(Dispatchers.Main){
-                            _uiState.update {
-                                it.copy(
-                                    error = result.message ?: "Failed to update follow status",
-                                    showErrorDialog = true
-                                )
-                            }
-                        }
-                    }
-                    is NetworkResult.Loading -> {
-                        // Handle loading if needed
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main){
                     _uiState.update {
                         it.copy(
-                            error = e.message ?: "An error occurred",
+                            error = result.message ?: "Failed to log out",
                             showErrorDialog = true
                         )
                     }
@@ -258,6 +170,42 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun showDeleteAccountDialog() {
+        _uiState.update { it.copy(showDeleteAccountDialog = true) }
+    }
+
+    fun hideDeleteAccountDialog() {
+        _uiState.update { it.copy(showDeleteAccountDialog = false) }
+    }
+
+    fun deleteAccount(onSuccess: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = true, showDeleteAccountDialog = false) }
+            }
+
+            // Delegates to your existing AuthRepositoryImpl logic
+            val result = authRepository.deleteAccount()
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isLoading = false) }
+                when (result) {
+                    is NetworkResult.Success -> {
+                        onSuccess() // Boot them out to the login screen
+                    }
+                    is NetworkResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                error = result.message ?: "Failed to delete account",
+                                showErrorDialog = true
+                            )
+                        }
+                    }
+                    is NetworkResult.Loading -> {}
+                }
+            }
+        }
+    }
     fun dismissError() {
         _uiState.update {
             it.copy(
@@ -276,5 +224,6 @@ data class ProfileUiState(
     val isLoading: Boolean = false,
     val userProfile: UserProfile? = null,
     val error: String? = null,
-    val showErrorDialog: Boolean = false
+    val showErrorDialog: Boolean = false,
+    val showDeleteAccountDialog: Boolean = false
 )

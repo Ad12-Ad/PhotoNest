@@ -14,5 +14,7 @@ data class HomeUiState(
     val likedUsers: List<User> = emptyList(),
     val isLikesLoading: Boolean = false,
 
-    val error: String? = null
+    val error: String? = null,
+    val suggestedUsers: List<User> = emptyList(),
+    val trendingPosts: List<Post> = emptyList()
 )

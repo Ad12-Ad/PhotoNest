@@ -1,8 +1,11 @@
-package com.example.photonest.feature.addpost.addpost
+package com.example.photonest.feature.addpost
 
+import android.Manifest
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
@@ -21,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,8 +33,9 @@ import androidx.navigation.NavController
 import com.example.photonest.core.ui.components.ButtonOnboarding
 import com.example.photonest.core.ui.components.MyAlertDialog
 import com.example.photonest.core.ui.components.OnBoardingTextField
-import com.example.photonest.feature.addpost.addpost.model.AddPostEvent
-import com.example.photonest.feature.addpost.addpost.model.AddPostState
+import com.example.photonest.core.utils.PermissionUtils
+import com.example.photonest.feature.addpost.model.AddPostEvent
+import com.example.photonest.feature.addpost.model.AddPostState
 
 @RequiresApi(Build.VERSION_CODES.R)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,7 +104,8 @@ fun AddPostScreen(
                     navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }
+        },
+        modifier = Modifier.imePadding()
     ) { paddingValues ->
         Box(
             modifier = modifier
@@ -118,7 +124,8 @@ fun AddPostScreen(
                     viewModel = viewModel,
                     state = state,
                     onEvent = viewModel::handleEvent,
-                    onNavigateToCamera = onNavigateToCamera                )
+                    onNavigateToCamera = onNavigateToCamera
+                )
             }
             // Loading Indicator
             if (state.isLoading) {
@@ -138,18 +145,39 @@ private fun AddPostContent(
     onEvent: (AddPostEvent) -> Unit,
     onNavigateToCamera: () -> Unit
 ) {
+    val context = LocalContext.current
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        onEvent(AddPostEvent.ImageSelected(uri))
+        if (uri != null) {
+            onEvent(AddPostEvent.ImageSelected(uri))
+        }
     }
 
-    // Image Section
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (results[Manifest.permission.CAMERA] == true) {
+            onNavigateToCamera()
+        } else {
+            Toast.makeText(context, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     ImagePickerSection(
         selectedImageUri = state.selectedImageUri,
-        onPickImage = { imagePickerLauncher.launch("image/*") },
-        onCameraClick = { onNavigateToCamera() },
-        reset = {viewModel.resetPostCreated()}
+        onPickImage = {
+            imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        },
+        onCameraClick = {
+            PermissionUtils.checkAndRequestPermissions(
+                context = context,
+                launcher = permissionLauncher,
+                onAlreadyGranted = { onNavigateToCamera() }
+            )
+        },
+        reset = { onEvent(AddPostEvent.ImageSelected(null)) }
     )
 
     // Caption TextField

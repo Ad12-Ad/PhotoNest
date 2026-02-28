@@ -8,9 +8,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,18 +25,17 @@ import com.example.photonest.app.theme.PhotoNestTheme
 fun MyAlertDialog(
     modifier: Modifier = Modifier,
     shouldShowDialog: Boolean,
-    onDismissRequest: () -> Unit,
     title: String,
     text: String,
     confirmButtonText: String,
     onConfirmClick: () -> Unit,
+    onDismissRequest: () -> Unit = {},
     dismissButtonText: String? = null,
-    onDismissClick: (() -> Unit)? = null,
 ) {
     if (shouldShowDialog) {
         AlertDialog(
             modifier = modifier,
-            onDismissRequest = onDismissRequest,
+            onDismissRequest = { onDismissRequest() },
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             title = {
                 Heading2(
@@ -59,17 +61,11 @@ fun MyAlertDialog(
             },
             dismissButton = dismissButtonText?.let {
                 {
-                    ButtonOnboarding(
-                        buttonColors = ButtonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.errorContainer,
-                            disabledContentColor = MaterialTheme.colorScheme.onErrorContainer
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        buttonText = it,
-                        onClick = onDismissClick ?: onDismissRequest
-                    )
+                    TextButton(
+                        onClick = {onDismissRequest()}
+                    ) {
+                        Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         )

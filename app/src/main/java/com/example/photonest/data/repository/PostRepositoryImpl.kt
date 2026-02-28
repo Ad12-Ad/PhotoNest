@@ -6,6 +6,7 @@ import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.core.utils.retryCall
 import com.example.photonest.core.utils.safeFirebaseCall
+import com.example.photonest.data.local.dao.FollowDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
 import com.example.photonest.data.mapper.toEntity
@@ -35,6 +36,7 @@ import javax.inject.Singleton
 class PostRepositoryImpl @Inject constructor(
     private val postDao: PostDao,
     private val userDao: UserDao,
+    private val followDao: FollowDao,
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,

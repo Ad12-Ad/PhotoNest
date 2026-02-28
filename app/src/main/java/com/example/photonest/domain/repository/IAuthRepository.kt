@@ -7,11 +7,12 @@ import kotlinx.coroutines.flow.Flow
 
 interface IAuthRepository {
     suspend fun signInWithEmailAndPassword(email: String, password: String): NetworkResult<AuthResult>
-    suspend fun signUpWithEmailAndPassword(email: String, password: String, name: String, username: String): NetworkResult<AuthResult>
+    suspend fun signUpWithEmailAndPassword(email: String, password: String): NetworkResult<AuthResult>
     suspend fun signOut(): NetworkResult<Unit>
     suspend fun getCurrentUser(): NetworkResult<User?>
     fun isUserLoggedIn(): Flow<Boolean>
     fun getCurrentUserId(): String?
+    suspend fun checkUserExists(email: String): NetworkResult<Boolean>
     suspend fun getCurrentUserIdOrThrow(): String
     suspend fun deleteAccount(): NetworkResult<Unit>
     suspend fun sendOtpToEmail(email: String): NetworkResult<String> // Returns verification ID

@@ -8,12 +8,10 @@ import com.example.photonest.domain.repository.IPostRepository
 import com.example.photonest.domain.repository.IUserRepository
 import com.example.photonest.domain.usecase.ToggleFollowUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -31,41 +29,23 @@ class ExploreViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
-    init {
-        onEvent(ExploreEvent.LoadExplore)
-    }
+    init { onEvent(ExploreEvent.LoadExplore) }
 
     fun onEvent(event: ExploreEvent) {
         when (event) {
-
             is ExploreEvent.UpdateQuery -> updateQuery(event.query)
             ExploreEvent.SubmitSearch -> performSearch()
             ExploreEvent.ClearSearch -> clearSearch()
             is ExploreEvent.SearchByCategory -> searchByCategory(event.category)
-
-            ExploreEvent.LoadExplore,
-            ExploreEvent.Refresh -> loadExplore()
-
+            ExploreEvent.LoadExplore, ExploreEvent.Refresh -> loadExplore()
             is ExploreEvent.FollowUser -> followUser(event.userId)
-
-            is ExploreEvent.OpenProfile ->
-                emitEffect(ExploreEffect.NavigateToProfile(event.userId))
-
-            is ExploreEvent.OpenPost ->
-                emitEffect(ExploreEffect.NavigateToPost(event.postId))
+            is ExploreEvent.OpenProfile -> emitEffect(ExploreEffect.NavigateToProfile(event.userId))
+            is ExploreEvent.OpenPost -> emitEffect(ExploreEffect.NavigateToPost(event.postId))
         }
     }
 
-    /* ---------------- Search ---------------- */
-
     private fun updateQuery(query: String) {
-        _state.update {
-            it.copy(
-                searchQuery = query,
-                isSearchActive = query.isNotBlank()
-            )
-        }
-
+        _state.update { it.copy(searchQuery = query, isSearchActive = query.isNotBlank()) }
         searchJob?.cancel()
         if (query.isNotBlank()) {
             searchJob = viewModelScope.launch {
@@ -86,7 +66,6 @@ class ExploreViewModel @Inject constructor(
                 is NetworkResult.Success -> r.data ?: emptyList()
                 else -> emptyList()
             }
-
             val posts = when (val r = postRepository.searchPosts(query)) {
                 is NetworkResult.Success -> r.data ?: emptyList()
                 else -> emptyList()
@@ -95,72 +74,34 @@ class ExploreViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isLoading = false,
-                    searchResults = SearchResult(
-                        users = users,
-                        posts = posts,
-                        totalResults = users.size + posts.size,
-                        query = query
-                    )
+                    searchResults = SearchResult(users = users, posts = posts, totalResults = users.size + posts.size, query = query)
                 )
             }
         } catch (e: Exception) {
             _state.update { it.copy(isLoading = false) }
-            emitEffect(
-                ExploreEffect.ShowError(
-                    e.message ?: "Search failed"
-                )
-            )
+            emitEffect(ExploreEffect.ShowError(e.message ?: "Search failed"))
         }
     }
 
     private fun clearSearch() {
         searchJob?.cancel()
-        _state.update {
-            it.copy(
-                searchQuery = "",
-                isSearchActive = false,
-                searchResults = SearchResult()
-            )
-        }
+        _state.update { it.copy(searchQuery = "", isSearchActive = false, searchResults = SearchResult()) }
     }
 
     private fun searchByCategory(category: String) = viewModelScope.launch {
-        _state.update {
-            it.copy(
-                searchQuery = category,
-                isSearchActive = true,
-                isLoading = true
-            )
-        }
+        _state.update { it.copy(searchQuery = category, isSearchActive = true, isLoading = true) }
 
         when (val result = postRepository.getPostsByCategory(category)) {
             is NetworkResult.Success -> {
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        searchResults = SearchResult(
-                            posts = result.data ?: emptyList(),
-                            totalResults = result.data?.size ?: 0,
-                            query = category
-                        )
-                    )
-                }
+                _state.update { it.copy(isLoading = false, searchResults = SearchResult(posts = result.data ?: emptyList(), totalResults = result.data?.size ?: 0, query = category)) }
             }
-
             is NetworkResult.Error -> {
                 _state.update { it.copy(isLoading = false) }
-                emitEffect(
-                    ExploreEffect.ShowError(
-                        result.message ?: "Failed to load category"
-                    )
-                )
+                emitEffect(ExploreEffect.ShowError(result.message ?: "Failed to load category"))
             }
-
             else -> Unit
         }
     }
-
-    /* ---------------- Explore ---------------- */
 
     private fun loadExplore() = viewModelScope.launch {
         _state.update { it.copy(isLoading = true) }
@@ -170,59 +111,61 @@ class ExploreViewModel @Inject constructor(
                 is NetworkResult.Success -> r.data ?: emptyList()
                 else -> emptyList()
             }
-
             val users = when (val r = userRepository.getPopularUsers()) {
                 is NetworkResult.Success -> r.data ?: emptyList()
                 else -> emptyList()
             }
 
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    trendingPosts = trendingPosts,
-                    suggestedUsers = users
-                )
-            }
+            _state.update { it.copy(isLoading = false, trendingPosts = trendingPosts, suggestedUsers = users) }
         } catch (e: Exception) {
             _state.update { it.copy(isLoading = false) }
-            emitEffect(
-                ExploreEffect.ShowError(
-                    e.message ?: "Failed to load explore content"
-                )
-            )
+            emitEffect(ExploreEffect.ShowError(e.message ?: "Failed to load explore content"))
         }
     }
 
-    /* ---------------- Follow ---------------- */
-
     private fun followUser(userId: String) = viewModelScope.launch {
-        val user = _state.value.suggestedUsers.find { it.id == userId } ?: return@launch
-        val wasFollowing = false // For "Suggested Users," the initial state is always false
+        // Fix: Check BOTH suggested users and search results
+        val inSuggested = _state.value.suggestedUsers.any { it.id == userId }
+        val inSearch = _state.value.searchResults.users.any { it.id == userId }
 
-        _state.update {
-            it.copy(
-                suggestedUsers = it.suggestedUsers.map { u ->
+        if (!inSuggested && !inSearch) return@launch
+
+        val wasFollowing = false // Assuming your UI only shows "Follow" for unfollowed users in Explore
+
+        // Optimistic UI Update across both lists
+        _state.update { state ->
+            state.copy(
+                suggestedUsers = state.suggestedUsers.map { u ->
                     if (u.id == userId) u.copy(followersCount = u.followersCount + 1) else u
-                }
+                },
+                searchResults = state.searchResults.copy(
+                    users = state.searchResults.users.map { u ->
+                        if (u.id == userId) u.copy(followersCount = u.followersCount + 1) else u
+                    }
+                )
             )
         }
 
-        val result = toggleFollowUseCase(
-            targetUserId = userId,
-            isCurrentlyFollowing = wasFollowing
-        )
+        // Delegated to UseCase (Notifications handled automatically)
+        val result = toggleFollowUseCase(targetUserId = userId, isCurrentlyFollowing = wasFollowing)
 
         if (result is NetworkResult.Error) {
-            _state.update {
-                it.copy(
-                    suggestedUsers = it.suggestedUsers.map { u ->
+            // Rollback both lists
+            _state.update { state ->
+                state.copy(
+                    suggestedUsers = state.suggestedUsers.map { u ->
                         if (u.id == userId) u.copy(followersCount = u.followersCount - 1) else u
-                    }
+                    },
+                    searchResults = state.searchResults.copy(
+                        users = state.searchResults.users.map { u ->
+                            if (u.id == userId) u.copy(followersCount = u.followersCount - 1) else u
+                        }
+                    )
                 )
             }
             emitEffect(ExploreEffect.ShowError(result.message ?: "Failed to follow user"))
         }
     }
-    private fun emitEffect(effect: ExploreEffect) =
-        viewModelScope.launch { _effect.emit(effect) }
+
+    private fun emitEffect(effect: ExploreEffect) = viewModelScope.launch { _effect.emit(effect) }
 }

@@ -1,6 +1,5 @@
 package com.example.photonest.data.repository
 
-import android.util.Log
 import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.core.utils.safeFirebaseCall
@@ -31,15 +30,27 @@ class CommentRepositoryImpl @Inject constructor(
             val query = retryCall {
                 firestore.collection(Constants.COMMENTS_COLLECTION)
                     .whereEqualTo("postId", postId)
-                    .whereEqualTo("parentCommentId", null)
                     .orderBy("timestamp", Query.Direction.DESCENDING)
                     .get()
                     .await()
             }
 
+            val currentUserId = firebaseAuth.currentUser?.uid
+
             val comments = query.documents.mapNotNull { doc ->
-                doc.toObject(Comment::class.java)?.copy(id = doc.id)
-            }
+                val comment = doc.toObject(Comment::class.java)
+                val legacyImage = doc.getString("userProfilePicture") ?: ""
+                val finalImage = if (comment?.userImage.isNullOrEmpty()) legacyImage else comment?.userImage ?: ""
+
+                // NEW: Calculate if the current user has liked this comment
+                val isLikedByMe = comment?.likedBy?.contains(currentUserId) == true
+
+                comment?.copy(
+                    id = doc.id,
+                    userImage = finalImage,
+                    isLiked = isLikedByMe // Map the boolean for the UI
+                )
+            }.filter { it.parentCommentId == null }
 
             commentDao.insertComments(comments.map { it.toEntity() })
             comments
@@ -54,6 +65,23 @@ class CommentRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun likeComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
+        val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
+
+        firestore.collection(Constants.COMMENTS_COLLECTION).document(commentId).update(
+            "likeCount", FieldValue.increment(1),
+            "likedBy", FieldValue.arrayUnion(currentUserId) // Track WHO liked it
+        ).await()
+    }
+
+    override suspend fun unlikeComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
+        val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
+
+        firestore.collection(Constants.COMMENTS_COLLECTION).document(commentId).update(
+            "likeCount", FieldValue.increment(-1),
+            "likedBy", FieldValue.arrayRemove(currentUserId) // Remove them from the list
+        ).await()
+    }
     override suspend fun addComment(comment: Comment): NetworkResult<Unit> = safeFirebaseCall {
         val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
         val commentId = UUID.randomUUID().toString()
@@ -63,7 +91,7 @@ class CommentRepositoryImpl @Inject constructor(
             "postId" to comment.postId,
             "userId" to currentUserId,
             "userName" to comment.userName,
-            "userProfilePicture" to comment.userImage,
+            "userImage" to comment.userImage, // FIXED: Matches Comment.kt mapping exactly
             "text" to comment.text,
             "timestamp" to System.currentTimeMillis(),
             "likeCount" to 0,
@@ -91,42 +119,15 @@ class CommentRepositoryImpl @Inject constructor(
     override suspend fun deleteComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
         val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
 
-        val commentDoc = firestore.collection(Constants.COMMENTS_COLLECTION)
-            .document(commentId)
-            .get()
-            .await()
-
+        val commentDoc = firestore.collection(Constants.COMMENTS_COLLECTION).document(commentId).get().await()
         val comment = commentDoc.toObject(Comment::class.java) ?: throw IllegalStateException("Comment not found")
 
-        if (comment.userId != currentUserId) {
-            throw IllegalStateException("You don't have permission to delete this comment")
-        }
+        if (comment.userId != currentUserId) throw IllegalStateException("You don't have permission to delete this comment")
 
-        firestore.collection(Constants.COMMENTS_COLLECTION)
-            .document(commentId)
-            .delete()
-            .await()
-
-        firestore.collection(Constants.POSTS_COLLECTION)
-            .document(comment.postId)
-            .update("commentCount", FieldValue.increment(-1))
-            .await()
+        firestore.collection(Constants.COMMENTS_COLLECTION).document(commentId).delete().await()
+        firestore.collection(Constants.POSTS_COLLECTION).document(comment.postId).update("commentCount", FieldValue.increment(-1)).await()
 
         commentDao.deleteCommentById(commentId)
-    }
-
-    override suspend fun likeComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
-        firestore.collection(Constants.COMMENTS_COLLECTION)
-            .document(commentId)
-            .update("likeCount", FieldValue.increment(1))
-            .await()
-    }
-
-    override suspend fun unlikeComment(commentId: String): NetworkResult<Unit> = safeFirebaseCall {
-        firestore.collection(Constants.COMMENTS_COLLECTION)
-            .document(commentId)
-            .update("likeCount", FieldValue.increment(-1))
-            .await()
     }
 
     override suspend fun getRepliesForComment(commentId: String): NetworkResult<List<Comment>> {
@@ -137,7 +138,13 @@ class CommentRepositoryImpl @Inject constructor(
                 .get()
                 .await()
 
-            query.documents.mapNotNull { doc -> doc.toObject(Comment::class.java)?.copy(id = doc.id) }
+            query.documents.mapNotNull { doc ->
+                val comment = doc.toObject(Comment::class.java)
+                val legacyImage = doc.getString("userProfilePicture") ?: ""
+                val finalImage = if (comment?.userImage.isNullOrEmpty()) legacyImage else comment?.userImage ?: ""
+
+                comment?.copy(id = doc.id, userImage = finalImage)
+            }
         }
 
         return when(remoteResult) {
@@ -159,8 +166,6 @@ class CommentRepositoryImpl @Inject constructor(
             "timestamp" to System.currentTimeMillis()
         )
 
-        firestore.collection(Constants.REPORTS_COLLECTION)
-            .add(reportData)
-            .await()
+        firestore.collection(Constants.REPORTS_COLLECTION).add(reportData).await()
     }
 }

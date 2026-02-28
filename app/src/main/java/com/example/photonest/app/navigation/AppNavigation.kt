@@ -32,7 +32,7 @@ import com.example.photonest.core.ui.components.camera.CameraScreen
 import com.example.photonest.feature.auth.otp.OtpVerificationScreen
 import com.example.photonest.feature.feed.home.HomeScreen
 import com.example.photonest.core.ui.MainScaffold
-import com.example.photonest.feature.addpost.addpost.AddPostScreen
+import com.example.photonest.feature.addpost.AddPostScreen
 import com.example.photonest.feature.bookmark.BookmarksScreen
 import com.example.photonest.feature.explore.ExploreScreen
 import com.example.photonest.feature.notification.NotificationBadgeViewModel
@@ -220,8 +220,7 @@ private fun NavigationGraph(
             HomeScreen(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp),
+                    .fillMaxSize(),
                 onPostClick = { postId ->
                     navController.navigate("post_detail/$postId")
                 },
@@ -254,12 +253,6 @@ private fun NavigationGraph(
 
         composable(AppDestinations.BOOKMARKS_ROUTE) {
             BookmarksScreen(
-                onNavigateToPostDetail = { postId ->
-                    navController.navigate("post_detail/$postId")
-                },
-                onNavigateToProfile = { userId ->
-                    navController.navigate(AppDestinations.getUserProfileRoute(userId.toString()))
-                },
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize()
@@ -271,9 +264,7 @@ private fun NavigationGraph(
             )
         }
 
-        // Add this inside the NavigationGraph NavHost
         composable(AppDestinations.ADD_POST_ROUTE) {
-            val savedStateHandle = it.savedStateHandle
             AddPostScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onPostCreated = {

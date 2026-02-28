@@ -27,7 +27,6 @@ class SplashViewModel @Inject constructor(
 
     private fun checkAuthenticationState() {
         viewModelScope.launch(Dispatchers.IO) {
-            delay(2000)
             authRepository.isUserLoggedIn()
                 .collect { isLoggedIn ->
                     val isComplete = if (isLoggedIn) authRepository.isOnboardingComplete() else false

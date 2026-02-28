@@ -1,4 +1,4 @@
-package com.example.photonest.feature.addpost.addpost.model
+package com.example.photonest.feature.addpost.model
 
 import android.net.Uri
 import com.example.photonest.domain.model.User

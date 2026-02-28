@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ExitToApp
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Lock
@@ -160,7 +161,16 @@ fun ProfileScreen(
                                 ProfileSectionItem(
                                     icon = Icons.Outlined.ExitToApp,
                                     label = "Log Out",
-                                    onClick = onLogOut
+                                    onClick = {
+                                        viewModel.logOut(onSuccess = onLogOut)
+                                    }
+                                ),
+                                ProfileSectionItem(
+                                    icon = Icons.Outlined.Delete,
+                                    label = "Delete Account",
+                                    onClick = {
+                                        viewModel.showDeleteAccountDialog()
+                                    }
                                 )
                             )
                         )
@@ -171,6 +181,20 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+
+    if (uiState.showDeleteAccountDialog) {
+        MyAlertDialog(
+            shouldShowDialog = uiState.showDeleteAccountDialog,
+            onDismissRequest = { viewModel.hideDeleteAccountDialog() },
+            title = "Delete Account",
+            text = "Are you sure you want to permanently delete your account? This will erase all your data and cannot be undone.",
+            confirmButtonText = "Delete",
+            dismissButtonText = "Cancel",
+            onConfirmClick = {
+                viewModel.deleteAccount(onSuccess = onLogOut)
+            }
+        )
     }
 
     if (showFollowersSheet) {

@@ -21,4 +21,6 @@ sealed interface PostDetailEvent {
     // Other
     data object SharePost : PostDetailEvent
     data object DismissError : PostDetailEvent
+    data object DeletePost : PostDetailEvent
+    data class ToggleCommentLike(val commentId: String) : PostDetailEvent
 }

@@ -31,14 +31,16 @@ import java.util.Locale
 @Composable
 fun TrendingPostsGrid(
     posts: List<Post>,
+    horizontalArrangement: Arrangement.HorizontalOrVertical = Arrangement.spacedBy(8.dp),
+    verticalArrangement: Arrangement.HorizontalOrVertical = Arrangement.spacedBy(8.dp),
     onPostClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyHorizontalGrid(
         rows = GridCells.Fixed(1),
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = verticalArrangement,
         userScrollEnabled = true,
         contentPadding = PaddingValues(0.dp)
     ) {

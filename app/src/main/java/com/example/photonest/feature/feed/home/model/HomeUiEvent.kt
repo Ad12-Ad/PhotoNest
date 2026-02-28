@@ -17,4 +17,6 @@ sealed interface HomeUiEvent {
 
     data class SharePost(val postId: String) : HomeUiEvent
     data object DismissError : HomeUiEvent
+
+    data class FollowSuggestedUser(val userId: String) : HomeUiEvent
 }
