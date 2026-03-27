@@ -5,12 +5,6 @@
 [![Firebase](https://img.shields.io/badge/Firebase-auth-blueviolet)](https://firebase.google.com/)
 [![License](https://img.shields.io/badge/License-MIT-green)](#license)
 
-## Launching on Google Play Store Soon!
-
-PhotoNest will be available for download on playstore on **Novemeber 15, 2025**.
-
-Star this repository to get notified when the app goes live! ⭐
-
 ## Overview
 
 PhotoNest is a modern, feature-rich Android application designed for photography enthusiasts who want to share their visual stories with the world. Built with cutting-edge technologies like **Kotlin** and **Jetpack Compose**, PhotoNest emphasizes a smooth user experience, modern UI design, and clean architecture principles, making it a robust and scalable social media platform for photo sharing.
