@@ -1,0 +1,18 @@
+package com.example.photonest.feature.addpost.model
+
+import android.net.Uri
+import com.example.photonest.domain.model.User
+
+data class AddPostState(
+    val selectedImageUri: Uri? = null,
+    val caption: String = "",
+    val location: String = "",
+    val selectedCategories: Set<String> = emptySet(),
+    val tags: List<String> = emptyList(),
+    val searchQuery: String = "",
+    val isLoading: Boolean = false,
+    val isPostCreated: Boolean = false,
+    val error: String? = null,
+    val showErrorDialog: Boolean = false,
+    val currentUser: User? = null
+)

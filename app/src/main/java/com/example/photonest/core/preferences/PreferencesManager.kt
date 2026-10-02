@@ -26,6 +26,7 @@ class PreferencesManager @Inject constructor(
         val USER_ID_KEY = stringPreferencesKey(Constants.PreferenceKeys.USER_ID)
         val THEME_MODE_KEY = stringPreferencesKey(Constants.PreferenceKeys.THEME_MODE)
         val NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey(Constants.PreferenceKeys.NOTIFICATIONS_ENABLED)
+        val ONBOARDING_COMPLETED_KEY = booleanPreferencesKey("onboarding_completed")
 
         val PUSH_NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey(Constants.PreferenceKeys.PUSH_NOTIFICATIONS_ENABLED)
         val LIKE_NOTIFICATIONS_KEY = booleanPreferencesKey("like_notifications_enabled")
@@ -38,12 +39,22 @@ class PreferencesManager @Inject constructor(
         preferences[IS_LOGGED_IN_KEY] ?: false
     }
 
+    val isOnboardingCompleted: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[ONBOARDING_COMPLETED_KEY] ?: false
+    }
+
     val userId: Flow<String> = dataStore.data.map { preferences ->
         preferences[USER_ID_KEY] ?: ""
     }
 
     fun getThemeMode(): Flow<String> = dataStore.data.map { preferences ->
         preferences[THEME_MODE_KEY] ?: "system"
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[ONBOARDING_COMPLETED_KEY] = completed
+        }
     }
 
     val notificationsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->

@@ -1,7 +1,7 @@
 package com.example.photonest.data.mapper
 
 import com.example.photonest.data.local.entities.UserEntity
-import com.example.photonest.data.model.User
+import com.example.photonest.domain.model.User
 
 fun User.toEntity(): UserEntity {
     return UserEntity(
@@ -17,14 +17,8 @@ fun User.toEntity(): UserEntity {
         postsCount = postsCount,
         followersCount = followersCount,
         followingCount = followingCount,
-        isVerified = isVerified,
-        isPrivate = isPrivate,
-        bookmarks = bookmarks,
-        following = following,
-        followers = followers,
-        fcmToken = fcmToken,
-        lastSeen = lastSeen,
-        isOnline = isOnline
+        birthday = birthday,
+        onboardingCompleted = onboardingCompleted
     )
 }
 
@@ -42,13 +36,7 @@ fun UserEntity.toUser(): User {
         postsCount = postsCount,
         followersCount = followersCount,
         followingCount = followingCount,
-        isVerified = isVerified,
-        isPrivate = isPrivate,
-        bookmarks = bookmarks,
-        following = following,
-        followers = followers,
-        fcmToken = fcmToken,
-        lastSeen = lastSeen,
-        isOnline = isOnline
+        birthday = birthday,
+        onboardingCompleted = onboardingCompleted,
     )
 }

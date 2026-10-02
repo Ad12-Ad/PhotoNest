@@ -18,12 +18,6 @@ data class UserEntity(
     val postsCount: Int,
     val followersCount: Int,
     val followingCount: Int,
-    val isVerified: Boolean,
-    val isPrivate: Boolean,
-    val bookmarks: List<String>,
-    val following: List<String>,
-    val followers: List<String>,
-    val fcmToken: String,
-    val lastSeen: Long,
-    val isOnline: Boolean
+    val birthday: String,
+    val onboardingCompleted: Boolean
 )

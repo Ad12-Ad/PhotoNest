@@ -1,7 +1,7 @@
 package com.example.photonest.data.mapper
 
 import com.example.photonest.data.local.entities.PostEntity
-import com.example.photonest.data.model.Post
+import com.example.photonest.domain.model.Post
 
 fun Post.toEntity(): PostEntity {
     return PostEntity(
@@ -19,11 +19,10 @@ fun Post.toEntity(): PostEntity {
         location = location,
         isLiked = isLiked,
         isBookmarked = isBookmarked,
-        likedBy = likedBy,
         tags = tags,
         aspectRatio = aspectRatio,
         isEdited = isEdited,
-        editedAt = editedAt
+        editedAt = editedAt,
     )
 }
 
@@ -43,7 +42,6 @@ fun PostEntity.toPost(): Post {
         location = location,
         isLiked = isLiked,
         isBookmarked = isBookmarked,
-        likedBy = likedBy,
         tags = tags,
         aspectRatio = aspectRatio,
         isEdited = isEdited,
