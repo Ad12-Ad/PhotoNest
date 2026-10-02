@@ -1,6 +1,7 @@
 package com.example.photonest.data.local.dao
 
 import androidx.room.*
+import com.example.photonest.data.local.entities.SuggestedUserEntity
 import com.example.photonest.data.local.entities.UserEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -48,4 +49,17 @@ interface UserDao {
 
     @Query("DELETE FROM users")
     suspend fun clearAllUsers()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSuggestedUsers(users: List<SuggestedUserEntity>)
+
+    @Query("DELETE FROM suggested_users")
+    suspend fun clearSuggestedUsers()
+
+    @Query("""
+        SELECT users.* FROM users 
+        INNER JOIN suggested_users ON users.id = suggested_users.userId 
+        ORDER BY suggested_users.fetchedAt DESC
+    """)
+    suspend fun getSuggestedUsersFeed(): List<UserEntity>
 }

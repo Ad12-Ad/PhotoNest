@@ -23,179 +23,131 @@ class UserProfileViewModel @Inject constructor(
     private val toggleFollowUseCase: ToggleFollowUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(UserProfileUiState())
-    val uiState: StateFlow<UserProfileUiState> = _uiState.asStateFlow()
+    private val _state = MutableStateFlow(UserProfileState())
+    val state: StateFlow<UserProfileState> = _state.asStateFlow()
 
-    fun loadUserProfile(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _uiState.update { it.copy(isLoading = true, error = null) }
+    private val _effect = MutableSharedFlow<UserProfileEffect>()
+    val effect: SharedFlow<UserProfileEffect> = _effect.asSharedFlow()
+
+    fun onEvent(event: UserProfileEvent) {
+        when (event) {
+            is UserProfileEvent.LoadProfile -> loadProfileData(event.userId, isRefresh = false)
+            is UserProfileEvent.RefreshProfile -> loadProfileData(event.userId, isRefresh = true)
+            is UserProfileEvent.ToggleFollow -> toggleFollow(event.userId)
+
+            is UserProfileEvent.OpenFollowersSheet -> loadFollowers(event.userId)
+            is UserProfileEvent.OpenFollowingSheet -> loadFollowing(event.userId)
+            UserProfileEvent.CloseSheets -> _state.update {
+                it.copy(showFollowersSheet = false, showFollowingSheet = false)
             }
 
-            try {
-                val userResult = userRepository.getUserProfile(userId)
+            is UserProfileEvent.PostClicked -> emitEffect(UserProfileEffect.NavigateToPost(event.postId))
+            is UserProfileEvent.UserClicked -> {
+                _state.update { it.copy(showFollowersSheet = false, showFollowingSheet = false) }
+                emitEffect(UserProfileEffect.NavigateToUser(event.userId))
+            }
+            UserProfileEvent.BackClicked -> emitEffect(UserProfileEffect.NavigateBack)
+        }
+    }
 
-                withContext(Dispatchers.Main) {
-                    when (userResult) {
-                        is NetworkResult.Success -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    userProfile = userResult.data,
-                                    error = null
-                                )
-                            }
-                            loadUserPosts(userId)
-                        }
-                        is NetworkResult.Error -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = userResult.message ?: "Failed to load profile",
-                                    showErrorDialog = true
-                                )
-                            }
-                        }
-                        is NetworkResult.Loading -> {
-                            _uiState.update { it.copy(isLoading = true) }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.update {
+    private fun loadProfileData(userId: String, isRefresh: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update {
+                if (isRefresh) it.copy(isRefreshing = true)
+                else it.copy(isLoading = true, error = null)
+            }
+
+            val userResult = userRepository.getUserProfile(userId)
+            val postsResult = postRepository.getUserPosts(userId)
+
+            withContext(Dispatchers.Main) {
+                if (userResult is NetworkResult.Success) {
+                    _state.update {
                         it.copy(
                             isLoading = false,
-                            error = e.message ?: "An error occurred",
-                            showErrorDialog = true
+                            isRefreshing = false,
+                            userProfile = userResult.data,
+                            posts = if (postsResult is NetworkResult.Success) postsResult.data ?: emptyList() else emptyList(),
+                            error = null
                         )
                     }
+                } else {
+                    val errorMessage = userResult.message ?: "Failed to load profile"
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            error = errorMessage
+                        )
+                    }
+                    emitEffect(UserProfileEffect.ShowError(errorMessage))
                 }
             }
         }
     }
 
-    fun loadFollowers(userId: String, onResult: (List<User>) -> Unit) {
+    private fun loadFollowers(userId: String) {
+        _state.update { it.copy(showFollowersSheet = true, isLoadingFollowers = true) }
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val result = userRepository.getFollowers(userId)
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is NetworkResult.Success -> {
-                            onResult(result.data ?: emptyList())
-                        }
-                        is NetworkResult.Error -> {
-                            onResult(emptyList())
-                        }
-                        is NetworkResult.Loading -> {}
-                    }
+            val result = userRepository.getFollowers(userId)
+            withContext(Dispatchers.Main) {
+                if (result is NetworkResult.Error) {
+                    emitEffect(UserProfileEffect.ShowError(result.message ?: "Failed to load followers"))
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    onResult(emptyList())
+                _state.update {
+                    it.copy(
+                        isLoadingFollowers = false,
+                        followersList = if (result is NetworkResult.Success) result.data ?: emptyList() else emptyList()
+                    )
                 }
             }
         }
     }
 
-    fun loadFollowing(userId: String, onResult: (List<User>) -> Unit) {
+    private fun loadFollowing(userId: String) {
+        _state.update { it.copy(showFollowingSheet = true, isLoadingFollowing = true) }
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val result = userRepository.getFollowing(userId)
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is NetworkResult.Success -> {
-                            onResult(result.data ?: emptyList())
-                        }
-                        is NetworkResult.Error -> {
-                            onResult(emptyList())
-                        }
-                        is NetworkResult.Loading -> {}
-                    }
+            val result = userRepository.getFollowing(userId)
+            withContext(Dispatchers.Main) {
+                if (result is NetworkResult.Error) {
+                    emitEffect(UserProfileEffect.ShowError(result.message ?: "Failed to load following"))
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    onResult(emptyList())
+                _state.update {
+                    it.copy(
+                        isLoadingFollowing = false,
+                        followingList = if (result is NetworkResult.Success) result.data ?: emptyList() else emptyList()
+                    )
                 }
             }
         }
     }
 
-    private fun loadUserPosts(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val postsResult = postRepository.getUserPosts(userId)
+    private fun toggleFollow(userId: String) = viewModelScope.launch(Dispatchers.IO) {
+        val currentUserProfile = _state.value.userProfile ?: return@launch
+        val wasFollowing = currentUserProfile.isFollowing
 
-                withContext(Dispatchers.Main) {
-                    when (postsResult) {
-                        is NetworkResult.Success -> {
-                            _uiState.update {
-                                it.copy(posts = postsResult.data ?: emptyList())
-                            }
-                        }
-                        is NetworkResult.Error -> {
-                            _uiState.update { it.copy(posts = emptyList()) }
-                        }
-                        is NetworkResult.Loading -> { }
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(posts = emptyList()) }
-                }
-            }
-        }
-    }
-
-    fun toggleFollow(userId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentUserProfile = _uiState.value.userProfile ?: return@launch
-            val wasFollowing = currentUserProfile.isFollowing
-
-            val updatedProfile = currentUserProfile.copy(
-                isFollowing = !wasFollowing,
-                user = currentUserProfile.user.copy(
-                    followersCount = if (wasFollowing) {
-                        currentUserProfile.user.followersCount - 1
-                    } else {
-                        currentUserProfile.user.followersCount + 1
-                    }
-                )
+        // Optimistic UI Update
+        val updatedProfile = currentUserProfile.copy(
+            isFollowing = !wasFollowing,
+            user = currentUserProfile.user.copy(
+                followersCount = if (wasFollowing) currentUserProfile.user.followersCount - 1
+                else currentUserProfile.user.followersCount + 1
             )
+        )
 
-            withContext(Dispatchers.Main){
-                _uiState.update { it.copy(userProfile = updatedProfile) }
-            }
+        withContext(Dispatchers.Main) {
+            _state.update { it.copy(userProfile = updatedProfile) }
+        }
 
-            val result = toggleFollowUseCase(targetUserId = userId, isCurrentlyFollowing = wasFollowing)
+        val result = toggleFollowUseCase(targetUserId = userId, isCurrentlyFollowing = wasFollowing)
 
-            when (result) {
-                is NetworkResult.Success -> { /* Already updated optimistically */ }
-                is NetworkResult.Error -> {
-                    withContext(Dispatchers.Main){
-                        // Rollback to previous state
-                        _uiState.update {
-                            it.copy(
-                                userProfile = currentUserProfile,
-                                error = result.message ?: "Failed to update follow status",
-                                showErrorDialog = true
-                            )
-                        }
-                    }
-                }
-                is NetworkResult.Loading -> {}
+        if (result is NetworkResult.Error) {
+            withContext(Dispatchers.Main) {
+                _state.update { it.copy(userProfile = currentUserProfile) } // Rollback
+                emitEffect(UserProfileEffect.ShowError(result.message ?: "Failed to update follow status"))
             }
         }
     }
-    fun dismissError() {
-        _uiState.update { it.copy(error = null, showErrorDialog = false) }
-    }
-}
 
-data class UserProfileUiState(
-    val isLoading: Boolean = false,
-    val userProfile: UserProfile? = null,
-    val posts: List<Post> = emptyList(),
-    val error: String? = null,
-    val showErrorDialog: Boolean = false
-)
+    private fun emitEffect(effect: UserProfileEffect) = viewModelScope.launch { _effect.emit(effect) }
+}

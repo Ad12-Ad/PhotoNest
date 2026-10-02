@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.common)
     implementation(libs.androidx.hilt.work)
+    implementation(libs.ui.text.google.fonts)
     ksp (libs.hilt.compiler)
     implementation (libs.androidx.hilt.navigation.compose)
 

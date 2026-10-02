@@ -7,6 +7,7 @@ import com.example.photonest.core.utils.safeFirebaseCall
 import com.example.photonest.data.local.dao.FollowDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
+import com.example.photonest.data.local.entities.SuggestedUserEntity
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
@@ -191,12 +192,34 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun getPopularUsers(): NetworkResult<List<User>> {
         val result = safeFirebaseCall {
             val currentUserId = firebaseAuth.currentUser?.uid
-            val snapshot = firestore.collection(Constants.USERS_COLLECTION).orderBy("followersCount", Query.Direction.DESCENDING).limit(20).get().await()
-            snapshot.documents.mapNotNull { it.toObject(User::class.java)?.copy(id = it.id) }.filter { it.id != currentUserId }
+
+            val snapshot = firestore.collection(Constants.USERS_COLLECTION)
+                .orderBy("followersCount", Query.Direction.DESCENDING)
+                .limit(20)
+                .get()
+                .await()
+
+            val users = snapshot.documents.mapNotNull {
+                it.toObject(User::class.java)?.copy(id = it.id)
+            }.filter { it.id != currentUserId }
+
+            // 1. Save full users to the single source of truth
+            userDao.insertUsers(users.map { it.toEntity() })
+
+            // 2. Clear old mapping and save new mapping
+            userDao.clearSuggestedUsers()
+            userDao.insertSuggestedUsers(users.map { SuggestedUserEntity(it.id) })
+
+            users
         }
+
         return when (result) {
             is NetworkResult.Success -> result
-            else -> NetworkResult.Success(userDao.getPopularUsers(20).map { it.toUser() })
+            else -> {
+                // 3. Read strictly from the mapping table!
+                val localSuggested = userDao.getSuggestedUsersFeed().map { it.toUser() }
+                NetworkResult.Success(localSuggested)
+            }
         }
     }
 

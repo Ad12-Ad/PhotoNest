@@ -9,20 +9,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.photonest.domain.model.User
-import com.example.photonest.ui.components.states.LoadingState
-import com.example.photonest.core.ui.components.MyAlertDialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.photonest.core.ui.components.UserListBottomSheet
 import com.example.photonest.core.ui.components.UserListType
+import com.example.photonest.core.utils.ObserveAsEvents
 import com.example.photonest.feature.explore.components.PostGridItem
 import com.example.photonest.feature.profile.components.UserProfileHeader
-import com.google.firebase.auth.FirebaseAuth
+import com.example.photonest.ui.components.states.LoadingState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,203 +37,186 @@ fun UserProfileScreen(
     modifier: Modifier = Modifier,
     viewModel: UserProfileViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val followersSheetState = rememberModalBottomSheetState()
     val followingSheetState = rememberModalBottomSheetState()
-    var showFollowersSheet by remember { mutableStateOf(false) }
-    var showFollowingSheet by remember { mutableStateOf(false) }
-    var followersList by remember { mutableStateOf<List<User>>(emptyList()) }
-    var followingList by remember { mutableStateOf<List<User>>(emptyList()) }
-    var isLoadingFollowers by remember { mutableStateOf(false) }
-    var isLoadingFollowing by remember { mutableStateOf(false) }
-    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
 
-    val profileUserId = uiState.userProfile?.user?.id ?: userId
-
-    // Load user profile when screen opens
+    // 1. Initial Load
     LaunchedEffect(userId) {
-        viewModel.loadUserProfile(userId)
+        viewModel.onEvent(UserProfileEvent.LoadProfile(userId))
+    }
+
+    // 2. Observe One-Off Effects (Navigation & Snackbars)
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            is UserProfileEffect.NavigateBack -> onBackClick()
+            is UserProfileEffect.NavigateToPost -> onPostClick(effect.postId)
+            is UserProfileEffect.NavigateToUser -> onNavigateToUserProfile(effect.userId)
+            is UserProfileEffect.ShowError -> {
+                scope.launch { snackbarHostState.showSnackbar(effect.message) }
+            }
+        }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = uiState.userProfile?.user?.username ?: "Profile",
+                        text = state.userProfile?.user?.username ?: "Profile",
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                    IconButton(onClick = { viewModel.onEvent(UserProfileEvent.BackClicked) }) {
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Show options menu */ }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options"
-                        )
+                    IconButton(onClick = { /* TODO: More Options */ }) {
+                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { paddingValues ->
+
         when {
-            uiState.isLoading -> {
-                LoadingState(modifier = Modifier.fillMaxSize())
+            state.isLoading -> {
+                LoadingState(modifier = Modifier.fillMaxSize().padding(paddingValues))
             }
 
-            uiState.error != null -> {
-                MyAlertDialog(
-                    shouldShowDialog = uiState.showErrorDialog,
-                    onDismissRequest = { viewModel.dismissError() },
-                    title = "Error Loading Profile",
-                    text = uiState.error ?: "An unknown error occurred",
-                    confirmButtonText = "Retry",
-                    onConfirmClick = { viewModel.loadUserProfile(userId) }
-                )
-            }
-
-            uiState.userProfile != null -> {
-                LazyColumn(
-                    modifier = modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+            // Inline Error State (Replaces the Dialog)
+            state.error != null && state.userProfile == null -> {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(paddingValues).padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
-
-                    // Profile header with follow button
-                    item {
-                        UserProfileHeader(
-                            userProfile = uiState.userProfile!!,
-                            isCurrentUser = uiState.userProfile!!.isCurrentUser,
-                            onFollowClick = {
-                                viewModel.toggleFollow(userId)
-                            },
-                            onFollowersClick = {
-                                isLoadingFollowers = true
-                                showFollowersSheet = true
-                                viewModel.loadFollowers(uiState.userProfile?.user?.id ?: "") { users ->
-                                    followersList = users
-                                    isLoadingFollowers = false
-                                }
-                            },
-                            onFollowingClick = {
-                                isLoadingFollowing = true
-                                showFollowingSheet = true
-                                viewModel.loadFollowing(uiState.userProfile?.user?.id ?: "") { users ->
-                                    followingList = users
-                                    isLoadingFollowing = false
-                                }
-                            }
-                        )
+                    Icon(
+                        imageVector = Icons.Outlined.ErrorOutline,
+                        contentDescription = "Error",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Couldn't Load Profile",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = state.error ?: "An unexpected error occurred.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = { viewModel.onEvent(UserProfileEvent.LoadProfile(userId)) }) {
+                        Text("Try Again")
                     }
+                }
+            }
 
-                    // Posts section header
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+            state.userProfile != null -> {
+                // 3. Pull to Refresh Box wrapping the content
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = { viewModel.onEvent(UserProfileEvent.RefreshProfile(userId)) },
+                    modifier = Modifier.fillMaxSize().padding(paddingValues)
+                ) {
+                    LazyColumn(
+                        modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item { Spacer(modifier = Modifier.height(8.dp)) }
+
+                        item {
+                            UserProfileHeader(
+                                userProfile = state.userProfile!!,
+                                isCurrentUser = state.userProfile!!.isCurrentUser,
+                                onFollowClick = { viewModel.onEvent(UserProfileEvent.ToggleFollow(userId)) },
+                                onFollowersClick = { viewModel.onEvent(UserProfileEvent.OpenFollowersSheet(userId)) },
+                                onFollowingClick = { viewModel.onEvent(UserProfileEvent.OpenFollowingSheet(userId)) }
+                            )
+                        }
+
+                        item {
                             Text(
-                                text = "Posts (${uiState.posts.size})",
+                                text = "Posts (${state.posts.size})",
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
-                    }
 
-                    // Posts grid
-                    item {
-                        if (uiState.posts.isEmpty()) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                        item {
+                            if (state.posts.isEmpty()) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                                    shape = RoundedCornerShape(16.dp)
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = "No posts yet",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = "This user hasn't shared any posts",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = "No posts yet",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "This user hasn't shared any posts",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(3),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.height(400.dp) // Prevents nested scroll crash
+                                ) {
+                                    items(state.posts) { post ->
+                                        PostGridItem(
+                                            post = post,
+                                            onClick = { viewModel.onEvent(UserProfileEvent.PostClicked(post.id)) }
                                         )
                                     }
                                 }
                             }
-                        } else {
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(3),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.height(400.dp) // Fixed height for nested scrolling
-                            ) {
-                                items(uiState.posts) { post ->
-                                    PostGridItem(
-                                        post = post,
-                                        onClick = { onPostClick(post.id) }
-                                    )
-                                }
-                            }
                         }
+                        item { Spacer(modifier = Modifier.height(16.dp)) }
                     }
-
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
             }
         }
     }
 
-    if (showFollowersSheet) {
-        currentUserId?.let {
-            UserListBottomSheet(
-                sheetState = followersSheetState,
-                userList = followersList,
-                listType = UserListType.FOLLOWERS,
-                isLoading = isLoadingFollowers,
-                onDismiss = { showFollowersSheet = false },
-                onUserClick = { userId ->
-                    showFollowersSheet = false
-                    onNavigateToUserProfile(userId)
-                },
-            )
-        }
+    // 4. State-Driven Bottom Sheets
+    if (state.showFollowersSheet) {
+        UserListBottomSheet(
+            sheetState = followersSheetState,
+            userList = state.followersList,
+            listType = UserListType.FOLLOWERS,
+            isLoading = state.isLoadingFollowers,
+            onDismiss = { viewModel.onEvent(UserProfileEvent.CloseSheets) },
+            onUserClick = { clickedUserId -> viewModel.onEvent(UserProfileEvent.UserClicked(clickedUserId)) },
+        )
     }
-    if (showFollowingSheet) {
-        currentUserId?.let {
-            UserListBottomSheet(
-                sheetState = followingSheetState,
-                userList = followingList,
-                listType = UserListType.FOLLOWING,
-                isLoading = isLoadingFollowing,
-                onDismiss = { showFollowingSheet = false },
-                onUserClick = { userId ->
-                    showFollowingSheet = false
-                    onNavigateToUserProfile(userId)
-                }
-            )
-        }
+
+    if (state.showFollowingSheet) {
+        UserListBottomSheet(
+            sheetState = followingSheetState,
+            userList = state.followingList,
+            listType = UserListType.FOLLOWING,
+            isLoading = state.isLoadingFollowing,
+            onDismiss = { viewModel.onEvent(UserProfileEvent.CloseSheets) },
+            onUserClick = { clickedUserId -> viewModel.onEvent(UserProfileEvent.UserClicked(clickedUserId)) }
+        )
     }
 }

@@ -216,7 +216,9 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun refreshProfile() {
+        _uiState.update { it.copy(isRefreshing = true) }
         loadUserProfile()
+        _uiState.update { it.copy(isRefreshing = false) }
     }
 }
 
@@ -224,6 +226,7 @@ data class ProfileUiState(
     val isLoading: Boolean = false,
     val userProfile: UserProfile? = null,
     val error: String? = null,
+    val isRefreshing: Boolean = false,
     val showErrorDialog: Boolean = false,
     val showDeleteAccountDialog: Boolean = false
 )

@@ -2,6 +2,7 @@ package com.example.photonest.data.local.dao
 
 import androidx.room.*
 import com.example.photonest.data.local.entities.PostEntity
+import com.example.photonest.data.local.entities.TrendingFeedEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -78,4 +79,17 @@ interface PostDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertPosts(posts: List<PostEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrendingFeed(feedItems: List<TrendingFeedEntity>)
+
+    @Query("DELETE FROM trending_feed")
+    suspend fun clearTrendingFeed()
+
+    @Query("""
+        SELECT posts.* FROM posts 
+        INNER JOIN trending_feed ON posts.id = trending_feed.postId 
+        ORDER BY trending_feed.fetchedAt DESC
+    """)
+    suspend fun getTrendingFeedPosts(): List<PostEntity>
 }
