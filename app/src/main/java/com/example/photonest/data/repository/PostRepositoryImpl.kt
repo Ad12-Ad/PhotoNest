@@ -6,9 +6,11 @@ import com.example.photonest.core.utils.Constants
 import com.example.photonest.core.utils.NetworkResult
 import com.example.photonest.core.utils.retryCall
 import com.example.photonest.core.utils.safeFirebaseCall
+import com.example.photonest.data.local.dao.CommentDao
 import com.example.photonest.data.local.dao.FollowDao
 import com.example.photonest.data.local.dao.PostDao
 import com.example.photonest.data.local.dao.UserDao
+import com.example.photonest.data.local.entities.TrendingFeedEntity
 import com.example.photonest.data.mapper.toEntity
 import com.example.photonest.data.mapper.toPost
 import com.example.photonest.data.mapper.toUser
@@ -37,6 +39,7 @@ class PostRepositoryImpl @Inject constructor(
     private val postDao: PostDao,
     private val userDao: UserDao,
     private val followDao: FollowDao,
+    private val commentDao: CommentDao,
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
@@ -52,27 +55,45 @@ class PostRepositoryImpl @Inject constructor(
             return@flow
         }
 
-        val localPosts = postDao.getAllPosts().map { it.toPost() }
-        if (localPosts.isNotEmpty()) {
-            emit(NetworkResult.Success(localPosts))
-        }
+        // 1. THE FIX: Only grab local posts for people you ACTUALLY follow
+        val localFollowingIds = followDao.getFollowingIds(currentUserId).toMutableList()
+        localFollowingIds.add(currentUserId) // Always include own posts
+
+        val localPosts = postDao.getPostsByUsers(localFollowingIds).map { it.toPost() }
+
+        // 2. ALWAYS emit the local state first.
+        // If it's empty, it instantly clears the ghost feed and shows your EmptyState UI!
+        emit(NetworkResult.Success(localPosts))
 
         val remoteResult = safeFirebaseCall {
+            // 3. Fetch fresh follows from Firebase
             val followsSnapshot = retryCall {
                 firestore.collection(Constants.FOLLOWS_COLLECTION)
                     .whereEqualTo("followerId", currentUserId)
                     .get().await()
             }
 
-            val followedUserIds = followsSnapshot.documents
+            val remoteFollowingIds = followsSnapshot.documents
                 .mapNotNull { it.getString("followingId") }
-                .toMutableList()
-                .apply { add(currentUserId) }
 
-            if (followedUserIds.isEmpty()) return@safeFirebaseCall emptyList<Post>()
+            // 4. CRITICAL: Sync these follows to the local database so offline mode works!
+            remoteFollowingIds.forEach { followingId ->
+                followDao.insertFollow(
+                    com.example.photonest.data.local.entities.FollowEntity(
+                        id = "${currentUserId}_${followingId}",
+                        followerId = currentUserId,
+                        followingId = followingId,
+                        timestamp = System.currentTimeMillis(),
+                        isAccepted = true
+                    )
+                )
+            }
 
+            val searchIds = remoteFollowingIds.toMutableList().apply { add(currentUserId) }
+
+            // 5. Fetch the posts for these specific users
             val allPosts = mutableListOf<Post>()
-            followedUserIds.chunked(10).forEach { batch ->
+            searchIds.chunked(10).forEach { batch ->
                 val snapshot = retryCall {
                     firestore.collection(Constants.POSTS_COLLECTION)
                         .whereIn("userId", batch)
@@ -93,7 +114,7 @@ class PostRepositoryImpl @Inject constructor(
                 .whereEqualTo("userId", currentUserId).get().await()
                 .documents.mapNotNull { it.getString("postId") }.toSet()
 
-            val followedUserSet = followedUserIds.toSet()
+            val followedUserSet = remoteFollowingIds.toSet()
 
             val enrichedPosts = sortedPosts.map { post ->
                 post.copy(
@@ -103,6 +124,7 @@ class PostRepositoryImpl @Inject constructor(
                 )
             }
 
+            // 6. Update local cache with the fetched posts
             postDao.upsertPosts(enrichedPosts.map { it.toEntity() })
             enrichedPosts
         }
@@ -113,7 +135,6 @@ class PostRepositoryImpl @Inject constructor(
             emit(NetworkResult.Error(remoteResult.message ?: "Failed to load posts"))
         }
     }
-
     override suspend fun getPostById(postId: String): NetworkResult<PostDetail?> = safeFirebaseCall {
         val currentUserId = firebaseAuth.currentUser?.uid
 
@@ -229,17 +250,33 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun getTrendingPosts(): NetworkResult<List<Post>> {
         val result = safeFirebaseCall {
-            val query = firestore.collection(Constants.POSTS_COLLECTION).orderBy("likeCount", Query.Direction.DESCENDING).limit(20).get().await()
-            val posts = query.documents.mapNotNull { doc -> doc.toObject(Post::class.java)?.copy(id = doc.id) }
+            val query = firestore.collection(Constants.POSTS_COLLECTION)
+                .orderBy("likeCount", Query.Direction.DESCENDING)
+                .limit(20).get().await()
+
+            val posts = query.documents.mapNotNull { doc ->
+                doc.toObject(Post::class.java)?.copy(id = doc.id)
+            }
+
+            // 1. Save full posts to the single source of truth
             postDao.insertPosts(posts.map { it.toEntity() })
+
+            // 2. Clear old mapping and save new mapping
+            postDao.clearTrendingFeed()
+            postDao.insertTrendingFeed(posts.map { TrendingFeedEntity(it.id) })
+
             posts
         }
+
         return when (result) {
             is NetworkResult.Success -> result
-            else -> NetworkResult.Success(postDao.getTrendingPosts(20).map { it.toPost() })
+            else -> {
+                // Read strictly from the mapping table!
+                val localTrending = postDao.getTrendingFeedPosts().map { it.toPost() }
+                NetworkResult.Success(localTrending)
+            }
         }
     }
-
     override suspend fun getPostsByCategory(category: String): NetworkResult<List<Post>> {
         val result = safeFirebaseCall {
             val query = firestore.collection(Constants.POSTS_COLLECTION).whereArrayContains("category", category).orderBy("timestamp", Query.Direction.DESCENDING).limit(50).get().await()
@@ -302,21 +339,39 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun deletePost(postId: String): NetworkResult<Unit> = safeFirebaseCall {
         val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
+
+        // 1. Fetch the post to verify ownership and get image URL
         val postDoc = firestore.collection(Constants.POSTS_COLLECTION).document(postId).get().await()
         val post = postDoc.toObject(Post::class.java) ?: throw IllegalStateException("Post not found")
 
         if (post.userId != currentUserId) throw IllegalStateException("You don't have permission to delete this post")
 
-        if (post.imageUrl.isNotEmpty()) {
-            try { firebaseStorage.getReferenceFromUrl(post.imageUrl).delete().await() } catch (e: Exception) { Log.e("PostRepository", "Failed to delete image: ${e.message}") }
+        // 2. Delete the Image from Storage first
+        if (post.imageUrl.isNotEmpty() && !post.imageUrl.contains("picsum.photos")) {
+            try {
+                firebaseStorage.getReferenceFromUrl(post.imageUrl).delete().await()
+            } catch (e: Exception) {
+                Log.e("PostRepository", "Storage delete failed: ${e.message}")
+            }
         }
 
-        val commentsSnapshot = firestore.collection(Constants.COMMENTS_COLLECTION).whereEqualTo("postId", postId).get().await()
+        // 3. Execute Deletion Batch
         val batch = firestore.batch()
-        commentsSnapshot.documents.forEach { doc -> batch.delete(doc.reference) }
+
+        // Delete the post itself
         batch.delete(firestore.collection(Constants.POSTS_COLLECTION).document(postId))
-        batch.update(firestore.collection(Constants.USERS_COLLECTION).document(currentUserId), "postsCount", FieldValue.increment(-1))
+
+        // Update user post count
+        batch.update(
+            firestore.collection(Constants.USERS_COLLECTION).document(currentUserId),
+            "postsCount",
+            FieldValue.increment(-1)
+        )
+
         batch.commit().await()
+
+        // 4. Local Cleanup
         postDao.deletePostById(postId)
+        commentDao.deleteCommentsForPost(postId)
     }
 }

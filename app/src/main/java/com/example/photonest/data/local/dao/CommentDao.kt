@@ -45,6 +45,9 @@ interface CommentDao {
     @Query("SELECT COUNT(*) FROM comments WHERE postId = :postId")
     suspend fun getCommentCountForPost(postId: String): Int
 
+    @Query("DELETE FROM comments WHERE parentCommentId = :commentId")
+    suspend fun deleteRepliesForComment(commentId: String)
+
     @Query("DELETE FROM comments")
     suspend fun clearAllComments()
 }

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,124 +60,137 @@ fun ProfileScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
-    when{
-        uiState.isLoading -> {
-            LoadingState(modifier = Modifier.fillMaxSize())
-        }
-        uiState.error != null -> {
-            MyAlertDialog(
-                shouldShowDialog = uiState.showErrorDialog,
-                onDismissRequest = {viewModel.dismissError()},
-                title = "Can Load Profile",
-                text = uiState.error ?: "An unknown error occurred",
-                confirmButtonText = "Refresh",
-                onConfirmClick = {viewModel.refreshProfile()}
-            )
-        }
-        uiState.userProfile != null -> {
-            Surface(color = MaterialTheme.colorScheme.surface) {
-                LazyColumn(
-                    modifier = modifier,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    item {
-                        uiState.userProfile?.let {
-                            ProfileHeader(
-                                user = it.user,
-                                onFollowersClick = {
-                                    isLoadingFollowers = true
-                                    showFollowersSheet = true
-                                    viewModel.loadFollowers(uiState.userProfile?.user?.id ?: "") { users ->
-                                        followersList = users
-                                        isLoadingFollowers = false
+    PullToRefreshBox(
+        isRefreshing = uiState.isRefreshing,
+        onRefresh = { viewModel.refreshProfile() },
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        when {
+            uiState.isLoading -> {
+                LoadingState(modifier = Modifier.fillMaxSize())
+            }
+
+            uiState.error != null -> {
+                MyAlertDialog(
+                    shouldShowDialog = uiState.showErrorDialog,
+                    onDismissRequest = { viewModel.dismissError() },
+                    title = "Can Load Profile",
+                    text = uiState.error ?: "An unknown error occurred",
+                    confirmButtonText = "Refresh",
+                    onConfirmClick = { viewModel.refreshProfile() }
+                )
+            }
+
+            uiState.userProfile != null -> {
+                Surface(color = MaterialTheme.colorScheme.surface) {
+                    LazyColumn(
+                        modifier = modifier,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        item {
+                            uiState.userProfile?.let {
+                                ProfileHeader(
+                                    user = it.user,
+                                    onFollowersClick = {
+                                        isLoadingFollowers = true
+                                        showFollowersSheet = true
+                                        viewModel.loadFollowers(
+                                            uiState.userProfile?.user?.id ?: ""
+                                        ) { users ->
+                                            followersList = users
+                                            isLoadingFollowers = false
+                                        }
+                                    },
+                                    onFollowingClick = {
+                                        isLoadingFollowing = true
+                                        showFollowingSheet = true
+                                        viewModel.loadFollowing(
+                                            uiState.userProfile?.user?.id ?: ""
+                                        ) { users ->
+                                            followingList = users
+                                            isLoadingFollowing = false
+                                        }
                                     }
-                                },
-                                onFollowingClick = {
-                                    isLoadingFollowing = true
-                                    showFollowingSheet = true
-                                    viewModel.loadFollowing(uiState.userProfile?.user?.id ?: "") { users ->
-                                        followingList = users
-                                        isLoadingFollowing = false
-                                    }
-                                }
+                                )
+                            }
+                        }
+                        item {
+                            ProfileSection(
+                                title = "Account",
+                                items = listOf(
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.Person,
+                                        label = "Personal Details",
+                                        onClick = onNavToPersonalDetails
+                                    ),
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.BookmarkBorder,
+                                        label = "Bookmark Collection",
+                                        onClick = onNavToBookmarkCollection
+                                    ),
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.FavoriteBorder,
+                                        label = "Liked Post",
+                                        onClick = onNavToLikedPosts
+                                    ),
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.Lock,
+                                        label = "Your Posts",
+                                        onClick = onNavToYourPosts
+                                    )
+                                )
                             )
                         }
-                    }
-                    item {
-                        ProfileSection(
-                            title = "Account",
-                            items = listOf(
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.Person,
-                                    label = "Personal Details",
-                                    onClick = onNavToPersonalDetails
-                                ),
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.BookmarkBorder,
-                                    label = "Bookmark Collection",
-                                    onClick = onNavToBookmarkCollection
-                                ),
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.FavoriteBorder,
-                                    label = "Liked Post",
-                                    onClick = onNavToLikedPosts
-                                ),
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.Lock,
-                                    label = "Your Posts",
-                                    onClick = onNavToYourPosts
+                        item {
+                            ProfileSection(
+                                title = "Settings",
+                                items = listOf(
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.Notifications,
+                                        label = "Notifications",
+                                        onClick = onNavToNotifications
+                                    ),
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.Palette,
+                                        label = "Theme",
+                                        onClick = onNavToTheme
+                                    ),
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.Settings,
+                                        label = "More Settings",
+                                        onClick = onNavigateToSettingScreen
+                                    )
                                 )
                             )
-                        )
-                    }
-                    item {
-                        ProfileSection(
-                            title = "Settings",
-                            items = listOf(
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.Notifications,
-                                    label = "Notifications",
-                                    onClick = onNavToNotifications
-                                ),
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.Palette,
-                                    label = "Theme",
-                                    onClick = onNavToTheme
-                                ),
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.Settings,
-                                    label = "More Settings",
-                                    onClick = onNavigateToSettingScreen
-                                )
-                            )
-                        )
-                    }
+                        }
 
-                    item {
-                        ProfileSection(
-                            items = listOf(
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.ExitToApp,
-                                    label = "Log Out",
-                                    onClick = {
-                                        viewModel.logOut(onSuccess = onLogOut)
-                                    }
-                                ),
-                                ProfileSectionItem(
-                                    icon = Icons.Outlined.Delete,
-                                    label = "Delete Account",
-                                    onClick = {
-                                        viewModel.showDeleteAccountDialog()
-                                    }
+                        item {
+                            ProfileSection(
+                                items = listOf(
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.ExitToApp,
+                                        label = "Log Out",
+                                        onClick = {
+                                            viewModel.logOut(onSuccess = onLogOut)
+                                        }
+                                    ),
+                                    ProfileSectionItem(
+                                        icon = Icons.Outlined.Delete,
+                                        label = "Delete Account",
+                                        onClick = {
+                                            viewModel.showDeleteAccountDialog()
+                                        }
+                                    )
                                 )
                             )
-                        )
-                    }
-                    item {
-                        Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        item {
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
                     }
                 }
             }

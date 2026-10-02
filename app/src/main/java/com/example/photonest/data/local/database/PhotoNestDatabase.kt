@@ -18,9 +18,11 @@ import com.example.photonest.data.local.entities.*
         CommentEntity::class,
         FollowEntity::class,
         NotificationEntity::class,
-        PendingOperationEntity::class
+        PendingOperationEntity::class,
+        TrendingFeedEntity::class,
+        SuggestedUserEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

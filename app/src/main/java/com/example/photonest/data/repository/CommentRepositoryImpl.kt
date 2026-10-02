@@ -84,18 +84,24 @@ class CommentRepositoryImpl @Inject constructor(
     }
     override suspend fun addComment(comment: Comment): NetworkResult<Unit> = safeFirebaseCall {
         val currentUserId = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
-        val commentId = UUID.randomUUID().toString()
+
+        val commentId = comment.id.ifEmpty { UUID.randomUUID().toString() }
 
         val commentData = hashMapOf(
             "id" to commentId,
             "postId" to comment.postId,
             "userId" to currentUserId,
             "userName" to comment.userName,
-            "userImage" to comment.userImage, // FIXED: Matches Comment.kt mapping exactly
+            "userImage" to comment.userImage,
             "text" to comment.text,
             "timestamp" to System.currentTimeMillis(),
             "likeCount" to 0,
-            "parentCommentId" to comment.parentCommentId
+            "replyCount" to 0,
+            "parentCommentId" to comment.parentCommentId,
+            "likedBy" to emptyList<String>(),
+            "mentions" to emptyList<String>(),
+            "isEdited" to false,
+            "editedAt" to null
         )
 
         firestore.collection(Constants.COMMENTS_COLLECTION)
@@ -111,7 +117,8 @@ class CommentRepositoryImpl @Inject constructor(
         val newComment = comment.copy(
             id = commentId,
             userId = currentUserId,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            likedBy = emptyList()
         )
         commentDao.insertComment(newComment.toEntity())
     }
@@ -124,10 +131,36 @@ class CommentRepositoryImpl @Inject constructor(
 
         if (comment.userId != currentUserId) throw IllegalStateException("You don't have permission to delete this comment")
 
-        firestore.collection(Constants.COMMENTS_COLLECTION).document(commentId).delete().await()
-        firestore.collection(Constants.POSTS_COLLECTION).document(comment.postId).update("commentCount", FieldValue.increment(-1)).await()
+        val batch = firestore.batch()
 
+        // 1. Find all nested replies attached to this specific comment
+        val repliesSnapshot = firestore.collection(Constants.COMMENTS_COLLECTION)
+            .whereEqualTo("parentCommentId", commentId)
+            .get()
+            .await()
+
+        // 2. Queue all replies for deletion
+        repliesSnapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
+        }
+
+        // 3. Queue the parent comment for deletion
+        batch.delete(commentDoc.reference)
+
+        // 4. Accurately decrement the post's comment count (Parent + All nested replies)
+        val totalCommentsToDelete = 1L + repliesSnapshot.documents.size
+        batch.update(
+            firestore.collection(Constants.POSTS_COLLECTION).document(comment.postId),
+            "commentCount",
+            FieldValue.increment(-totalCommentsToDelete)
+        )
+
+        // 5. Execute the wipe atomically
+        batch.commit().await()
+
+        // 6. Clean up the local Room database
         commentDao.deleteCommentById(commentId)
+        commentDao.deleteRepliesForComment(commentId)
     }
 
     override suspend fun getRepliesForComment(commentId: String): NetworkResult<List<Comment>> {
